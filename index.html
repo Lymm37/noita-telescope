@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lymm's Telescope</title>
+    <style>
+        body { background: #111; color: #eee; font-family: monospace; display: flex; height: 100vh; margin: 0; overflow: hidden; }
+        
+        #sidebar { 
+            width: 300px; padding: 20px; background: #222; border-right: 1px solid #444; 
+            display: flex; flex-direction: column; gap: 10px; z-index: 200; overflow-y: auto;
+        }
+        
+        #view { flex: 1; position: relative; overflow: hidden; background: #050505; cursor: crosshair; }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            image-rendering: pixelated;
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            image-rendering: pixelated;
+            mix-blend-mode: multiply;
+            pointer-events: none; 
+            z-index: 10; 
+            display: block;
+            padding: 0%;
+            opacity: 0.0;
+        }
+        
+        input[type="number"], input[type="text"] { background: #333; color: white; border: 1px solid #555; width: 100%; padding: 5px; box-sizing: border-box; }
+        
+        button { background: #dca44b; color: #111; border: none; padding: 10px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        button:disabled { background: #555; cursor: wait; }
+        
+        .options-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; text-align: left;}
+        .search-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+        .search-row label { font-size: 11px; color: #aaa; display: flex; justify-content: space-between; }
+        .search-row label b { color: #dca44b; }
+        .adv-toggle { font-size: 11px; color: #dca44b; cursor: pointer; text-decoration: underline; margin-bottom: 5px; display: block; }
+        #advanced-ui { display: none; background: #1a1a1a; padding: 10px; border: 1px solid #333; margin-top: 5px; }
+
+        input[type="range"] { width: 100%; height: 5px; margin: 5px 0; accent-color: #dca44b; cursor: pointer; }
+
+        .debug-opt { display: block; margin-top: 5px; cursor: pointer; user-select: none; font-size: 12px; text-align: left; }
+        .debug-opt.hidden { display: none; }
+
+        #regions-container { flex: 1; display: flex; flex-direction: column; min-height: 200px; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
+        #regions-list { flex: 1; overflow-y: auto; border: 1px solid #333; background: #1a1a1a; padding: 5px; text-align: left;}
+        
+        #unlocks-container { flex: 1; display: flex; flex-direction: column; min-height: 200px; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
+        #unlocks-list { flex: 1; overflow-y: auto; border: 1px solid #333; background: #1a1a1a; padding: 5px; }
+        .unlock-item { display: flex; align-items: center; padding: 2px 0; font-size: 11px; }
+        .unlock-item input { margin-right: 8px; }
+        .btn-group { display: flex; gap: 5px; margin-bottom: 5px; }
+        .btn-small { padding: 4px 8px; font-size: 11px; flex: 1; background: #444; color: #ccc; }
+
+        /* Tooltip & HUD */
+        #tooltip { 
+            position: absolute; 
+            background: rgba(10, 10, 10, 0.95); 
+            padding: 12px; 
+            border: 2px solid #dca44b; 
+            display: none; 
+            z-index: 100; 
+            min-width: 256px;
+            
+            /* New Properties */
+            max-width: 420px;         /* Prevents it from getting too wide */
+            max-height: calc(100vh - 40px);        /* Maximum height is 80% of the screen */
+            overflow-y: auto;        /* Adds vertical scrollbar if content exceeds max-height */
+            pointer-events: none; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+            box-sizing: border-box;  /* Ensures padding is included in height calculations */
+        }
+        #tooltip::-webkit-scrollbar {
+            width: 6px;
+        }
+        #tooltip::-webkit-scrollbar-thumb {
+            background: #dca44b;
+            border-radius: 3px;
+        }
+        #tooltip::-webkit-scrollbar-track {
+            background: #111;
+        }
+        #tooltip.pinned { pointer-events: auto; user-select: text; border-color: #ff00ff; }
+
+        #coords {
+            position: absolute; pointer-events: none; color: #00ff00; font-size: 12px;
+            text-shadow: 1px 1px 2px #000; display: none; z-index: 90; font-weight: bold;
+        }
+
+        /* Item UI */
+        .item-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 8px; }
+        
+        /* Header Slot Styling */
+        .header-slot {
+            width: 72px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: url('data/spell_sprites/inventory_box.png');
+            background-size: 100% 100%;
+            image-rendering: pixelated;
+            flex-shrink: 0;
+        }
+
+        .item-sprite-header { 
+            width: 64px; 
+            height: 64px; 
+            image-rendering: pixelated; 
+            object-fit: contain; 
+            background: rgba(255,255,255,0.0); 
+            border-radius: 4px; 
+            position: absolute;
+        }
+        
+
+        .inventory-grid { 
+            display: grid; grid-template-columns: repeat(10, 36px); gap: 2px; 
+            background: #000; padding: 4px; border: 1px solid #333; margin-top: 10px;
+        }
+        .slot { 
+            width: 36px; height: 36px; position: relative; 
+            background-image: url('data/spell_sprites/inventory_box.png'); 
+            background-size: 100% 100%; image-rendering: pixelated; 
+        }
+        .spell-icon { width: 32px; height: 32px; position: absolute; top: 2px; left: 2px; image-rendering: pixelated; }
+
+        /* PW Input Styling */
+        .pw-controls { display: flex; align-items: center; gap: 5px; }
+        .pw-controls input { text-align: center; }
+
+        #search-results {
+            margin-top: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            font-size: 11px;
+        }
+
+        .search-item {
+            padding: 6px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .search-item:hover { background: #2a2a2a; }
+        .search-item b { color: #dca44b; }
+        .search-item .meta { color: #888; font-size: 10px; }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 1000; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #dca44b;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Attempt to make explainer text but didn't work because I don't know CSS */
+
+        /* Tooltip container, such as "Exclude Edge Cases" */
+        .textReceivingTooltip {
+        position: relative;
+        display: inline-block;
+        /* border-bottom: 1px dotted black;  Add dots under the hoverable text */
+        cursor: pointer;
+        }
+
+        /* Tooltip text */
+        .tooltiptext {
+        visibility: hidden; /* Hidden by default; the action of hovering over the tooltip container sets the visibility to visible, as seen below */
+        width: 130px;
+        background-color: black;
+        color: #ffffff;
+        text-align: center;
+        padding: 5px 0;
+        border-radius: 6px;
+        position: absolute;
+        top: -5px;
+        left: 105%;
+        z-index: 1; /* Ensure tooltip is displayed above content */
+        }
+
+        /* Show the tooltip text on hover */
+        .text:hover .tooltiptext {
+        visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h1>Lymm's Telescope</h1>
+        <small style="font-size: 10px;">Warning: Not everything implemented, may give incorrect predictions (especially on edges of biomes), make sure to check your unlocks, etc.</small>
+        <h3>Settings</h3>
+        <label>Seed</label> <input type="number" id="seed" placeholder="Enter your seed" value="" min="0" max="2147483647">
+        <label>NG+ Count</label> <input type="number" id="ng" value="0" min="0" max="28">
+        
+        <label>Parallel World (PW)</label>
+        <div class="pw-controls">
+            <button id="pw-dec" class="btn-small" style="flex:0.3">-</button>
+            <input type="number" id="pw" value="0" min="-512" max="512">
+            <button id="pw-inc" class="btn-small" style="flex:0.3">+</button>
+        </div>
+
+        <!-- Come to think of it, who even needs a generate button? Just generate it whenever you change the settings. -->
+        <button id="gen-btn" hidden>Generate World</button>
+        <p id="status">Ready.</p>
+
+        <div id="search-container" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
+            <span style="font-weight:bold; font-size:14px;">Search World</span>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <input type="text" id="search-input" placeholder="Spells, items..." style="flex: 1;">
+                <button id="search-btn" style="flex: 0.4;">Find</button>
+            </div>
+
+            <div id="search-nav" style="display: none; align-items: center; justify-content: space-between; margin-top: 8px; background: #1a1a1a; padding: 5px; border: 1px solid #333;">
+                <button id="search-prev" class="btn-small" style="padding: 2px 8px;">&lt;</button>
+                <span id="search-count" style="font-size: 11px; color: #dca44b;">0 / 0</span>
+                <button id="search-next" class="btn-small" style="padding: 2px 8px;">&gt;</button>
+            </div>
+            <button id="cancel-search" class="btn-small" style="display:none; background:#822; color:white;">CANCEL SEARCH</button>
+
+            <div id="search-results">
+                <!-- Am I even using this? -->
+            </div>
+            
+
+            <span class="adv-toggle">Advanced Filters...</span>
+            
+            <div id="advanced-ui">
+                <div class="search-row">
+                    <label>Wand Name Modifier</label>
+                    <input type="text" id="search-name" placeholder="e.g. Varpuluuta, Taikasauva, Bitcoin...">
+                </div>
+                <div class="search-row">
+                    <label>Always Casts</label>
+                    <input type="text" id="search-ac" placeholder="Spell name...">
+                    <label style="justify-content: flex-start; gap: 5px; margin-top: 2px;">
+                        <input type="checkbox" id="search-ac-any"> Any Always Cast
+                    </label>
+                </div>
+                <div class="search-row" style="flex-direction:row; justify-content:space-between; align-items:center;">
+                    <label>Only Non-Shuffle</label>
+                    <input type="checkbox" id="search-non-shuffle" style="width:auto;">
+                </div>
+                <div class="search-row">
+                    <label>Min Spells/Cast <b id="val-spells">1</b></label>
+                    <input type="range" id="min-spells" min="1" max="26" value="1">
+                </div>
+                <div class="search-row">
+                    <label>Max Cast Delay <b id="val-delay">1.00</b>s</label>
+                    <input type="range" id="max-delay" min="0" max="1.0" step="0.05" value="1.0">
+                </div>
+                <div class="search-row">
+                    <label>Max Recharge Time <b id="val-rech">4.0</b>s</label>
+                    <input type="range" id="max-rech" min="0" max="4.0" step="0.05" value="4.0">
+                </div>
+                <div class="search-row">
+                    <label>Min Mana Max <b id="val-mana">0</b></label>
+                    <input type="range" id="min-mana" min="0" max="3000" step="50" value="0">
+                </div>
+                <div class="search-row">
+                    <label>Min Mana Charge Speed <b id="val-manarech">0</b></label>
+                    <input type="range" id="min-manarech" min="0" max="2000" step="10" value="0">
+                </div>
+                <div class="search-row">
+                    <label>Min Capacity <b id="val-cap">1</b></label>
+                    <input type="range" id="min-cap" min="1" max="27" value="1">
+                </div>
+                <div class="search-row">
+                    <label>Max Spread <b id="val-spread">35</b>°</label>
+                    <input type="range" id="max-spread" min="-33" max="35" value="35">
+                </div>
+                <div class="search-row">
+                    <label>Min Speed Multiplier <b id="val-speed">0.5</b></label>
+                    <input type="range" id="min-speed" min="0.5" max="10.0" step="0.1" value="0.5">
+                </div>
+                <div class="search-row">
+                    <label>Min Length <b id="val-len">0</b></label>
+                    <input type="range" id="min-len" min="0" max="25" value="0">
+                </div>
+                <div class="search-row" style="border-top:1px solid #333; padding-top:5px; margin-top:5px;">
+                    <label style="color:#dca44b; cursor:pointer;">
+                        <input type="checkbox" id="search-all-pw"> Search All PWs (Iterative)
+                    </label>
+                    <label>Limit PW Search <input type="checkbox" checked id="limit-pw-search" style="width:auto; margin-right:5px;"></label>
+                    
+                    <label>PW Limit: <input type="number" id="search-pw-limit" style="width:100px;" value="6" min="0" max="468"> </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Perks (global) -->
+        <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+            <span style="font-weight:bold; font-size:14px;">Perks</span>
+            <div class="options-row">
+                <label style="justify-content: flex-start; gap: 5px; margin-top: 2px;">
+                    <input type="checkbox" id="no-more-shuffle"> No More Shuffle
+                </label>
+            </div>
+            <div class="options-row">
+                <label style="justify-content: flex-start; gap: 5px; margin-top: 2px;">
+                    <input type="checkbox" id="greed-curse"> Greed Curse
+                </label>
+            </div>
+            <div class="options-row">
+                <label> Extra Items in Holy Mountains <input type="number" value="0" min="0" max="5" style="width: 40px;" id="extra-shop-items"></label>
+            </div>
+        </div>
+        
+        <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+            <span style="font-weight:bold; font-size:14px;">Settings/Debug Options</span>
+            <label class="debug-opt"><input type="checkbox" id="recolor-materials" checked> Recolor Materials</label>
+            <label class="debug-opt"><input type="checkbox" id="clear-spawn-pixels"> Clear Spawn Pixels</label>
+            <label class="debug-opt"><input type="checkbox" id="exclude-taikasauva"> Exclude Taikasauva Spawns</label>
+            <label class="debug-opt"><input type="checkbox" id="visited-coalmine-alt-shrine"> Visited Coalmine Alt Shrine</label>
+            <label class="debug-opt"><input type="checkbox" id="debug-hide-pois"> Hide PoIs</label>
+            <label class="debug-opt"><input type="checkbox" id="debug-original-biome-map"> Show Original Biome Map Colors</label>
+            <label class="debug-opt"><input type="checkbox" id="debug-enable-edge-noise"> Enable Edge Noise</label>
+            <label class="debug-opt"><input type="checkbox" id="debug-edge-noise"> Show Biome Edge Noise Debug</label>
+            <label class="debug-opt">
+                Overlay Mode
+                <select id="debug-biome-overlay-mode" style="background: #333; color: white; border: 1px solid #555; width: 40%;">
+                    <option value="none">None</option>
+                    <option value="cheap" selected>Cheap</option>
+                    <option value="normal">Normal</option>
+                    <option value="expanded">Expanded (currently broken, also very slow)</option>
+                </select>
+            </label>
+            <label class="debug-opt"><input type="checkbox" id="debug-draw"> Show Tile Bounds</label>
+            <label class="debug-opt"><input type="checkbox" id="debug-path"> Show Paths</label>
+            <label class="debug-opt hidden"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
+            <label class="debug-opt hidden"><input type="checkbox" id="debug-fix-holy-mountain-edge-noise" checked> Fix Holy Mountain Edge Noise</label>
+            <label class="debug-opt hidden"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases (Unfinished)</label>
+            <label class="debug-opt hidden">Extra Rerolls (Pathfinding Debug)<input type="number" value="0" min="0" max="100" style="width: 60px;" id="debug-extra-rerolls"> </label>
+            <label class="debug-opt hidden"><input type="checkbox" id="debug-rng-info"> Display RNG Info (Deprecated)</label>
+        </div>
+
+        <div id="regions-container">
+            <span style="font-weight:bold; font-size:14px; margin-bottom:5px;">Region Options</span>
+            <div class="btn-group">
+                <button id="regions-all" class="btn-small">All</button>
+                <button id="regions-useful" class="btn-small">Useful</button>
+                <button id="regions-none" class="btn-small">None</button>
+            </div>
+            <div id="regions-list"></div>
+            <label class="region-opt"><input type="checkbox" id="skip-cosmetic-scenes"> Skip Cosmetic Pixel Scenes</label>
+        </div>
+
+        <div id="unlocks-container">
+            <span style="font-weight:bold; font-size:14px; margin-bottom:5px;">Spell Unlocks</span>
+            <div class="btn-group">
+                <button id="unlock-all" class="btn-small">All</button>
+                <button id="unlock-none" class="btn-small">None</button>
+            </div>
+            <div id="unlocks-list"></div>
+        </div>
+
+        <div class="settings-group">
+            <label>Sync Unlocks:</label>
+            <input type="file" id="unlock-folder-picker" webkitdirectory directory multiple style="display:none;">
+            <button onclick="document.getElementById('unlock-folder-picker').click()">Upload Flags Folder</button>
+        </div>
+    </div>
+    
+    <div id="view">
+        <canvas id="debug-noise-canvas"></canvas>
+        <canvas id="canvas"></canvas>
+        <canvas id="overlay"></canvas>
+        <div id="tooltip"></div>
+        <div id="coords"></div>
+        <div id="loading-overlay">
+            <div class="spinner"></div>
+            <div id="loading-text" style="color: #dca44b; font-weight: bold;">Generating World...</div>
+        </div>
+        <div id="reminder" style="width:100%; height:100%; place-items: center; display: grid; align-items:center; justify-content:center; color:#dca44b; font-size:18px; text-align:center; z-index: 20;">
+            <h1>Enter your seed to begin searching your world!</h1>
+            <h3>Remember to check your unlocks!</h3>
+            <h5>Hämis 👍</h5>
+        </div> 
+    </div>
+
+    <script type="module" src="./js/app.js"></script>
+</body>
+</html>
