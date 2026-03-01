@@ -24,7 +24,7 @@ export function cancelSearch() {
     search.results = [];
     search.index = -1;
 	// Disable highlights on PoIs
-	app.poisByPW[app.pw]?.forEach(poi => {
+	app.poisByPW[`${app.pw},${app.pwVertical}`]?.forEach(poi => {
 		poi.highlight = false;
 	});
 	// Update UI elements
@@ -62,6 +62,8 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
 	if (searchActive && allowIterative) return;
 	const searchAllPW = allowIterative && document.getElementById('search-all-pw').checked;
 	const pwLimit = parseInt(document.getElementById('search-pw-limit').value) || 6;
+	const searchVerticalPW = document.getElementById('search-vertical-pw').checked;
+	const pwVerticalLimit = parseInt(document.getElementById('search-pw-vertical-limit').value) || 6;
 	const cancelBtn = document.getElementById('cancel-search');
 
 	searchActive = true;
@@ -69,19 +71,34 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
 	search.index = -1;
 	
 	
-	search.pwSequence = [0];
-	for (let i = 1; i <= pwLimit; i++) { 
-		search.pwSequence.push(i); 
-		search.pwSequence.push(-i); 
+	search.pwSequence = ['0,0'];
+	if (!searchVerticalPW) {
+		for (let i = 1; i <= pwLimit; i++) { 
+			search.pwSequence.push(`${i},0`); 
+			search.pwSequence.push(`-${i},0`); 
+		}
+	}
+	else {
+		const coords = [];
+		// Generate all valid coordinates within the rectangle
+		for (let x = -pwLimit; x <= pwLimit; x++) {
+			for (let y = -pwVerticalLimit; y <= pwVerticalLimit; y++) {
+				coords.push({ x, y, dist: Math.abs(x) + Math.abs(y) });
+			}
+		}
+		// Sort by Manhattan distance
+		// If distances are equal, sort by X then Y to keep it deterministic
+		coords.sort((a, b) => a.dist - b.dist || a.x - b.x || a.y - b.y);
+		search.pwSequence = coords.map(c => `${c.x},${c.y}`);
 	}
 
 	// Logic for Manual Search: If current PW is outside the limit, add it
-    if (!searchAllPW && !search.pwSequence.includes(app.pw)) {
-        search.pwSequence.push(app.pw);
+    if (!searchAllPW && !search.pwSequence.includes(`${app.pw},${app.pwVertical}`)) {
+        search.pwSequence.push(`${app.pw},${app.pwVertical}`);
     }
 
 	if (!searchAllPW) {
-		search.lastPwIdx = search.pwSequence.indexOf(app.pw) - 1;
+		search.lastPwIdx = search.pwSequence.indexOf(`${app.pw},${app.pwVertical}`) - 1;
 	} else {
 		search.lastPwIdx = -1;
 		cancelBtn.style.display = 'block';
@@ -245,9 +262,11 @@ export async function navigateSearch(dir) {
 	const current = search.results[search.index];
 	
 	// Sync app PW state to the result's world
-	if (app.pw !== current.pw) {
+	if (`${app.pw},${app.pwVertical}` !== `${current.pw},${current.pwVertical}`) {
 		app.pw = current.pw;
+		app.pwVertical = current.pwVertical;
 		document.getElementById('pw').value = app.pw;
+		document.getElementById('pw-vertical').value = app.pwVertical;
 		// No need to regenerate wands here, findNextPWMatches already scanned them
 	}
 
@@ -274,28 +293,29 @@ async function findNextPWMatches(isIterative = true) {
 			return false;
 		}
 		
-		const targetPW = search.pwSequence[i];
+		const [targetPW, targetPWVertical] = search.pwSequence[i].split(',').map(Number);
 		search.lastPwIdx = i;
 
 		// If iterative, update the existing display text without resetting the show-timer
 		if (isIterative) {
 			const whitespace = targetPW >= 0 ? '+' : ''; // Align negative PW text (didn't work)
-			app.setLoading(true, `Searching PW ${whitespace}${targetPW}...`);
+			app.setLoading(true, `Searching PW ${whitespace}${targetPW}, ${targetPWVertical}...`);
 		}
 
-		if (!app.poisByPW[targetPW] || !app.pixelScenesByPW[targetPW]) {
-			const scanResults = scanSpawnFunctions(app.biomeData.pixels, app.tileSpawns, seed, ngPlusCount, targetPW, app.skipCosmeticScenes, app.perks);
-			const specialPoIs = getSpecialPoIs(app.biomeData.pixels, seed, ngPlusCount, targetPW, app.perks);
-			app.pixelScenesByPW[targetPW] = scanResults.finalPixelScenes;
-			app.poisByPW[targetPW] = scanResults.generatedSpawns.concat(specialPoIs);
+		if (!app.poisByPW[`${targetPW},${targetPWVertical}`] || !app.pixelScenesByPW[`${targetPW},${targetPWVertical}`]) {
+			const scanResults = scanSpawnFunctions(app.biomeData, app.tileSpawns, seed, ngPlusCount, targetPW, targetPWVertical, app.skipCosmeticScenes, app.perks);
+			const specialPoIs = targetPWVertical === 0 ? getSpecialPoIs(app.biomeData.pixels, seed, ngPlusCount, targetPW, app.perks) : [];
+			app.pixelScenesByPW[`${targetPW},${targetPWVertical}`] = scanResults.finalPixelScenes;
+			app.poisByPW[`${targetPW},${targetPWVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
 		}
-		for (let poi of app.poisByPW[targetPW]) {
+		for (let poi of app.poisByPW[`${targetPW},${targetPWVertical}`]) {
 			if (checkMatch(poi, filters)) {
 				poi.highlight = true; // Highlight the PoI on the map
-				//console.log(`Found match at PW ${targetPW}:`, poi);
+				//console.log(`Found match at PW ${targetPW}, ${targetPWVertical}:`, poi);
 				search.results.push({
 					poi,
 					pw: targetPW,
+					pwVertical: targetPWVertical,
 					//label: (poi.data.item || (poi.data.name || 'SPAWN')).toUpperCase()
 				});
 				foundInThisWorld = true;

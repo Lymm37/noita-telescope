@@ -93,12 +93,48 @@ export function applyCoalmineHack(pixels, width, height, biomeName) {
 				pixels[pIdx + 1] = 0;
 				pixels[pIdx + 2] = 0;
 			} else if (hex !== 0xffffff) {
-				// Noita uses (1,1,1) in these logic masks to represent 
-				// "Solid Material" that overrides the Wang noise.
+				// Overwrite with *some* solid color to block pathfinding (does not really matter what)
 				pixels[pIdx] = 1;
 				pixels[pIdx + 1] = 1;
-				pixels[pIdx + 2] = 2; // Extra hack because I'm looking for gray colors when generating the overlay
-				//pixels[pIdx + 3] = 1;
+				pixels[pIdx + 2] = 1;
+			}
+		}
+	}
+}
+
+export function undoCoalmineHack(pixels, width, height, biomeName) {
+	const overlay = BiomeOverlays[biomeName]?.data;
+	if (!overlay || !overlay.buffer) {
+		console.warn(`Overlay for ${biomeName} not ready!`);
+		return;
+	}
+	// We iterate over the overlay dimensions. 
+	for (let y = 0; y < Math.min(height, overlay.height); y++) {
+		for (let x = 0; x < Math.min(width, overlay.width); x++) {
+			const oIdx = (y * overlay.width + x) * 4;
+			const r = overlay.buffer[oIdx];
+			const g = overlay.buffer[oIdx + 1];
+			const b = overlay.buffer[oIdx + 2];
+			const a = overlay.buffer[oIdx + 3];
+			if (a === 0) continue; // Skip transparent pixels
+
+			const hex = (r << 16) | (g << 8) | b;
+			const pIdx = ((y+4) * width + x) * 3;
+
+			// Logic:
+			// 1. 0x000040 -> Replace with Black (0,0,0) [Entrance/Air]
+			// 2. 0xffffff -> Ignore (Keep Wang tile)
+			// 3. Everything else -> Replace with White (1,1,1) [Solid/Border]
+			
+			if (hex === 0x000040) {
+				pixels[pIdx] = 0;
+				pixels[pIdx + 1] = 0;
+				pixels[pIdx + 2] = 0;
+			} else if (hex !== 0xffffff) {
+				// To undo, also replace these with air (matches what's in game at least)
+				pixels[pIdx] = 0;
+				pixels[pIdx + 1] = 0;
+				pixels[pIdx + 2] = 0;
 			}
 		}
 	}

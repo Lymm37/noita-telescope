@@ -92,7 +92,16 @@ export function generateBiomeData(seed, ng, basePixels, width, height) {
     
     // If NG+ is 0, we just return the base map (static)
     if (ng === 0) {
-        return { pixels, orbs }; 
+        // Generate heaven/hell maps (literally just repeat first/last row)
+        let heavenPixels = new Uint32Array(pixels.length);
+        let hellPixels = new Uint32Array(pixels.length);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                heavenPixels[y * width + x] = pixels[x % width]; // Repeat first row
+                hellPixels[y * width + x] = pixels[(height - 1) * width + (x % width)]; // Repeat last row
+            }
+        }
+        return { pixels, heavenPixels, hellPixels, orbs }; 
     }
 
     const rng = new NollaPrng(0);
@@ -246,5 +255,15 @@ export function generateBiomeData(seed, ng, basePixels, width, height) {
     addOrb(rng.Random(0, 7) + 17, rng.Random(0, 8) + 21, "Orb 2");
     addOrb(rng.Random(0, 7) + 1, rng.Random(0, 9) + 24, "Orb 3");
 
-    return { pixels, orbs };
+    // Generate heaven/hell maps (literally just repeat first/last row)
+    let heavenPixels = new Uint32Array(pixels.length);
+    let hellPixels = new Uint32Array(pixels.length);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            heavenPixels[y * width + x] = pixels[x % width]; // Repeat first row
+            hellPixels[y * width + x] = pixels[(height - 1) * width + (x % width)]; // Repeat last row
+        }
+    }
+
+    return { pixels, heavenPixels, hellPixels, orbs };
 }

@@ -21,7 +21,9 @@ const BIOME_TIERS = {
 	'rainforest_open': 4,
 	'vault': 4,
 	'crypt': 5,
-	// Unclear what the shop level for the tower is, seems like it can just spawn any spell, I thought it was tier 10 but maybe it's just depth-dependent
+	'the_end': 10,
+	'the_sky': 10,
+	// Unclear what the shop level for the tower is, seems like it can just spawn any spell, I thought it was tier 10 but maybe it's just depth-dependent (null)
 	/*
 	'tower_coalmine': 10,
 	'tower_excavationsite': 10,
@@ -76,10 +78,10 @@ function vault_safe(x, y) {
 */
 
 // Might just make this cover all colors?
-export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}) {
+export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}) {
 
 	// Adjust biome with edge noise
-	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeMap, x, y, ng > 0);
+	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0);
 	// Hacky to reference app but I am feeling lazy and this is easier than passing in a parameter
 	// Actually this isn't working anyway, determining if it's an edge case might be hard
 	/*
@@ -125,20 +127,20 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 	if (biomeName === "coalmine") {
 		if (func === "load_pixel_scene") {
 			if (prng.Random(1, 100) > 50)
-				return loadRandomPixelScene(biomeMap, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_oiltank"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_oiltank"], ws, ng, x, y, skipCosmeticScenes);
 			else
-				return loadRandomPixelScene(biomeMap, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_oiltank") {
 			if (prng.Random(1, 100) <= 50) {
-				return loadRandomPixelScene(biomeMap, biomeName, scenes["g_oiltank"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, scenes["g_oiltank"], ws, ng, x, y, skipCosmeticScenes);
 			}
 			else {
-				return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
 			}
 		}
 		else if (func === "load_oiltank_alt") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_oiltank_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_oiltank_alt"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_trapwand") {
 			const options = ["premade_1", "premade_2", "premade_3", "premade_4", "premade_5", "premade_6", "premade_7", "premade_8", "premade_9", "wand_level_01"];
@@ -186,19 +188,19 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 	}
 	else if (biomeName === "excavationsite") {
 		if (func === "load_puzzleroom") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_puzzleroom"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzleroom"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_gunpowderpool_01") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_gunpowderpool_01"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_01"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_gunpowderpool_02") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_gunpowderpool_02"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_02"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_gunpowderpool_03") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_gunpowderpool_03"], ws, ng, x-3, y+3, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_03"], ws, ng, x-3, y+3, skipCosmeticScenes);
 		}
 		else if (func === "load_gunpowderpool_04") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_gunpowderpool_04"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_04"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_meditation_cube") {
 			let rnd = prng.Random(1, 100);
@@ -212,16 +214,16 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 	}
 	else if (biomeName === "snowcave") {
 		if (func === "load_puzzle_capsule") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_puzzle_capsule"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzle_capsule"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_puzzle_capsule_b") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_puzzle_capsule_b"], ws, ng, x-50, y-230, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzle_capsule_b"], ws, ng, x-50, y-230, skipCosmeticScenes);
 		}
 		else if (func === "load_acidtank_right") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_acidtank_right"], ws, ng, x-12, y-12, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_acidtank_right"], ws, ng, x-12, y-12, skipCosmeticScenes);
 		}
 		else if (func === "load_acidtank_left") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_acidtank_left"], ws, ng, x-252, y-12, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_acidtank_left"], ws, ng, x-252, y-12, skipCosmeticScenes);
 		}
 		else if (func === "spawn_buried_eye_teleporter") {
 			return {type: 'item', item: 'buried_eye_teleporter', x: x, y: y};
@@ -248,55 +250,55 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 		}
 		else if (func === "load_chamfer_top_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_top_r", ws, ng, x-10, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_top_r", ws, ng, x-10, y, skipCosmeticScenes);
 		}
 		else if (func === "load_chamfer_top_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_top_l", ws, ng, x-1, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_top_l", ws, ng, x-1, y, skipCosmeticScenes);
 		}
 		else if (func === "load_chamfer_bottom_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes);
 		}
 		else if (func === "load_chamfer_bottom_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_bottom_l", ws, ng, x-1, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_bottom_l", ws, ng, x-1, y-20, skipCosmeticScenes);
 		}
 		else if (func === "load_chamfer_inner_top_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_inner_top_r", ws, ng, x-10, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_top_r", ws, ng, x-10, y, skipCosmeticScenes);
 		}
 		else if (func === "load_chamfer_inner_top_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_inner_top_l", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_top_l", ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_chamfer_inner_bottom_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_inner_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes);
 		}
 		else if (func === "load_chamfer_inner_bottom_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "chamfer_inner_bottom_l", ws, ng, x, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_bottom_l", ws, ng, x, y-20, skipCosmeticScenes);
 		}
 		else if (func === "load_pillar_filler") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "pillar_filler_01", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "pillar_filler_01", ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_pillar_filler_tall") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeMap, biomeName, "pillar_filler_tall_01", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "pillar_filler_tall_01", ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_pod_large") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pods_large"], ws, ng, x, y-50, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_large"], ws, ng, x, y-50, skipCosmeticScenes);
 		}
 		else if (func === "load_pod_small_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pods_small_l"], ws, ng, x-30, y-40, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_small_l"], ws, ng, x-30, y-40, skipCosmeticScenes);
 		}
 		else if (func === "load_pod_small_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pods_small_r"], ws, ng, x-10, y-40, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_small_r"], ws, ng, x-10, y-40, skipCosmeticScenes);
 		}
 		else if (func === "spawn_potion" || func === "spawn_props3") {
 			// 0.1 nothing, 0.3 green, 0.3 red, 0.3 blue, 0.2 yellow, 0.1 alcohol, 0.025 potion
@@ -321,19 +323,19 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 	}
 	else if (biomeName === "vault" || biomeName === "vault_frozen") {
 		if (func === "load_pixel_scene_wide") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_wide"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_wide"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_pixel_scene_tall") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_tall"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_tall"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_stains") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_stains"], ws, ng, x-10, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_stains"], ws, ng, x-10, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_stains_ceiling") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_stains_ceiling"], ws, ng, x-20, y-10, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_stains_ceiling"], ws, ng, x-20, y-10, skipCosmeticScenes);
 		}
 		else if (func === "spawn_laser_trap") {
-			return loadPixelScene(biomeMap, biomeName, "hole", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "hole", ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_lab_puzzle") {
 			//console.log("Spawning lab puzzle at", x, y);
@@ -360,55 +362,66 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 			};
 		}
 		else if (func === "spawn_pipes_hor") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_hor"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_hor"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_ver") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_ver"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_ver"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_turn_right") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_turn_right"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_turn_right"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_turn_left") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_turn_left"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_turn_left"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_cross") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_cross"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_cross"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_big_hor") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_big_hor"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_hor"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_big_ver") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_big_ver"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_ver"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_big_turn_right") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_big_turn_right"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_turn_right"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "spawn_pipes_big_turn_left") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pipes_big_turn_left"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_turn_left"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (func === "load_catwalk") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_catwalks"], ws, ng, x, y-20, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_catwalks"], ws, ng, x, y-20, skipCosmeticScenes);
 		}
 	}
 	else if (biomeName === "crypt" || biomeName === "wizardcave") {
 		if (func === "load_beam") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_beam"], ws, ng, x, y-65, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_beam"], ws, ng, x, y-65, skipCosmeticScenes);
 		}
 		else if (func === "load_cavein") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_cavein"], ws, ng, x-60, y-10, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_cavein"], ws, ng, x-60, y-10, skipCosmeticScenes);
 		}
 	}
 	else if (biomeName === "liquidcave") {
 		if (func === "load_pixel_scene") {
 			// Took me way too long to realize this one has a custom offset
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_01"], ws, ng, x-5, y-3, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x-5, y-3, skipCosmeticScenes);
 		}
 	}
-	else if (biomeName === "the_end") {
+	else if (biomeName === "the_end" || biomeName === "the_sky") {
 		if (func === "spawn_heart" || func === "spawn_potions" || func === "spawn_wands" || func === "spawn_potion_altar") {
 			// Hell specifically disables these function despite having spawn pixels for hearts/chests
 			// Note that this does not apply to the hell version of the tower, which actually can spawn hearts (from what I have seen)
 			return null;
+		}
+		else if (func === "spawn_shopitem") {
+			if (prng.Random(1, 50) === 1) {
+				return generateShopItem(ws, ng, x, y, BIOME_TIERS[biomeName], 0);
+			}
+			else {
+				return null;
+			}
+		}
+		else if (func === "spawn_specialshop") {
+			return generateShopItem(ws, ng, x, y, BIOME_TIERS[biomeName], 0);
 		}
 	}
 
@@ -539,11 +552,11 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeMap, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeMap, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
 			}
 		}
 		else {
@@ -564,11 +577,11 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeMap, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeMap, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
 			}
 		}
 		else {
@@ -589,7 +602,7 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 	// Also not technically default, used for mines and snowy depths
 	else if (func === "load_altar") {
 		//console.log("Spawning altar pixel scene at", x, y);
-		return loadPixelScene(biomeMap, biomeName, "trailer_altar", ws, ng, x-92, y-96, skipCosmeticScenes);
+		return loadPixelScene(biomeData, biomeName, "trailer_altar", ws, ng, x-92, y-96, skipCosmeticScenes);
 	}
 	else if (func === "spawn_treasure") {
 		// TODO: This is probably better as an isolated spell but it's easier to set up as an item
@@ -613,31 +626,31 @@ export function spawnSwitch(biomeMap, biomeName, functionIndex, ws, ng, x, y, sk
 	// Default pixel scenes (technically only 1 and 2 are, but adding the other reused ones for convenience here)
 	if (PIXEL_SCENE_BIOME_MAP[biomeName]) {
 		if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01"] && func === "load_pixel_scene") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01_alt"] && func === "load_pixel_scene_alt") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_01_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01_alt"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_02"] && func === "load_pixel_scene2") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_02"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_02"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_03"] && func === "load_pixel_scene3") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_03"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_03"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_04"] && func === "load_pixel_scene4") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_04"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_04"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_04_alt"] && func === "load_pixel_scene4_alt") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_04_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_04_alt"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_05"] && func === "load_pixel_scene5") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_05"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_05b"] && func === "load_pixel_scene5b") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_05b"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05b"], ws, ng, x, y, skipCosmeticScenes);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_05_alt"] && func === "load_pixel_scene5_alt") {
-			return loadRandomPixelScene(biomeMap, biomeName, scenes["g_pixel_scene_05_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05_alt"], ws, ng, x, y, skipCosmeticScenes);
 		}
 	}
 	return null;

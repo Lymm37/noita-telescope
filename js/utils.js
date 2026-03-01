@@ -19,7 +19,7 @@ export const CONTAINER_TYPES = [
 ];
 
 // This function is pretty messed up even though it's currently in a working state
-export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw = 0, isNGP = false) {
+export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw = 0, pwVertical = 0, isNGP = false) {
     const world_chunk_center_x = isNGP ? WORLD_CHUNK_CENTER_X_NGP : WORLD_CHUNK_CENTER_X;
     const worldSize = isNGP ? 64 * 512 - 8 : 70 * 512;
 
@@ -65,7 +65,7 @@ export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw 
     }
 
     worldX_alt += pw * worldSize;
-
+    worldY_alt += pwVertical * 24570; // Note, 6 pixels off from 512 * 48. Again, vertical chunks aren't divisible by 5...
     // World-shattering change
     return { x: worldX_alt, y: worldY_alt };
 }
@@ -141,14 +141,22 @@ export function getWorldCenter(isNGP) {
     return isNGP ? 32 : 35;
 }
 
-export function getBiomeAtWorldCoordinates(biomeMap, worldX, worldY, isNGP = false) {
+export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false) {
+    let biomeMap = biomeData.pixels;
+    // Don't need this anymore?
+    if (worldY < -14*512) {
+        biomeMap = biomeData.heavenPixels;
+    }
+    else if (worldY > 34*512) {
+        biomeMap = biomeData.hellPixels;
+    }
     const mapWidth = getWorldSize(isNGP);
     // Convert to positions mod world size
     const worldSize = mapWidth * 512;
     const worldCenter = worldSize / 2;
     // Not sure whether or not to use the tile offsets here
     const modX = ((worldX + worldCenter) % worldSize + worldSize) % worldSize;
-    const modY = ((worldY + 14*512) % worldSize + worldSize) % worldSize; 
+    const modY = ((worldY + 14*512) % 24570 + 24570) % 24570; 
     
     // Account for biome edge noise
     let highDetail = true; // Seems to be required to avoid false negatives...
@@ -166,7 +174,12 @@ export function getBiomeAtWorldCoordinates(biomeMap, worldX, worldY, isNGP = fal
     let biomePixelX = originalX + edgeOffset.x;
     let biomePixelY = originalY + edgeOffset.y;
     
-    const idx = biomePixelY * mapWidth + biomePixelX;
+    let idx = biomePixelY * mapWidth + biomePixelX;
+
+    // Fix for heaven/hell? or at least map edge cases
+    if (idx < 0) idx = biomePixelX % mapWidth;
+    if (idx >= biomeMap.length) idx = mapWidth * 47 + biomePixelX % mapWidth;
+
     const colorInt = biomeMap[idx] & 0xffffff; 
     let biomeName = BIOME_COLOR_TO_NAME[colorInt];
     if (!BIOME_COLORS_WITH_TILES.has(colorInt)) biomeName = null; // Only return biomes with tiles, otherwise it's just noise that causes false positives
@@ -194,10 +207,10 @@ export function getBiomeAtWorldCoordinates(biomeMap, worldX, worldY, isNGP = fal
     };
 }
 
-export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, worldY, pwIndex, isNGP = false) {
+export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, worldY, pwIndex, pwIndexVertical, isNGP = false) {
     // Adjust for PW
     const adjustedWorldX = getWorldCenter(isNGP) * 512 + worldX - pwIndex * getWorldSize(isNGP) * 512 + (isNGP ? -8 * pwIndex : 0) - VISUAL_TILE_OFFSET_X;
-    const adjustedWorldY = 14 * 512 + worldY - VISUAL_TILE_OFFSET_Y;
+    const adjustedWorldY = 14 * 512 + worldY - pwIndexVertical * 24570 - VISUAL_TILE_OFFSET_Y;
     for (const layer of tileLayers) {
         // Check if the world coordinate falls within this layer's bounds
         // (Assuming layer.x/y are in world units)
@@ -229,7 +242,8 @@ export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, w
             if (MATERIAL_COLOR_LOOKUP[hexStr]) {
                 return MATERIAL_COLOR_LOOKUP[hexStr];
             }
-            break; // No need to check other layers if we've found the correct one, hopefully
+            //break; // No need to check other layers if we've found the correct one, hopefully
+            // Actually nevermind, forgot about the single chunk fungal caverns inside the range of other biomes
             // If it didn't find a material it's probably in a pixel scene
         }
     }

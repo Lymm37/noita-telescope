@@ -1,6 +1,6 @@
 import { NollaPrng } from './nolla_prng.js';
 import { stbhw_generate_image, stbhw_build_tileset_from_image, StbhwTileset, stbhw_set_prng } from './stbhw.js';
-import { applyMainBiomeHack, applyCoalmineHack, applyPostprocessingHacks } from './biome_hacks.js';
+import { applyMainBiomeHack, applyCoalmineHack, applyPostprocessingHacks, undoCoalmineHack } from './biome_hacks.js';
 import { blockOutRooms } from './pixel_scene_generation.js';
 import { findMinPath } from './pathfinding.js';
 import { CHUNK_SIZE, TILE_SIZE } from './constants.js';
@@ -299,6 +299,11 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
                             }
                         }
                     }
+                }
+
+                // Replace coalmine hack blocked area with air
+                if (biomeName === 'coalmine' || biomeName === 'tower_coalmine') {
+                    undoCoalmineHack(rawResult.buffer, rawResult.width, rawResult.height, 'coalmine');
                 }
 
                 // Clear path, fill coffee, randomize colors

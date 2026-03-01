@@ -210,11 +210,20 @@
         <label>Seed</label> <input type="number" id="seed" placeholder="Enter your seed" value="" min="0" max="2147483647">
         <label>NG+ Count</label> <input type="number" id="ng" value="0" min="0" max="28">
         
-        <label>Parallel World (PW)</label>
+        <label>Parallel Worlds (PWs)</label>
+
+        <label>Horizontal</label>
         <div class="pw-controls">
             <button id="pw-dec" class="btn-small" style="flex:0.3">-</button>
-            <input type="number" id="pw" value="0" min="-512" max="512">
+            <input id="pw" type="number" value="0" min="-512" max="512">
             <button id="pw-inc" class="btn-small" style="flex:0.3">+</button>
+        </div>
+
+        <label>Vertical</label>
+        <div class="pw-controls">
+            <button id="pw-dec-vertical" class="btn-small" style="flex:0.3">-</button>
+            <input id="pw-vertical" type="number" value="0" min="-683" max="683">
+            <button id="pw-inc-vertical" class="btn-small" style="flex:0.3">+</button>
         </div>
 
         <!-- Come to think of it, who even needs a generate button? Just generate it whenever you change the settings. -->
@@ -299,8 +308,10 @@
                         <input type="checkbox" id="search-all-pw"> Search All PWs (Iterative)
                     </label>
                     <label>Limit PW Search <input type="checkbox" checked id="limit-pw-search" style="width:auto; margin-right:5px;"></label>
-                    
                     <label>PW Limit: <input type="number" id="search-pw-limit" style="width:100px;" value="6" min="0" max="468"> </label>
+                    <label>Search Vertical PWs <input type="checkbox" id="search-vertical-pw" style="width:auto; margin-right:5px;"></label>
+                    <label>Vertical PW Limit: <input type="number" id="search-pw-vertical-limit" style="width:100px;" value="6" min="0" max="683"> </label>
+                    <small style="font-size:8px">Only tier 10 spells spawn in vertical PWs, don't use it for wand/item searches or it will be slow for no reason</small>
                 </div>
             </div>
         </div>

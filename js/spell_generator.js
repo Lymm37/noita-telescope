@@ -70,6 +70,7 @@ export function GetRandomAction(ws, ng, x, y, level, offset = 0) {
         else if (depthScale <= 20) level = 4;
         else if (depthScale <= 24) level = 5;
         else if (depthScale <= 33) level = 6;
+        // Weird missing range?
         else if (depthScale > 35) level = 7;
         else level = 0;
     }
@@ -137,11 +138,11 @@ export function MakeRandomUtilitySpell(prng) {
 		spell = ALL_SPELLS[itemno-1].name;
 		valid = true;
 	}
-	return {item: 'spell', spell: spell}; // Doesn't include x or y, but it's always inside a utility box and added there
+	return {type: 'item', item: 'spell', spell: spell}; // Doesn't include x or y, but it's always inside a utility box and added there
 }
 
 export function generateShopItem(ws, ng, x, y, tier, offset=0) {
-    return {item: 'spell', spell: GetRandomAction(ws, ng, x, y, tier, offset), x: x, y: y};
+    return {type: 'item', item: 'spell', spell: GetRandomAction(ws, ng, x, y, tier, offset), x: x, y: y};
 }
 
 

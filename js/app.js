@@ -11,7 +11,7 @@ import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUA
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getWorldCenter, getWorldSize } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
-import { BIOME_COLOR_LOOKUP, createTileOverlays, createTileOverlaysCheap, createTileOverlaysExpanded } from './image_processing.js';
+import { BIOME_COLOR_LOOKUP, createBiomeMapOverlayVerticalPW, createTileOverlays, createTileOverlaysCheap, createTileOverlaysExpanded } from './image_processing.js';
 import { COALMINE_ALT_SCENES } from './pixel_scene_config.js';
 import { createBiomeMapOverlay } from './image_processing.js';
 //import { BIOME_SPAWN_FUNCTION_MAP } from './spawn_function_config.js';
@@ -19,9 +19,18 @@ import { debugBiomeEdgeNoise } from './edge_noise.js';
 import { reloadPixelSceneCache } from './pixel_scene_generation.js';
 
 export const app = {
-	canvas: null, ctx: null, offscreen: null, 
-	overlay: null, ctxo: null, 
+	// TODO: A lot of these are old and unused and could probably be cleaned up
+	canvas: null, 
+	ctx: null, 
+	offscreen: null, 
+	offscreenHeaven: null,
+	offscreenHell: null,
+	overlay: null, 
+	ctxo: null, 
+	// Background maps, recolored by biome
 	recolorOffscreen: null,
+	recolorOffscreenHeaven: null, 
+	recolorOffscreenHell: null,
 	w: 0, h: 0, 
 	biomeData: null,
 	tileLayers: [],
@@ -30,6 +39,7 @@ export const app = {
 	assets: { ng0: null, ngp: null },
 	pinnedTooltip: null,
 	pw: 0,
+	pwVertical: 0,
 	seed: 0,
 	ngPlusCount: 0,
 	isNGP: false,
@@ -54,7 +64,11 @@ export const app = {
 		//this.overlay = document.getElementById('overlay');
 		//this.ctxo = this.overlay.getContext('2d');
 		this.offscreen = document.createElement('canvas');
+		this.offscreenHeaven = document.createElement('canvas');
+		this.offscreenHell = document.createElement('canvas');
 		this.recolorOffscreen = document.createElement('canvas');
+		this.recolorOffscreenHeaven = document.createElement('canvas');
+		this.recolorOffscreenHell = document.createElement('canvas');
 		const vp = document.getElementById('view');
 
 		const resize = () => {
@@ -76,6 +90,7 @@ export const app = {
 		document.querySelector('.adv-toggle').onclick = () => this.toggleAdvancedSearch();
 		
 		// PW Controls
+		// Horizontal
 		const pwInput = document.getElementById('pw');
 		pwInput.onchange = () => {
 			this.pw = parseInt(pwInput.value) || 0;
@@ -99,6 +114,31 @@ export const app = {
 		document.getElementById('pw-dec').onclick = () => {
 			pwInput.value = Math.max(-512, parseInt(pwInput.value) - 1);
 			pwInput.onchange();
+		};
+		// Vertical
+		const pwInputVertical = document.getElementById('pw-vertical');
+		pwInputVertical.onchange = () => {
+			this.pwVertical = parseInt(pwInputVertical.value) || 0;
+			// Regenerate/Scan for wands/items in the new PW
+			cancelSearch(); // Cancel any active search when changing PW
+			cancelBtn.style.display = 'none';
+			this.generate(false, false).then(() => {
+				// Rerun the search after scanning is complete to find new matches
+				//cancelSearch(); // No need to cancel it here, new PW means new results anyway
+				if (isSearchActive()) {
+					performSearch(false, false);
+					this.draw();
+				}
+				
+			});
+		};
+		document.getElementById('pw-inc-vertical').onclick = () => {
+			pwInputVertical.value = Math.min(512, parseInt(pwInputVertical.value) + 1);
+			pwInputVertical.onchange();
+		};
+		document.getElementById('pw-dec-vertical').onclick = () => {
+			pwInputVertical.value = Math.max(-512, parseInt(pwInputVertical.value) - 1);
+			pwInputVertical.onchange();
 		};
 
 		// Generate
@@ -208,7 +248,7 @@ export const app = {
 		};
 		document.getElementById('limit-pw-search').onchange = () => {
 			if (document.getElementById('limit-pw-search').checked) {
-				document.getElementById('search-pw-limit').disabled = false;
+				// No real need to disable the input fields
 			} else {
 				if (this.ngPlusCount > 0) {
 					document.getElementById('search-pw-limit').value = 512;
@@ -216,11 +256,33 @@ export const app = {
 				else {
 					document.getElementById('search-pw-limit').value = 468;
 				}
-				document.getElementById('search-pw-limit').disabled = true;
+				if (document.getElementById('search-vertical-pw').checked) {
+					document.getElementById('search-pw-vertical-limit').value = 683;
+				}
 			}
 		};
-		// Actually just read this value in performSearch, no need for an event handler
-		//document.getElementById('search-pw-limit').onchange = () => {};
+		document.getElementById('search-vertical-pw').onchange = () => {
+			if (document.getElementById('search-vertical-pw').checked) {
+				// No real need to disable the input fields
+			} else {
+				document.getElementById('search-pw-vertical-limit').value = 683;
+			}
+		};
+		document.getElementById('search-pw-limit').onchange = () => {
+			let value = parseInt(document.getElementById('search-pw-limit').value);
+			if (!value || isNaN(value) || value < 0) value = 0;
+			else {
+				if (this.isNGP && value > 512) value = 512;
+				if (!this.isNGP && value > 468) value = 468;
+			}
+			document.getElementById('search-pw-limit').value = value;
+		};
+		document.getElementById('search-pw-vertical-limit').onchange = () => {
+			let value = parseInt(document.getElementById('search-pw-vertical-limit').value);
+			if (!value || isNaN(value) || value < 0) value = 0;
+			else if (value > 683) value = 683;
+			document.getElementById('search-pw-vertical-limit').value = value;
+		};
 
 		// Event Handlers
 
@@ -243,6 +305,9 @@ export const app = {
 				const checkbox = document.getElementById(`unlock-${flagKey}`);
 				checkbox.checked = foundFlags.has(flagKey);
 			});
+
+			// Almost forgot about this
+			this.unlocksChanged = true;
 
 			this.generate(false, true);
 		});
@@ -430,10 +495,10 @@ export const app = {
 
 		// Check cached PoIs for the current Parallel World
 		if (!hit) {
-			const currentPois = this.poisByPW[this.pw];
+			const currentPois = this.poisByPW[`${this.pw},${this.pwVertical}`];
 			const poiHit = currentPois.find(p => {
 				const px = p.x - (this.pw * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512;
-				const py = p.y + 14 * 512;
+				const py = p.y + 14 * 512 - (this.pwVertical * 24570);
 				let tempRadius = POI_RADIUS;
 				if (p.highlight) {
 					tempRadius = POI_RADIUS / this.cam.z;
@@ -444,7 +509,7 @@ export const app = {
 				if (p.data) {
 					// Coordinates already account for PW shift
 					const px = p.data.x + getWorldCenter(this.isNGP) * 512 - (this.pw * 512 * getWorldSize(this.isNGP));
-					const py = p.data.y + 14 * 512;
+					const py = p.data.y + 14 * 512 - (this.pwVertical * 24570);
 					return Math.sqrt((px - wx) ** 2 + (py - wy) ** 2) < POI_RADIUS;
 				}
 				return false;
@@ -456,44 +521,44 @@ export const app = {
 	},
 
 	hover(e) {
-		const rect = document.getElementById('view').getBoundingClientRect();
-		const wx = (e.clientX - rect.left - this.canvas.width/2) / this.cam.z + this.cam.x;
-		const wy = (e.clientY - rect.top - this.canvas.height/2) / this.cam.z + this.cam.y;
-		
-		const coordsDiv = document.getElementById('coords');
-		coordsDiv.style.display = 'block';
-		coordsDiv.style.left = (e.clientX - rect.left + 15) + 'px';
-		coordsDiv.style.top = (e.clientY - rect.top - 25) + 'px';
-		
-		// Absolute coordinate math
-		const absX = Math.floor(wx - 512*getWorldCenter(this.isNGP)) + (this.pw * 512 * getWorldSize(this.isNGP));
-		const absY = Math.floor(wy - 512*14);
-		let biomeName = '';
-		if (this.biomeData && this.biomeData.pixels) {
+		if (this.biomeData) {
+			const rect = document.getElementById('view').getBoundingClientRect();
+			const wx = (e.clientX - rect.left - this.canvas.width/2) / this.cam.z + this.cam.x;
+			const wy = (e.clientY - rect.top - this.canvas.height/2) / this.cam.z + this.cam.y;
+			
+			const coordsDiv = document.getElementById('coords');
+			coordsDiv.style.display = 'block';
+			coordsDiv.style.left = (e.clientX - rect.left + 15) + 'px';
+			coordsDiv.style.top = (e.clientY - rect.top - 25) + 'px';
+			
+			// Absolute coordinate math
+			const absX = Math.floor(wx - 512*getWorldCenter(this.isNGP)) + (this.pw * 512 * getWorldSize(this.isNGP));
+			const absY = Math.floor(wy - 512*14 + (this.pwVertical * 512 * 48));
+			let biomeName = '';
 			// Get biome
-			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData.pixels, absX, absY, this.isNGP);
+			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP);
 			if (biomeResult && biomeResult.biome) {
 				biomeName = `<br>Biome: ${getDisplayName(biomeResult.biome)}`;
 			}
-		}
-		let materialName = '';
-		if (this.tileLayers && this.tileLayers.length > 0 && this.pixelScenesByPW && this.pixelScenesByPW[this.pw]) {
-			// Get material
-			const material = getMaterialAtWorldCoordinates(this.tileLayers, this.pixelScenesByPW[this.pw], absX, absY, this.isNGP);
-			if (material) {
-				materialName = `<br>Material: ${getDisplayName(material)}`;
+			let materialName = '';
+			if (this.tileLayers && this.tileLayers.length > 0 && this.pixelScenesByPW && this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]) {
+				// Get material
+				const material = getMaterialAtWorldCoordinates(this.tileLayers, this.pixelScenesByPW[`${this.pw},${this.pwVertical}`], absX, absY, this.pw, this.pwVertical, this.isNGP);
+				if (material) {
+					materialName = `<br>Material: ${getDisplayName(material)}`;
+				}
 			}
-		}
-		coordsDiv.innerHTML = `${absX}, ${absY}${biomeName}${materialName}`;
+			coordsDiv.innerHTML = `${absX}, ${absY}${biomeName}${materialName}`;
 
-		const hit = this.getHitObject(e);
-		const tip = document.getElementById('tooltip');
-		if (!hit) {
-			if (!this.pinnedTooltip) tip.style.display = 'none';
-			return;
+			const hit = this.getHitObject(e);
+			const tip = document.getElementById('tooltip');
+			if (!hit) {
+				if (!this.pinnedTooltip) tip.style.display = 'none';
+				return;
+			}
+			updateTooltip(e, hit, tip);
+			toggleTooltipPinned(tip, false);
 		}
-		updateTooltip(e, hit, tip);
-		toggleTooltipPinned(tip, false);
 	},
 
 	async preload() {
@@ -549,6 +614,7 @@ export const app = {
 		const ngVal = parseInt(document.getElementById('ng').value);
 		this.ngPlusCount = ngVal;
 		this.pw = parseInt(document.getElementById('pw').value) || 0;
+		this.pwVertical = parseInt(document.getElementById('pw-vertical').value) || 0;
 		this.isNGP = ngVal > 0;
 
 		// Set limits on PWs
@@ -579,6 +645,15 @@ export const app = {
 				this.pw = -468;
 				document.getElementById('pw').value = -468;
 			}
+		}
+
+		if (this.pwVertical > 683) {
+			this.pwVertical = 683;
+			document.getElementById('pw-vertical').value = 683;
+		}
+		else if (this.pwVertical < -683) {
+			this.pwVertical = -683;
+			document.getElementById('pw-vertical').value = -683;
 		}
 
 		// Update unlocks (should probably add something to check if they changed to save a bit)
@@ -621,14 +696,15 @@ export const app = {
 				global_extra_rerolls
 			);
 
+			// No longer used
 			for (let layer of this.tileLayers) {
 				// Initialize
 				layer.pixelScenesByPW = {};
 			}
 
-			// Create overlay
+			// Create recolored background (TODO: does this need to be done here?)
 			this.renderRecolorMap();
-			this.biomeMapOverlay = createBiomeMapOverlay(this.biomeData, getWorldSize(this.isNGP), 48, this.recolorOffscreen);
+			//this.biomeMapOverlay = createBiomeMapOverlay(this.biomeData, getWorldSize(this.isNGP), 48, this.recolorOffscreen);
 
 			// Prescan spawn functions for generated tiles, only needs to be done once per seed/NG+ combination, not every time PW or perks change
 			this.tileSpawns = prescanSpawnFunctions(this.tileLayers, this.isNGP);
@@ -642,30 +718,15 @@ export const app = {
 
 		// 2. SPAWN FUNCTION SCANNING
 
-		if (rescan || !this.pixelScenesByPW[this.pw] || !this.poisByPW[this.pw]) {
-			const scanResults = scanSpawnFunctions(this.biomeData.pixels, this.tileSpawns, this.seed, this.ngPlusCount, this.pw, this.skipCosmeticScenes, this.perks);
-			this.pixelScenesByPW[this.pw] = scanResults.finalPixelScenes;
-			this.poisByPW[this.pw] = scanResults.generatedSpawns.concat(getSpecialPoIs(this.biomeData.pixels, this.seed, this.ngPlusCount, this.pw, this.perks));
-			
-			// Instead of doing this here, do it before render, because otherwise it causes search to slow down for no reason
-			/*
-			const biomeOverlayMode = document.getElementById('debug-biome-overlay-mode').value;
-			if (biomeOverlayMode !== 'none') {
-				if (biomeOverlayMode === 'expanded') {
-					this.tileOverlaysByPW[this.pw] = createTileOverlaysExpanded(this.biomeData.pixels, this.recolorOffscreen, this.tileLayers, this.pw, this.isNGP);
-				}
-				else if (biomeOverlayMode === 'normal') {
-					this.tileOverlaysByPW[this.pw] = createTileOverlays(this.biomeData.pixels, this.recolorOffscreen, this.tileLayers, this.pw, this.isNGP);
-				}
-				else {
-					this.tileOverlaysByPW[this.pw] = createTileOverlaysCheap(this.biomeData.pixels, this.tileLayers, this.pw, this.isNGP);
-				}
-			}
-			*/
+		if (rescan || !this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] || !this.poisByPW[`${this.pw},${this.pwVertical}`]) {
+			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.skipCosmeticScenes, this.perks);
+			this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = scanResults.finalPixelScenes;
+			const specialPoIs = this.pwVertical === 0 ? getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, this.pw, this.perks) : [];
+			this.poisByPW[`${this.pw},${this.pwVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
 		}
 
 		// Debug: Show example JSON output
-		//console.log(this.poisByPW[this.pw]);
+		//console.log(this.poisByPW[`${this.pw},${this.pwVertical}`]);
 
 		// Generate eye messages
 		if (tiles) {
@@ -679,19 +740,42 @@ export const app = {
 		btn.disabled = false;
 		btn.innerText = "Generate World";
 		this.setLoading(false);
-		document.getElementById('status').innerText = `Done (PW ${this.pw}).`;
+		document.getElementById('status').innerText = `Done (PW ${this.pw}, ${this.pwVertical}).`;
 	},
 
 	renderOffscreen() {
 		this.offscreen.width = this.w; this.offscreen.height = this.h;
 		const ctx = this.offscreen.getContext('2d');
 		const id = ctx.createImageData(this.w, this.h);
-		const p = this.biomeData.pixels;
-		for(let i=0; i<p.length; i++) {
-			id.data[i*4+0] = (p[i]>>16)&0xFF; id.data[i*4+1] = (p[i]>>8)&0xFF;
-			id.data[i*4+2] = p[i]&0xFF; id.data[i*4+3] = 255;
+		for(let i = 0; i < this.biomeData.pixels.length; i++) {
+			id.data[i*4+0] = (this.biomeData.pixels[i]>>16)&0xFF; 
+			id.data[i*4+1] = (this.biomeData.pixels[i]>>8)&0xFF;
+			id.data[i*4+2] = this.biomeData.pixels[i]&0xFF; 
+			id.data[i*4+3] = 255;
 		}
 		ctx.putImageData(id, 0, 0);
+
+		this.offscreenHeaven.width = this.w; this.offscreenHeaven.height = this.h;
+		const ctxHeaven = this.offscreenHeaven.getContext('2d');
+		const heavenData = ctxHeaven.createImageData(this.w, this.h);
+		for (let i = 0; i < this.biomeData.heavenPixels.length; i++) {
+			heavenData.data[i*4+0] = (this.biomeData.heavenPixels[i]>>16)&0xFF;
+			heavenData.data[i*4+1] = (this.biomeData.heavenPixels[i]>>8)&0xFF;
+			heavenData.data[i*4+2] = this.biomeData.heavenPixels[i]&0xFF;
+			heavenData.data[i*4+3] = 255;
+		}
+		ctxHeaven.putImageData(heavenData, 0, 0);
+
+		this.offscreenHell.width = this.w; this.offscreenHell.height = this.h;
+		const ctxHell = this.offscreenHell.getContext('2d');
+		const hellData = ctxHell.createImageData(this.w, this.h);
+		for (let i = 0; i < this.biomeData.hellPixels.length; i++) {
+			hellData.data[i*4+0] = (this.biomeData.hellPixels[i]>>16)&0xFF;
+			hellData.data[i*4+1] = (this.biomeData.hellPixels[i]>>8)&0xFF;
+			hellData.data[i*4+2] = this.biomeData.hellPixels[i]&0xFF;
+			hellData.data[i*4+3] = 255;
+		}
+		ctxHell.putImageData(hellData, 0, 0);
 	},
 
 	renderRecolorMap() {
@@ -747,6 +831,45 @@ export const app = {
 			id.data[i*4+3] = 255;
 		}
 		ctx.putImageData(id, 0, 0);
+
+		// Create heaven/hell versions
+		// Create image data of same size
+		this.recolorOffscreenHeaven.width = this.w;
+		this.recolorOffscreenHeaven.height = this.h;
+		const ctxHeaven = this.recolorOffscreenHeaven.getContext('2d');
+		const heavenData = ctxHeaven.createImageData(this.w, this.h);
+		/*
+		for (let i = 0; i < this.biomeData.heavenPixels.length; i++) {
+			const color = this.biomeData.heavenPixels[i] & 0xFFFFFF;
+			const recolor = BIOME_COLOR_LOOKUP[color] || color;
+			heavenData.data[i*4+0] = (recolor >> 16) & 0xFF;
+			heavenData.data[i*4+1] = (recolor >> 8) & 0xFF;
+			heavenData.data[i*4+2] = recolor & 0xFF;
+			heavenData.data[i*4+3] = 255;
+		}
+		*/
+		// Actually, just use the top row pixels of the main recolor map for heaven
+		for (let i = 0; i < this.biomeData.heavenPixels.length; i++) {
+			heavenData.data[i*4+0] = id.data[(i*4+0)%(this.w*4)];
+			heavenData.data[i*4+1] = id.data[(i*4+1)%(this.w*4)];
+			heavenData.data[i*4+2] = id.data[(i*4+2)%(this.w*4)];
+			heavenData.data[i*4+3] = 255;
+		}
+		ctxHeaven.putImageData(heavenData, 0, 0);
+		
+		this.recolorOffscreenHell.width = this.w;
+		this.recolorOffscreenHell.height = this.h;
+		const ctxHell = this.recolorOffscreenHell.getContext('2d');
+		const hellData = ctxHell.createImageData(this.w, this.h);
+		for (let i = 0; i < this.biomeData.hellPixels.length; i++) {
+			const color = this.biomeData.hellPixels[i] & 0xFFFFFF;
+			const recolor = BIOME_COLOR_LOOKUP[color] || color;
+			hellData.data[i*4+0] = (recolor >> 16) & 0xFF;
+			hellData.data[i*4+1] = (recolor >> 8) & 0xFF;
+			hellData.data[i*4+2] = recolor & 0xFF;
+			hellData.data[i*4+3] = 255;
+		}
+		ctxHell.putImageData(hellData, 0, 0);
 	},
 
 	draw() {
@@ -763,9 +886,25 @@ export const app = {
 		this.ctx.imageSmoothingEnabled = false;
 		// Background biome colors
 		if (document.getElementById('debug-original-biome-map').checked) {
-			this.ctx.drawImage(this.offscreen, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			if (this.pwVertical === 0) {
+				this.ctx.drawImage(this.offscreen, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			}
+			else if (this.pwVertical > 0) {
+				this.ctx.drawImage(this.offscreenHell, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			}
+			else {
+				this.ctx.drawImage(this.offscreenHeaven, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			}
 		} else {
-			this.ctx.drawImage(this.recolorOffscreen, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			if (this.pwVertical === 0) {
+				this.ctx.drawImage(this.recolorOffscreen, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			}
+			else if (this.pwVertical > 0) {
+				this.ctx.drawImage(this.recolorOffscreenHell, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			}
+			else {
+				this.ctx.drawImage(this.recolorOffscreenHeaven, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+			}
 		}
 
 		const showBoxes = document.getElementById('debug-draw').checked;
@@ -773,82 +912,24 @@ export const app = {
 
 		const biomeOverlayMode = document.getElementById('debug-biome-overlay-mode').value;
 
-		// TODO: No longer need to do it in this weird order.
-		for (const layer of this.tileLayers) {
-			// Hack PW offsets
-			let pwOffset = 0;
-			if (this.isNGP) {
-				pwOffset = -this.pw * 8;
-			}
-			if (layer.canvas) {
-				if (biomeOverlayMode === 'none') {
-					// Draw original tiles
-					this.ctx.drawImage(layer.canvas, layer.correctedX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + VISUAL_TILE_OFFSET_Y, layer.w, layer.h);
+		// Hack PW offsets
+		let pwOffset = 0;
+		if (this.isNGP) {
+			pwOffset = -this.pw * 8;
+		}
+		let pwOffsetVertical = -this.pwVertical * 6;
+
+		// Draw original tile data
+		if (biomeOverlayMode === 'none') {
+			for (const layer of this.tileLayers) {
+				if (layer.canvas) {
+					this.ctx.drawImage(layer.canvas, layer.correctedX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y, layer.w, layer.h);
 				}
-			}
-
-			if (showBoxes) {
-				this.ctx.lineWidth = 2; // Thinner for individual tiles
-				
-				for (let ty = 0; ty < layer.ymax; ty++) {
-					for (let tx = 0; tx < layer.xmax; tx++) {
-						const idx = ty * layer.xmax + tx;
-						const tileVal = layer.tileIndices[idx];
-						if (tileVal === 0) continue;
-
-						// Root Check: We only draw the box starting from the 'first' half of a tile
-						// Horizontal Root: No 0xC000 or 0x4000 flags, just the raw index (or 0x8000 for the pair)
-						// Vertical Root: Top half has 0x4000 flag, but NOT 0x8000
-						let isHorizontalRoot = (tileVal >= 0 && (tileVal & 0xC000) === 0);
-						let isVerticalRoot = (tileVal & 0x4000) && !(tileVal & 0x8000);
-
-						if (isHorizontalRoot || isVerticalRoot) {
-							let baseIndex = tileVal;
-							let colorVal = 0.0;
-							if (isHorizontalRoot) {
-								baseIndex = tileVal % layer.numHTiles;
-								colorVal = baseIndex / layer.numHTiles;
-							}
-							else if (isVerticalRoot) {
-								baseIndex = tileVal % layer.numVTiles;
-								colorVal = baseIndex / layer.numVTiles;
-							}
-							
-							// Visual Styling
-							this.ctx.strokeStyle = `hsla(${(colorVal * 360) % 360}, 80%, 60%, 0.8)`;
-							this.ctx.fillStyle = this.ctx.strokeStyle.replace('0.8', '0.15');
-
-							const worldX = layer.correctedX + (tx * layer.tileSize * 10) + pwOffset + VISUAL_TILE_OFFSET_X;
-							const worldY = layer.correctedY + (ty * layer.tileSize * 10) - 40  + VISUAL_TILE_OFFSET_Y;
-
-							// Dimensions: Horizontal is 2x1, Vertical is 1x2
-							const rectW = isHorizontalRoot ? layer.tileSize * 20 : layer.tileSize * 10;
-							const rectH = isHorizontalRoot ? layer.tileSize * 10 : layer.tileSize * 20;
-
-							this.ctx.fillRect(worldX, worldY, rectW, rectH);
-							this.ctx.strokeRect(worldX, worldY, rectW, rectH);
-							
-							// Tile Index Label
-							if (this.cam.z > 0.25) {
-								this.ctx.fillStyle = 'red';
-								this.ctx.font = `${layer.tileSize * 5}px monospace`;
-								this.ctx.fillText(baseIndex, worldX + (layer.tileSize * 2), worldY + (layer.tileSize * 7));
-							}
-						}
-					}
-				}
-			}
-
-			if (showPaths && layer.path && layer.path.length > 0) {
-				this.ctx.beginPath(); this.ctx.strokeStyle = '#FF00FF'; this.ctx.lineWidth = 5;
-				const start = layer.path[0];
-				this.ctx.moveTo(layer.correctedX + start.x * 10 + 5 + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + start.y * 10 + 5 + VISUAL_TILE_OFFSET_Y);
-				for (let p of layer.path) this.ctx.lineTo(layer.correctedX + p.x * 10 + 5 + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + p.y * 10 + 5 + VISUAL_TILE_OFFSET_Y);
-				this.ctx.stroke();
 			}
 		}
 		
 		// TODO: Might need to overwrite outside the region of the map for NG+ shifts of way too much
+		// This might also just fix itself when cross-world panning is implemented
 
 		// OVERLAYS
 		// Tile overlay (recolor white to biome foreground average color)
@@ -863,33 +944,37 @@ export const app = {
 		*/
 
 		if (biomeOverlayMode !== 'none') {
-			if (!this.tileOverlaysByPW[this.pw]) {
+			if (!this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`]) {
 				// Generate it now (this seems like a bad idea since it will hang)
+				// Use different recolor map for vertical PWs
+				let recolorMapUsed = this.recolorOffscreen;
+				if (this.pwVertical < 0) {
+					recolorMapUsed = this.recolorOffscreenHeaven;
+				}
+				else if (this.pwVertical > 0) {
+					recolorMapUsed = this.recolorOffscreenHell;
+				}
 				if (biomeOverlayMode === 'expanded') {
-					this.tileOverlaysByPW[this.pw] = createTileOverlaysExpanded(this.biomeData.pixels, this.recolorOffscreen, this.tileLayers, this.pw, this.isNGP);
+					this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`] = createTileOverlaysExpanded(this.biomeData, recolorMapUsed, this.tileLayers, this.pw, this.pwVertical, this.isNGP);
 				}
 				else if (biomeOverlayMode === 'normal') {
-					this.tileOverlaysByPW[this.pw] = createTileOverlays(this.biomeData.pixels, this.recolorOffscreen, this.tileLayers, this.pw, this.isNGP);
+					this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`] = createTileOverlays(this.biomeData, recolorMapUsed, this.tileLayers, this.pw, this.pwVertical, this.isNGP);
 				}
 				else {
-					this.tileOverlaysByPW[this.pw] = createTileOverlaysCheap(this.biomeData.pixels, this.tileLayers, this.pw, this.isNGP);
+					this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`] = createTileOverlaysCheap(this.biomeData, this.tileLayers, this.pw, this.pwVertical, this.isNGP);
 				}
 			}
-			if (this.tileOverlaysByPW[this.pw]) {
-				let pwOffset = 0;
-				if (this.isNGP) {
-					pwOffset = -this.pw * 8;
-				}
+			if (this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`]) {
 				for (let i = 0; i < this.tileLayers.length; i++) {
 					const layer = this.tileLayers[i];
-					const overlay = this.tileOverlaysByPW[this.pw][i];
+					const overlay = this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`][i];
 					
 					if (overlay) {
 						if (document.getElementById('debug-enable-edge-noise').checked && biomeOverlayMode === 'expanded') {
 							this.ctx.drawImage(
 								overlay, 
 								layer.correctedX + pwOffset + VISUAL_TILE_OFFSET_X - 40, 
-								layer.correctedY + VISUAL_TILE_OFFSET_Y - 40,
+								layer.correctedY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - 40,
 								layer.w+80,
 								layer.h+80
 							);
@@ -898,7 +983,7 @@ export const app = {
 							this.ctx.drawImage(
 								overlay, 
 								layer.correctedX + pwOffset + VISUAL_TILE_OFFSET_X, 
-								layer.correctedY + VISUAL_TILE_OFFSET_Y,
+								layer.correctedY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y,
 								layer.w,
 								layer.h
 							);
@@ -909,38 +994,113 @@ export const app = {
 		}
 
 		// Render pixel scenes (after overlays)
-		if (this.pixelScenesByPW && this.pixelScenesByPW[this.pw]) {
-			for (let scene of this.pixelScenesByPW[this.pw]) {
+		if (this.pixelScenesByPW && this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]) {
+			for (let scene of this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]) {
 				if (!scene || !scene.imgElement) return;
-				this.ctx.drawImage(scene.imgElement, scene.x + getWorldCenter(this.isNGP)*512 - this.pw*getWorldSize(this.isNGP)*512, scene.y + 14*512);
+				// Note positions of these *do not* use the tile offset
+				this.ctx.drawImage(scene.imgElement, 
+					scene.x + getWorldCenter(this.isNGP)*512 - this.pw*getWorldSize(this.isNGP)*512, 
+					scene.y + 14*512 - this.pwVertical*24576
+				);
 			}
 		}
 
 		// Orb rooms (effectively another pixel scene overlay)
-		this.biomeData.orbs.forEach(o => {
-			const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
-			// Fill in chunk entirely to overwrite any tiles underneath, since orbs break the tile rules and can appear under other PoIs
-			this.ctx.fillStyle = '#ffd100';
-			this.ctx.fillRect(ox - 256, oy - 256, 512, 512);
-			this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
-			this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
-			this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
-		});
+		// Skip rendering these for vertical PWs
+		if (this.pwVertical === 0) {
+			this.biomeData.orbs.forEach(o => {
+				const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
+				// Fill in chunk entirely to overwrite any tiles underneath, since orbs break the tile rules and can appear under other PoIs
+				this.ctx.fillStyle = '#ffd100';
+				this.ctx.fillRect(ox - 256, oy - 256, 512, 512);
+				this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
+				this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
+				this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
+			});
+		}
+
+		// Draw debug boxes and paths above overlays/pixel scenes so they aren't obscured
+		if (showBoxes || showPaths) {
+			for (const layer of this.tileLayers) {
+				if (showBoxes) {
+					this.ctx.lineWidth = 2; // Thinner for individual tiles
+					
+					for (let ty = 0; ty < layer.ymax; ty++) {
+						for (let tx = 0; tx < layer.xmax; tx++) {
+							const idx = ty * layer.xmax + tx;
+							const tileVal = layer.tileIndices[idx];
+							if (tileVal === 0) continue;
+
+							// Root Check: We only draw the box starting from the 'first' half of a tile
+							// Horizontal Root: No 0xC000 or 0x4000 flags, just the raw index (or 0x8000 for the pair)
+							// Vertical Root: Top half has 0x4000 flag, but NOT 0x8000
+							let isHorizontalRoot = (tileVal >= 0 && (tileVal & 0xC000) === 0);
+							let isVerticalRoot = (tileVal & 0x4000) && !(tileVal & 0x8000);
+
+							if (isHorizontalRoot || isVerticalRoot) {
+								let baseIndex = tileVal;
+								let colorVal = 0.0;
+								if (isHorizontalRoot) {
+									baseIndex = tileVal % layer.numHTiles;
+									colorVal = baseIndex / layer.numHTiles;
+								}
+								else if (isVerticalRoot) {
+									baseIndex = tileVal % layer.numVTiles;
+									colorVal = baseIndex / layer.numVTiles;
+								}
+								
+								// Visual Styling
+								this.ctx.strokeStyle = `hsla(${(colorVal * 360) % 360}, 80%, 60%, 0.8)`;
+								this.ctx.fillStyle = this.ctx.strokeStyle.replace('0.8', '0.15');
+
+								const worldX = layer.correctedX + (tx * layer.tileSize * 10) + pwOffset + VISUAL_TILE_OFFSET_X;
+								const worldY = layer.correctedY + (ty * layer.tileSize * 10) - 40  + pwOffsetVertical + VISUAL_TILE_OFFSET_Y;
+
+								// Dimensions: Horizontal is 2x1, Vertical is 1x2
+								const rectW = isHorizontalRoot ? layer.tileSize * 20 : layer.tileSize * 10;
+								const rectH = isHorizontalRoot ? layer.tileSize * 10 : layer.tileSize * 20;
+
+								this.ctx.fillRect(worldX, worldY, rectW, rectH);
+								this.ctx.strokeRect(worldX, worldY, rectW, rectH);
+								
+								// Tile Index Label
+								if (this.cam.z > 0.25) {
+									this.ctx.fillStyle = 'red';
+									this.ctx.font = `${layer.tileSize * 5}px monospace`;
+									this.ctx.fillText(baseIndex, worldX + (layer.tileSize * 2), worldY + (layer.tileSize * 7));
+								}
+							}
+						}
+					}
+				}
+
+				if (showPaths && layer.path && layer.path.length > 0) {
+					this.ctx.beginPath(); this.ctx.strokeStyle = '#FF00FF'; this.ctx.lineWidth = 5;
+					const start = layer.path[0];
+					this.ctx.moveTo(layer.correctedX + start.x * 10 + 5 + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + start.y * 10 + 5 + pwOffsetVertical + VISUAL_TILE_OFFSET_Y);
+					for (let p of layer.path) this.ctx.lineTo(layer.correctedX + p.x * 10 + 5 + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + p.y * 10 + 5 + pwOffsetVertical + VISUAL_TILE_OFFSET_Y);
+					this.ctx.stroke();
+				}
+			}
+		}
 
 		// Draw secret messages
-		if (this.pw === 0) {
-			renderWallMessages(this.ctx, this.isNGP);
-		}
-		else if (this.pw === 1) {
-			renderEyeMessages(this.ctx, this.eyes.east);
-		} 
-		else if (this.pw === -1) {
-			renderEyeMessages(this.ctx, this.eyes.west);
+		if (this.pwVertical === 0) {
+			if (this.pw === 0) {
+				// TODO: Two of these are really in the first vertical PW in main
+				renderWallMessages(this.ctx, this.isNGP);
+			}
+			else if (this.pw === 1) {
+				renderEyeMessages(this.ctx, this.eyes.east);
+			} 
+			else if (this.pw === -1) {
+				renderEyeMessages(this.ctx, this.eyes.west);
+			}
 		}
 
 		// Render PoIs
 		if (!document.getElementById('debug-hide-pois').checked) {
-			const currentPois = this.poisByPW[this.pw];
+			const currentPois = this.poisByPW[`${this.pw},${this.pwVertical}`];
 			if (currentPois) {
 				for (let p of currentPois) {
 					// Calculate visual position on the current map
@@ -984,7 +1144,7 @@ export const app = {
 					}
 
 					const px = p.x - (this.pw * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512;
-					const py = p.y + 14 * 512;
+					const py = p.y + 14 * 512 - (this.pwVertical * 24570);
 					let tempRadius = POI_RADIUS;
 					if (p.highlight === true) {
 						this.ctx.strokeStyle = '#000000AA';
@@ -1068,7 +1228,7 @@ export const app = {
 	gotoPOI(poi) {
 		// Math adjusted for the visual map shift
 		const viewX = poi.x + (getWorldCenter(this.isNGP) * 512) - (this.pw * 512 * getWorldSize(this.isNGP));
-		const viewY = poi.y + (14 * 512);
+		const viewY = poi.y + (14 * 512) - (this.pwVertical * 24570);
 
 		// Place to the side so it doesn't get immediately covered by the tooltip, which is centered on the screen
 		this.cam.z = 0.25; // Zoom in, but not too much

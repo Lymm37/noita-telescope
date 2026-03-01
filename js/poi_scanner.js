@@ -66,7 +66,7 @@ export function prescanPixelScene(canvas, sourceBiome) {
     return detectedSpawns;
 }
 
-function getPixelSceneSpawnFunctionIndices(biomeMap, biomeName, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes = true, perks={}) {
+function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes = true, perks={}) {
     let detectedSpawns = [];
     let newPixelScenes = [];
     let generatedSpawns = [];
@@ -97,7 +97,7 @@ function getPixelSceneSpawnFunctionIndices(biomeMap, biomeName, pixelScene, worl
         
         if (index >= 0 && spawnFunctions[index].isPixelScene) {
             // Nested pixel scene handling (this is literally only needed for the vault, why did Nolla do this)
-            const nestedSpawnData = spawnSwitch(biomeMap, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
+            const nestedSpawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
             if (nestedSpawnData && nestedSpawnData.type === 'pixel_scene') {
                 //console.log(`Generated nested pixel scene at (${spawnX}, ${spawnY}) for biome ${biomeName}: ${nestedSpawnData.name}`);
                 // Adjust nested pixel scene position (why? no idea, but it fixes the misaligned pipe nested pixel scenes in the vault)
@@ -111,14 +111,14 @@ function getPixelSceneSpawnFunctionIndices(biomeMap, biomeName, pixelScene, worl
             
             // TODO: Add bar..? Actually maybe it's fine, it just makes a handful of potions close together but not as many as the lab
             if (pixelScene.name.includes("laboratory")) {
-                const spawnData = spawnSwitch(biomeMap, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
+                const spawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
                 //console.log(`Lab spawn data at (${spawnX}, ${spawnY}) in pixel scene ${pixelScene.name} for biome ${biomeName}: `, spawnData);
                 if (spawnData && spawnData.item === 'potion') {
                     potionList.push(spawnData);
                 }
             }
             else if (pixelScene.name.includes("shop")) {
-                const spawnData = spawnSwitch(biomeMap, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
+                const spawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
                 if (spawnData && spawnData.item === 'spell') {
                     spellList.push(spawnData);
                 }
@@ -208,7 +208,7 @@ export function prescanSpawnFunctions(tileLayers, isNGP) {
                 const index = getSpawnFunctionIndex(sourceBiome, colorInt);
 
                 if (index !== null) {
-                    const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, isNGP);
+                    const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, 0, isNGP);
 
                     detectedSpawns.push({
                         sourceBiome,
@@ -239,9 +239,12 @@ export function prescanSpawnFunctions(tileLayers, isNGP) {
     return detectedSpawns;
 }
 
-export function scanSpawnFunctions(biomeMap, tileSpawns, worldSeed, ngPlusCount, pwIndex, skipCosmeticScenes = true, perks={}) {
+export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount, pwIndex, pwIndexVertical, skipCosmeticScenes = true, perks={}) {
     const t0 = performance.now();
-    let detectedSpawns = tileSpawns.map(spawn => ({...spawn, x: spawn.x + pwIndex*getWorldSize(ngPlusCount > 0) * 512 - (ngPlusCount > 0 ? 8 * pwIndex : 0)}));
+    let detectedSpawns = tileSpawns.map(spawn => ({...spawn, 
+        x: spawn.x + pwIndex*getWorldSize(ngPlusCount > 0) * 512 - (ngPlusCount > 0 ? 8 * pwIndex : 0),
+        y: spawn.y + pwIndexVertical*24570
+    }));
     let generatedSpawns = [];
 
     let finalPixelScenes = [];
@@ -256,11 +259,11 @@ export function scanSpawnFunctions(biomeMap, tileSpawns, worldSeed, ngPlusCount,
         for (let i = 0; i < numberOfNewPixelScenes; i++) {
             const pixelScene = newPixelScenes[i];
             finalPixelScenes.push(pixelScene);
-            const target = getBiomeAtWorldCoordinates(biomeMap, pixelScene.x, pixelScene.y, ngPlusCount > 0);
+            const target = getBiomeAtWorldCoordinates(biomeData, pixelScene.x, pixelScene.y, ngPlusCount > 0);
             const targetBiome = target ? target.biome : null;
             //const targetChunkPos = target ? target.pos : null;
 
-            const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeMap, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks);
+            const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeData, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks);
             detectedSpawns.push(...pixelSceneResults.detectedSpawns);
             newPixelScenes.push(...pixelSceneResults.newPixelScenes); // This could be a problem
             numberOfNewPixelScenes += pixelSceneResults.newPixelScenes.length; // This is a hack to allow processing newly added pixel scenes in the same cycle
@@ -272,12 +275,12 @@ export function scanSpawnFunctions(biomeMap, tileSpawns, worldSeed, ngPlusCount,
         newPixelScenes = [];
 
         detectedSpawns.forEach(spawn => {
-            const target = getBiomeAtWorldCoordinates(biomeMap, spawn.x, spawn.y, ngPlusCount > 0);
+            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0);
             const targetBiome = target ? target.biome : null;
             const targetChunkPos = target ? target.pos : null;
             if (targetBiome) {
                 // TODO: Setting the biome in here might be redundant now
-                const spawnData = spawnSwitch(biomeMap, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks);
+                const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks);
                 if (spawnData) {
                     spawnData.biome = targetBiome;
                     if (spawn.sourceBiome != targetBiome) {
@@ -296,6 +299,8 @@ export function scanSpawnFunctions(biomeMap, tileSpawns, worldSeed, ngPlusCount,
                             generatedSpawns.push(spawnData);
                         }
                     }
+                    // On second thought, knowing the exact position of the shop item does seem useful if it's not a shop pixel scene
+                    /*
                     else if (spawnData.item && spawnData.item === 'spell') {
                         //console.log(`Secret shop spell spawn detected at (${spawn.x}, ${spawn.y}) in biome ${targetBiome} from spawn function index ${spawn.spawnFunctionIndex}: `, spawnData);
                         // Special consideration for secret shop spells because we want to group them together into shops based on proximity
@@ -305,6 +310,7 @@ export function scanSpawnFunctions(biomeMap, tileSpawns, worldSeed, ngPlusCount,
                         }
                         shopsPerChunk[chunkKey].push(spawnData);
                     }
+                    */
                     else {
                         generatedSpawns.push(spawnData);
                     }
@@ -322,7 +328,7 @@ export function scanSpawnFunctions(biomeMap, tileSpawns, worldSeed, ngPlusCount,
         const spells = shopsPerChunk[chunkKey];
         const [biomeName, chunkX, chunkY] = chunkKey.split('/').map((v, i) => i === 0 ? v : Number(v));
         const worldX = chunkX * 512 + 256 - getWorldCenter(ngPlusCount > 0) * 512 + getWorldSize(ngPlusCount > 0) * 512 * pwIndex;
-        const worldY = chunkY * 512 + 256 - 14 * 512;
+        const worldY = chunkY * 512 + 256 - 14 * 512 + 24570 * pwIndexVertical;
         const shopData = {type: 'shop', items: spells, x: worldX, y: worldY, biome: biomeName, originalBiome: biomeName};
         generatedSpawns.push(shopData);
     }
@@ -339,7 +345,8 @@ export function scanSpawnFunctions(biomeMap, tileSpawns, worldSeed, ngPlusCount,
     };
 }
 
-export function getSpecialPoIs(biomeMap, worldSeed, ngPlusCount, pwIndex, perks={}) {
+export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, perks={}) {
+    const biomeMap = biomeData.pixels;
     //const t0 = performance.now();
     // Extra generation things
     let pois = [];

@@ -43,7 +43,7 @@ If you prefer to run this tool locally instead of using the web version, assumin
 ## Usage
 
 1.  **Input seed:** Enter your current world seed and NG+ count (0 to 28). This will generate the biome map and tiles for the seed, and scan the current PW, generating pixel scenes and PoIs.
-2.  **Switch to other PWs:** Changing the PW index will automatically re-scan spawns for the selected PW. Supports PWs across the entire stable map range (468 worlds for NG and 512 worlds for NG+).
+2.  **Switch to other PWs:** Changing the PW indices (horizontal or vertical) will automatically re-scan spawns for the selected PW. Supports PWs across the entire stable map range (468 worlds for NG and 512 worlds for NG+, and 683 worlds vertically).
 3.  **Search:** Enter a search term and click search to find it in the current world. Open the "Advanced Filters" toggle to look for specific wands (e.g., to find wands with a specific always casts or stat range). Matching PoIs will be displayed at a larger scale that changes with zoom so that they are easily visible anywhere on the map. You can use the search menu to navigate between matches. When searching over multiple PWs, navigation will automatically continue to scan through PWs until a match is found.
 4.  **Interact:** Use the mouse to drag the map and the scroll wheel to zoom. Mouse over a PoI to see the details, click on it to pin it (only one pin supported). Container-type PoIs (holy mountain shops, great treasure chests, potion labs, etc.) may have a lot of items; you can scroll within the pinned tooltip.
 
@@ -58,7 +58,7 @@ The search tool supports a variety of filtering options. In the main search fiel
 
 *   **Not guaranteed to be accurate in all cases:** There are edge cases where it fails (false postive spawns, false negative spawns, and incorrect spell spawns).
 *   **Edge Cases:** Biome boundaries (Edge Noise) are calculated, but do not consistently agree with the way pixel scenes and spawns are filtered at biome edges in game. As a result, there may be some false positives and false negatives. If you toggle the "Enable Edge Noise" debug option and the spawn you are interested in disappears (or appears), it may not be real. But sometimes it will be. This is a work in progress.
-*   **Vertical Parallel Worlds:** Not yet implemented, though I plan to add them because they are useful for tier 10 spells.
+*   **Vertical Parallel Worlds:** Implemented, and seems to be working for the most part. Missing the static shop near the center. Also there seems to be issues with some spells in hell spawning just above a chunk and falling into the void, and these end up looking like false positives.
 *   **Perks:** Not implemented, and not a high priority considering how many tools there already are which can find perks for a seed.
 *   **Static Pixel Scenes:** Currently the world view does not include pixel scenes which are the same in every seed, like the Holy Mountains, tree, orb rooms, etc. These are not included because they are not particularly useful for finding items, since they are always the same. I might update these in the future but my main priority is getting things functional before working on aesthetics.
 *   **Missing Pixel Scenes:** Some pixel scenes may be missing in some biomes, some of which might have useful items, that I missed. Most pixel scenes are implemented, though.

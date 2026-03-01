@@ -162,7 +162,7 @@ const PIXEL_SCENE_BOUNDS_OFFSET = {
 	"trailer_altar": {x: -67, y: 0},
 }
 
-export function loadPixelScene(biomeMap, biomeName, sceneName, ws, ng, x, y, skipCosmeticScenes = true) {
+export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, skipCosmeticScenes = true) {
 	const pixelSceneKey = getPixelSceneKey(biomeName, sceneName);
 	if (!PIXEL_SCENE_DATA[pixelSceneKey]) {
 		console.warn(`Pixel scene data not found for key ${pixelSceneKey}. This should not happen because we preload all pixel scene images.`);
@@ -178,25 +178,25 @@ export function loadPixelScene(biomeMap, biomeName, sceneName, ws, ng, x, y, ski
 	if (CHECK_PIXEL_SCENE_CORNERS && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
 		const boundsOffset = PIXEL_SCENE_BOUNDS_OFFSET[sceneName] || {x: 0, y: 0};
 		const topCornerCoords = {x: x + boundsOffset.x, y: y + boundsOffset.y};
-		const targetTopLeft = getBiomeAtWorldCoordinates(biomeMap, topCornerCoords.x, topCornerCoords.y, ng > 0);
+		const targetTopLeft = getBiomeAtWorldCoordinates(biomeData, topCornerCoords.x, topCornerCoords.y, ng > 0);
 		const targetBiomeTopLeft = targetTopLeft ? targetTopLeft.biome : null;
 		if (!targetBiomeTopLeft || targetBiomeTopLeft !== biomeName) {
 			return null;
 		}
 		const topRightCoords = {x: x + pixelSceneData.width + boundsOffset.x, y: y + boundsOffset.y};
-		const targetTopRight = getBiomeAtWorldCoordinates(biomeMap, topRightCoords.x, topRightCoords.y, ng > 0);
+		const targetTopRight = getBiomeAtWorldCoordinates(biomeData, topRightCoords.x, topRightCoords.y, ng > 0);
 		const targetBiomeTopRight = targetTopRight ? targetTopRight.biome : null;
 		if (!targetBiomeTopRight || targetBiomeTopRight !== biomeName) {
 			return null;
 		}
 		const bottomLeftCoords = {x: x + boundsOffset.x, y: y + pixelSceneData.height + boundsOffset.y};
-		const targetBottomLeft = getBiomeAtWorldCoordinates(biomeMap, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0);
+		const targetBottomLeft = getBiomeAtWorldCoordinates(biomeData, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0);
 		const targetBiomeBottomLeft = targetBottomLeft ? targetBottomLeft.biome : null;
 		if (!targetBiomeBottomLeft || targetBiomeBottomLeft !== biomeName) {
 			return null;
 		}
 		const bottomRightCoords = {x: x + pixelSceneData.width + boundsOffset.x, y: y + pixelSceneData.height + boundsOffset.y};
-		const targetBottomRight = getBiomeAtWorldCoordinates(biomeMap, bottomRightCoords.x, bottomRightCoords.y, ng > 0);
+		const targetBottomRight = getBiomeAtWorldCoordinates(biomeData, bottomRightCoords.x, bottomRightCoords.y, ng > 0);
 		const targetBiomeBottomRight = targetBottomRight ? targetBottomRight.biome : null;
 		if (!targetBiomeBottomRight || targetBiomeBottomRight !== biomeName) {
 			return null;
@@ -224,7 +224,7 @@ export function loadPixelScene(biomeMap, biomeName, sceneName, ws, ng, x, y, ski
 	};
 }
 
-export function loadRandomPixelScene(biomeMap, biomeName, scene_list, ws, ng, x, y, skipCosmeticScenes = true) {
+export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x, y, skipCosmeticScenes = true) {
 	if (!scene_list || scene_list.length === 0) return null;
 	const prng = new NollaPrng(0);
 	let total_prob = 0;
@@ -262,25 +262,25 @@ export function loadRandomPixelScene(biomeMap, biomeName, scene_list, ws, ng, x,
 			// Need to check all corners I think, otherwise we get edge cases that break
 			if (CHECK_PIXEL_SCENE_CORNERS) {
 				const topCornerCoords = {x: x, y: y};
-				const targetTopLeft = getBiomeAtWorldCoordinates(biomeMap, topCornerCoords.x, topCornerCoords.y, ng > 0);
+				const targetTopLeft = getBiomeAtWorldCoordinates(biomeData, topCornerCoords.x, topCornerCoords.y, ng > 0);
 				const targetBiomeTopLeft = targetTopLeft ? targetTopLeft.biome : null;
 				if (!targetBiomeTopLeft || targetBiomeTopLeft !== biomeName) {
 					return null;
 				}
 				const topRightCoords = {x: x + outputScene.width, y: y};
-				const targetTopRight = getBiomeAtWorldCoordinates(biomeMap, topRightCoords.x, topRightCoords.y, ng > 0);
+				const targetTopRight = getBiomeAtWorldCoordinates(biomeData, topRightCoords.x, topRightCoords.y, ng > 0);
 				const targetBiomeTopRight = targetTopRight ? targetTopRight.biome : null;
 				if (!targetBiomeTopRight || targetBiomeTopRight !== biomeName) {
 					return null;
 				}
 				const bottomLeftCoords = {x: x, y: y + outputScene.height};
-				const targetBottomLeft = getBiomeAtWorldCoordinates(biomeMap, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0);
+				const targetBottomLeft = getBiomeAtWorldCoordinates(biomeData, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0);
 				const targetBiomeBottomLeft = targetBottomLeft ? targetBottomLeft.biome : null;
 				if (!targetBiomeBottomLeft || targetBiomeBottomLeft !== biomeName) {
 					return null;
 				}
 				const bottomRightCoords = {x: x + outputScene.width, y: y + outputScene.height};
-				const targetBottomRight = getBiomeAtWorldCoordinates(biomeMap, bottomRightCoords.x, bottomRightCoords.y, ng > 0);
+				const targetBottomRight = getBiomeAtWorldCoordinates(biomeData, bottomRightCoords.x, bottomRightCoords.y, ng > 0);
 				const targetBiomeBottomRight = targetBottomRight ? targetBottomRight.biome : null;
 				if (!targetBiomeBottomRight || targetBiomeBottomRight !== biomeName) {
 					return null;

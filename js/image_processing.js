@@ -55,6 +55,7 @@ function loadImage(src) {
 export const [BIOME_BACKGROUND_COLORS, BIOME_COLOR_LOOKUP] = await createBiomeColorLookup('./data/biome_maps/biome_map_background.png');
 export const [TILE_OVERLAY_COLORS, TILE_FOREGROUND_COLORS] = await createBiomeColorLookup('./data/biome_maps/biome_map_foreground.png');
 
+// TODO: Deprecated?
 // Use recolorOffscreen as reference
 export function createBiomeMapOverlay(biomeMap, width, height, recolorOffscreen) {
 	// Create an image which is solid with the same colors as the biome color lookup, but with all pixels that have wang tiles set to transparent
@@ -80,12 +81,47 @@ export function createBiomeMapOverlay(biomeMap, width, height, recolorOffscreen)
 	return canvas;
 }
 
-export function createTileOverlaysCheap(biomeMap, layers, pwIndex, isNGP) {
+// TODO: Deprecated?
+export function createBiomeMapOverlayVerticalPW(biomeMap, width, height, recolorOffscreen, direction) {
+	// Create an image which is solid with the same colors as the biome color lookup, but with all pixels that have wang tiles set to transparent
+	const referenceCtx = recolorOffscreen.getContext('2d');
+	const referenceData = referenceCtx.getImageData(0, 0, recolorOffscreen.width, recolorOffscreen.height).data;
+	const canvas = new OffscreenCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+	const imageData = ctx.createImageData(width, height);
+	const data = imageData.data;
+    const row = direction === 1 ? 0 : recolorOffscreen.height - 1; // Use top row for upward PW and bottom row for downward PW
+	for (let i = 0; i < biomeMap.pixels.length; i++) {
+		const color = (biomeMap.pixels[i % recolorOffscreen.width + row * recolorOffscreen.width] & 0xffffff); // Mask out alpha if present
+		data[4*i] = referenceData[4*i];
+		data[4*i + 1] = referenceData[4*i + 1];
+		data[4*i + 2] = referenceData[4*i + 2];
+		if (BIOME_COLOR_TO_NAME[color]) {
+			data[4*i + 3] = 0; // Transparent
+		}
+		else {
+			data[4*i + 3] = 255; // Opaque I guess
+		}
+	}
+	ctx.putImageData(imageData, 0, 0);
+	return canvas;
+}
+
+export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP) {
     const recolorMaterials = document.getElementById('recolor-materials').checked;
     const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
 	const mapWidth = getWorldSize(isNGP);
+    const mapHeight = 48;
 	const t0 = performance.now();
     const overlays = []; 
+
+    let biomeMap = biomeData.pixels;
+    if (pwIndexVertical < 0) {
+        biomeMap = biomeData.heavenPixels;
+    }
+    else if (pwIndexVertical > 0) {
+        biomeMap = biomeData.hellPixels;
+    }
 
     for (let i = 0; i < layers.length; i++) {
         const layer = layers[i];
@@ -108,10 +144,10 @@ export function createTileOverlaysCheap(biomeMap, layers, pwIndex, isNGP) {
                 // Check for gray pixels
                 if (buffer[srcIdx] === buffer[srcIdx + 1] && buffer[srcIdx + 1] === buffer[srcIdx + 2] && buffer[srcIdx] > 0) {
 					// This still feels too expensive for how often it needs to run here
-					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, isNGP);
+					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
 					const roundedPosition = {
 						x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
-						y: Math.floor((coords.y + 14*512)/512)
+						y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
 					}
 
 					// Find this pixel in the biome map and get the color...
@@ -130,10 +166,10 @@ export function createTileOverlaysCheap(biomeMap, layers, pwIndex, isNGP) {
                     if (buffer[srcIdx] > 0 || buffer[srcIdx + 1] > 0 || buffer[srcIdx + 2] > 0) {
                         if (!clearSpawnPixels) {
                             // Still need to check it's in bounds of the biome...
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
                             const roundedPosition = {
                                 x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
-                                y: Math.floor((coords.y + 14*512)/512)
+                                y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
                             }
                             const biomeColor = biomeMap[roundedPosition.y * mapWidth + roundedPosition.x] & 0xffffff; // Mask out alpha if present
                             if (BIOME_COLORS_WITH_TILES.has(biomeColor)) {
@@ -141,10 +177,10 @@ export function createTileOverlaysCheap(biomeMap, layers, pwIndex, isNGP) {
                             }
                         }
                         if (recolorMaterials) {
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
                             const roundedPosition = {
                                 x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
-                                y: Math.floor((coords.y + 14*512)/512)
+                                y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
                             }
                             // Find this pixel in the biome map and get the color...
 					        const biomeColor = biomeMap[roundedPosition.y * mapWidth + roundedPosition.x] & 0xffffff; // Mask out alpha if present
@@ -175,9 +211,17 @@ export function createTileOverlaysCheap(biomeMap, layers, pwIndex, isNGP) {
     return overlays;
 }
 
-export function createTileOverlays(biomeMap, recolorOffscreen, layers, pwIndex, isNGP) {
-	if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeMap, layers, pwIndex, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP) {
+	if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
 	
+    let biomeMap = biomeData.pixels;
+    if (pwIndexVertical < 0) {
+        biomeMap = biomeData.heavenPixels;
+    }
+    else if (pwIndexVertical > 0) {
+        biomeMap = biomeData.hellPixels;
+    }
+
     const recolorMaterials = document.getElementById('recolor-materials').checked;
     const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
     const referenceCtx = recolorOffscreen.getContext('2d');
@@ -208,8 +252,8 @@ export function createTileOverlays(biomeMap, recolorOffscreen, layers, pwIndex, 
                 // Check for gray pixels
                 if (buffer[srcIdx] === buffer[srcIdx + 1] && buffer[srcIdx + 1] === buffer[srcIdx + 2] && buffer[srcIdx] > 0) {
 					// This still feels too expensive for how often it needs to run here
-					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, isNGP);
-					const biomeResult = getBiomeAtWorldCoordinates(biomeMap, coords.x, coords.y, isNGP);
+					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
+					const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
 
 					// Find this pixel in the biome map and get the color...
 					const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -228,8 +272,8 @@ export function createTileOverlays(biomeMap, recolorOffscreen, layers, pwIndex, 
                     if (buffer[srcIdx] > 0 || buffer[srcIdx + 1] > 0 || buffer[srcIdx + 2] > 0) {
                         if (!clearSpawnPixels) {
                             // Still need to check it's in bounds of the biome...
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, isNGP);
-                            const biomeResult = getBiomeAtWorldCoordinates(biomeMap, coords.x, coords.y, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
+                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
 
                             // Find this pixel in the biome map and get the color...
                             const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -240,8 +284,8 @@ export function createTileOverlays(biomeMap, recolorOffscreen, layers, pwIndex, 
                         }
                         if (recolorMaterials) {
                             // This still feels too expensive for how often it needs to run here
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, isNGP);
-                            const biomeResult = getBiomeAtWorldCoordinates(biomeMap, coords.x, coords.y, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
+                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
 
                             // Find this pixel in the biome map and get the color...
                             const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -282,9 +326,17 @@ export function createTileOverlays(biomeMap, recolorOffscreen, layers, pwIndex, 
 }
 
 // TODO: This is both currently broken and very slow, but the idea is that it covers some outer edges of the biome in order to fill in the wavy chunk edges
-export function createTileOverlaysExpanded(biomeMap, recolorOffscreen, layers, pwIndex, isNGP) {
-	if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeMap, layers, pwIndex, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP) {
+	if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
     
+    let biomeMap = biomeData.pixels;
+    if (pwIndexVertical < 0) {
+        biomeMap = biomeData.heavenPixels;
+    }
+    else if (pwIndexVertical > 0) {
+        biomeMap = biomeData.hellPixels;
+    }
+
     const recolorMaterials = document.getElementById('recolor-materials').checked;
     const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
     const mapWidth = getWorldSize(isNGP);
@@ -339,8 +391,8 @@ export function createTileOverlaysExpanded(biomeMap, recolorOffscreen, layers, p
                             out32[targetIdx] = (255 << 24) | (b << 16) | (g << 8) | r;
                         }
 						// More expensive check to replace non-gray pixels
-						const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, isNGP);
-                        const biomeResult = getBiomeAtWorldCoordinates(biomeMap, coords.x, coords.y, isNGP);
+						const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, pwIndexVertical, isNGP);
+                        const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
                         // Check for gray material
                         if (r === g && g === b) {
                             if (biomeResult.biome) {
@@ -368,8 +420,8 @@ export function createTileOverlaysExpanded(biomeMap, recolorOffscreen, layers, p
                         else {
                             if (recolorMaterials) {
                                 // This still feels too expensive for how often it needs to run here
-                                const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, isNGP);
-                                const biomeResult = getBiomeAtWorldCoordinates(biomeMap, coords.x, coords.y, isNGP);
+                                const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
+                                const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
 
                                 // Find this pixel in the biome map and get the color...
                                 const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -409,8 +461,8 @@ export function createTileOverlaysExpanded(biomeMap, recolorOffscreen, layers, p
                                         y % 51.2 <= edgeThreshold || y % 51.2 >= 51.2 - edgeThreshold);
 
                     if (isPadding || isNearSeam) {
-                        const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, isNGP);
-                        const biomeResult = getBiomeAtWorldCoordinates(biomeMap, coords.x, coords.y, isNGP);
+                        const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, pwIndexVertical, isNGP);
+                        const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
                         
                         //if (!biomeResult.biome || !GENERATOR_CONFIG[biomeResult.biome] || biomeResult.biome === layer.biomeName) {
 						if (!biomeResult.biome) {
@@ -420,7 +472,7 @@ export function createTileOverlaysExpanded(biomeMap, recolorOffscreen, layers, p
 						else if (biomeResult.biome === layer.biomeName) {
 							// Check that the other biome is empty (otherwise you could overwrite something)
 							// Adding 1 here seems to help fix the 1 pixel seam...
-							const adjBiomeResult = getBiomeAtWorldCoordinates(biomeMap, 512*Math.floor(1+coords.x/512)+256, 512*Math.floor(1+coords.y/512)+256, isNGP);
+							const adjBiomeResult = getBiomeAtWorldCoordinates(biomeData, 512*Math.floor(1+coords.x/512)+256, 512*Math.floor(1+coords.y/512)+256, isNGP);
 							if (!adjBiomeResult.biome) {
 								const refIdx = (biomeResult.pos.y * recolorOffscreen.width + biomeResult.pos.x) * 4;
 								out32[targetIdx] = (255 << 24) | (referenceData[refIdx + 2] << 16) | (referenceData[refIdx + 1] << 8) | referenceData[refIdx];

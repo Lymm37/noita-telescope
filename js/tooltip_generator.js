@@ -48,7 +48,7 @@ function generateFooterHtml(hit) {
 	return `
 		<div style="margin-top:10px; font-size:12px; border-top:1px solid #333; padding-top:5px; color:#aaa;">
 			Position: ${Math.floor(objX)}, ${Math.floor(objY)}<br>
-			PW: ${app.pw} | Biome: ${biomeName}
+			PW: ${app.pw}, ${app.pwVertical} | Biome: ${biomeName}
 		</div>
 	`;
 }
@@ -95,6 +95,12 @@ function generateItemHtml(item) {
 	if (item.enemy) {
 		let spriteName = 'enemy_sprites/' + item.enemy.toLowerCase().replace(/\s+/g, '_');
 		return generateHeaderHtml(item.enemy.toUpperCase(), spriteName, '', null);
+	}
+
+	if (item.item === 'spell') {
+		let spriteName = 'spell_sprites/' + item.spell.toLowerCase().replace(/\s+/g, '_');
+		let spellName = getDisplayName(item.spell) || item.spell;
+		return generateHeaderHtml(spellName.toUpperCase(), spriteName, '', null);
 	}
 
 	let itemName = item.item || 'Item';
