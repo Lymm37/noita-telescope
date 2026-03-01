@@ -83,6 +83,11 @@ const EXTRA_TRANSLATIONS = {
 	'lake_deep': 'Lake',
 	'the_sky': 'The Work (Heaven)',
 	'the_end': 'The Work (Hell)',
+	'biome_watchtower': 'Watchtower',
+	'biome_barren': 'Barren Temple',
+	'biome_potion_mimics': 'Henkevä Temple',
+	'biome_darkness': 'Ominous Temple',
+	'biome_boss_sky': 'Kivi Temple',
 }
 
 let TRANSLATIONS = {};

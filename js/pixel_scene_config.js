@@ -559,6 +559,11 @@ export const SNOWCHASM_SCENES = {};
 export const CLOUDS_SCENES = {};
 export const TEMPLE_ALTAR_SCENES = {};
 export const SNOWCASTLE_CAVERN_SCENES = {};
+export const BIOME_WATCHTOWER_SCENES = {};
+export const BIOME_BARREN_SCENES = {};
+export const BIOME_POTION_MIMICS_SCENES = {};
+export const BIOME_DARKNESS_SCENES = {};
+export const BIOME_BOSS_SKY_SCENES = {};
 
 export const PIXEL_SCENE_BIOME_MAP = {
 	"coalmine": COALMINE_SCENES,
@@ -594,5 +599,10 @@ export const PIXEL_SCENE_BIOME_MAP = {
 	"tower_crypt": TOWER_SCENES,
 	"tower_the_end": TOWER_SCENES,
 	"snowcastle_cavern": SNOWCASTLE_CAVERN_SCENES,
+	"biome_watchtower": BIOME_WATCHTOWER_SCENES,
+	"biome_barren": BIOME_BARREN_SCENES,
+	"biome_potion_mimics": BIOME_POTION_MIMICS_SCENES,
+	"biome_darkness": BIOME_DARKNESS_SCENES,
+	"biome_boss_sky": BIOME_BOSS_SKY_SCENES,
 	"general": GENERAL_SCENES,
 };

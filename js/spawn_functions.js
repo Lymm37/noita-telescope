@@ -424,6 +424,52 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			return generateShopItem(ws, ng, x, y, BIOME_TIERS[biomeName], 0);
 		}
 	}
+	else if (biomeName === "biome_watchtower" || biomeName === "biome_barren" || biomeName === "biome_potion_mimics" || biomeName === "biome_darkness" || biomeName === "biome_boss_sky") {
+		// I thought these would make cool overlaps but I think they're not actually possible at all, the cloudscape doesn't have much, and the watchtower isn't in NG+, and even if it was it wouldn't overlap with any of these
+		/*
+		if (func === "spawn_boss") {
+			if (x < 16000 && x > -16000) {
+				return {type: 'enemy', enemy: 'kivi', x: x, y: y};
+			}
+			else {
+				return null;
+			}
+		}
+		else if (func === "spawn_boss_phase2_marker") {
+			if (x < 16000 && x > -16000) {
+				return {type: 'enemy', enemy: 'kummitus', x: x+7, y: y};
+			}
+			else {
+				return null;
+			}
+		}
+		else if (func === "spawn_potion_mimic_empty") {
+			if (x < 16000 && x > -16000) {
+				return {type: 'enemy', enemy: 'potion_mimic_empty', x: x, y: y};
+			}
+			else {
+				return null;
+			}
+		}
+		*/
+		if (func === "spawn_potion_mimic") {
+			if (x < 16000 && x > -16000) {
+				return {type: 'item', item: 'mimic_potion', x: x, y: y};
+			}
+			else {
+				return null;
+			}
+		}
+		else if (func === "spawn_potion_beer") {
+			return {type: 'item', item: 'potion', material: 'beer', x: x, y: y};
+		}
+		else if (func === "spawn_potion_milk") {
+			return {type: 'item', item: 'potion', material: 'milk', x: x, y: y};
+		}
+		else if (func === "spawn_potions" || func === "spawn_wands") {
+			return null; // disabled
+		}
+	}
 
 	// Default functions come after biome-specific ones
 	if (func === "spawn_shopitem") {

@@ -364,6 +364,33 @@ export const EXCAVATIONSITE_CUBE_CHAMBER_SPAWNS = [
 	{color: 0x366178, funcName: "spawn_teleporter" }
 ];
 
+export const TEMPLES_COMMON_SPAWNS = [
+	{ color: 0x805000, funcName: "spawn_cloud_trap" },
+	{ color: 0x397780, funcName: "load_floor_rubble" },
+	{ color: 0x00ffa0, funcName: "load_floor_rubble_l" },
+	{ color: 0x1ca7ff, funcName: "load_floor_rubble_r" },
+	{ color: 0xffeed1, funcName: "spawn_puzzle_watchtower" },
+	{ color: 0xffeeda, funcName: "spawn_puzzle_barren" },
+	{ color: 0xffeedb, funcName: "spawn_puzzle_potion_mimics" },
+	{ color: 0xffeedc, funcName: "spawn_puzzle_darkness" },
+	{ color: 0xffeedd, funcName: "spawn_boss", active: true },
+	{ color: 0xffeede, funcName: "spawn_potion_mimic_empty", active: true },
+	{ color: 0xffeedf, funcName: "spawn_potion_mimic", active: true },
+	{ color: 0xffeed0, funcName: "spawn_fish_many" },
+	{ color: 0xffeed2, funcName: "spawn_boss_phase2_marker", active: true },
+	{ color: 0xffeed3, funcName: "spawn_book_barren" },
+	{ color: 0xffeed4, funcName: "spawn_potion_beer", active: true },
+	{ color: 0xffeed5, funcName: "spawn_potion_milk", active: true },
+	{ color: 0xffeed6, funcName: "spawn_scorpion" },
+	{ color: 0xffaaaa, funcName: "spawn_sign_left" },
+	{ color: 0xffaadd, funcName: "spawn_sign_right" }
+];
+
+export const WATCHTOWER_SPAWNS = [
+	{ color: 0xaaff00, funcName: "spawn_small_enemies2" },
+	{ color: 0xffaa00, funcName: "spawn_big_enemies2" }
+];
+
 export const CLOUDS_SPAWNS = [];
 export const TEMPLE_ALTAR_SPAWNS = [];
 
@@ -437,6 +464,11 @@ export const BIOME_SPAWN_FUNCTION_MAP = {
 	"tower_vault": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
 	"tower_crypt": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
 	"tower_end": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	'snowcastle_cavern': [...DEFAULT_SPAWNS, ...SNOWCASTLE_CAVERN_SPAWNS],
-	'excavationsite_cube_chamber': [...DEFAULT_SPAWNS, ...EXCAVATIONSITE_CUBE_CHAMBER_SPAWNS],
+	"snowcastle_cavern": [...DEFAULT_SPAWNS, ...SNOWCASTLE_CAVERN_SPAWNS],
+	"excavationsite_cube_chamber": [...DEFAULT_SPAWNS, ...EXCAVATIONSITE_CUBE_CHAMBER_SPAWNS],
+	"biome_watchtower": [...DEFAULT_SPAWNS, ...TEMPLES_COMMON_SPAWNS, ...WATCHTOWER_SPAWNS],
+	"biome_barren": [...DEFAULT_SPAWNS, ...TEMPLES_COMMON_SPAWNS],
+	"biome_potion_mimics": [...DEFAULT_SPAWNS, ...TEMPLES_COMMON_SPAWNS],
+	"biome_darkness": [...DEFAULT_SPAWNS, ...TEMPLES_COMMON_SPAWNS],
+	"biome_boss_sky": [...DEFAULT_SPAWNS, ...TEMPLES_COMMON_SPAWNS],
 };

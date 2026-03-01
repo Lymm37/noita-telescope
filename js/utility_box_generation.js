@@ -20,7 +20,7 @@ export function generateUtilityBox(ws, ng, x, y) {
 		else if (rnd <= 5) {
 			rnd = prng.Random(0, 100);
 			if (rnd == 99) {
-				items.push({type: 'item', item: 'refresh_mimic', x: x, y: y});
+				items.push({type: 'enemy', enemy: 'refresh_mimic', x: x, y: y});
 			}
 			else {
 				items.push({type: 'item', item: 'spell_refresh', x: x, y: y});

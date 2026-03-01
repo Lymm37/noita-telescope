@@ -178,6 +178,9 @@ function checkItemMatch(item, f) {
     // 2. Spell Item search
     if (item.item === 'spell' && f.queryList.every(q => isMatch(item.spell, q))) return true;
 
+	// Enemies
+	if (item.type === 'enemy' && f.queryList.some(q => isMatch(item.enemy, q))) return true;
+
     // 3. Potion/Pouch Label Synthesis
     // Concatenate material and item (e.g., "water" + " " + "potion") 
     // to allow queries like "water potion" to find matches.
@@ -304,7 +307,7 @@ async function findNextPWMatches(isIterative = true) {
 
 		if (!app.poisByPW[`${targetPW},${targetPWVertical}`] || !app.pixelScenesByPW[`${targetPW},${targetPWVertical}`]) {
 			const scanResults = scanSpawnFunctions(app.biomeData, app.tileSpawns, seed, ngPlusCount, targetPW, targetPWVertical, app.skipCosmeticScenes, app.perks);
-			const specialPoIs = targetPWVertical === 0 ? getSpecialPoIs(app.biomeData.pixels, seed, ngPlusCount, targetPW, app.perks) : [];
+			const specialPoIs = targetPWVertical === 0 ? getSpecialPoIs(app.biomeData, seed, ngPlusCount, targetPW, app.perks) : [];
 			app.pixelScenesByPW[`${targetPW},${targetPWVertical}`] = scanResults.finalPixelScenes;
 			app.poisByPW[`${targetPW},${targetPWVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
 		}

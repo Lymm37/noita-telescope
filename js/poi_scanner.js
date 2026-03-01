@@ -277,7 +277,7 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         detectedSpawns.forEach(spawn => {
             const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0);
             const targetBiome = target ? target.biome : null;
-            const targetChunkPos = target ? target.pos : null;
+            //const targetChunkPos = target ? target.pos : null;
             if (targetBiome) {
                 // TODO: Setting the biome in here might be redundant now
                 const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks);

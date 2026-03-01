@@ -354,6 +354,7 @@ export const app = {
 			let wx = (mouseX - this.canvas.width/2)/this.cam.z + this.cam.x;
 			let wy = (mouseY - this.canvas.height/2)/this.cam.z + this.cam.y;
 			this.cam.z *= (e.deltaY > 0 ? 0.9 : 1.1);
+			if (this.cam.z < 0.02) this.cam.z = 0.02;
 			this.cam.x = wx - (mouseX - this.canvas.width/2)/this.cam.z;
 			this.cam.y = wy - (mouseY - this.canvas.height/2)/this.cam.z;
 			this.draw();

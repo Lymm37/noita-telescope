@@ -43,6 +43,12 @@ export const GENERATOR_CONFIG = {
     'wizardcave_entrance': { color: 0xff804169, name: "Triangle Boss"},
     'temple_altar': { color: 0xff93cb4c, name: "Holy Mountain" },
     'boss_arena': { color: 0xff14EED7, name: "Boss Arena" },
+    // Static tile
+    'biome_watchtower': { color: 0xffb70000, wangFile: './data/wang_tiles/static/watchtower_fg.png', optional: true, name: "Watchtower" },
+    'biome_potion_mimics': { color: 0xffff00fe, wangFile: './data/wang_tiles/static/potion_mimics_fg.png', name: "Henkevä Temple" },
+    'biome_darkness': { color: 0xffff00fd, wangFile: './data/wang_tiles/static/darkness_fg.png', name: "Ominous Temple" },
+    'biome_boss_sky': { color: 0xffff00fc, wangFile: './data/wang_tiles/static/boss_fg.png', optional: true, name: "Kivi Temple" },
+    'biome_barren': { color: 0xffff00fb, wangFile: './data/wang_tiles/static/barren_fg.png', optional: true, name: "Barren Temple" },
 };
 
 Object.values(GENERATOR_CONFIG).forEach(conf => {

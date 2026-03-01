@@ -226,6 +226,69 @@ function applyMasking(pixels, imgData, mapW, bbox, validChunks, offsetY = 4) {
         tx += cw;
     }
 }
+
+function generateStaticTile(biomeName, config, bbox) {
+    //const wangFile = config.wangFile;
+    // For static tiles, we can just load the image and convert it to the same format as the generated buffers
+    
+    const wangData = config.wangData;
+    // Generate canvas and buffer
+    const canvas = document.createElement('canvas');
+    canvas.width = wangData.width;
+    canvas.height = wangData.height;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(wangData.width, wangData.height + 4); // Add 4 pixels of height to match generated buffers
+    const buffer = new Uint8Array(wangData.width * (wangData.height + 4) * 3);
+    for (let y = 0; y < wangData.height; y++) {
+        for (let x = 0; x < wangData.width; x++) {
+            // Original data is RGBA, need to convert to canvas format
+            const inIdx = (y * wangData.width + x) * 4;
+            const outIdxBuffer = ((y+4) * wangData.width + x) * 3;
+            const outIdxCanvas = ((y+4) * wangData.width + x) * 4;
+            const r = wangData.data[inIdx], g = wangData.data[inIdx + 1], b = wangData.data[inIdx + 2], a = wangData.data[inIdx + 3];
+            imgData.data[outIdxCanvas] = r; imgData.data[outIdxCanvas + 1] = g; imgData.data[outIdxCanvas + 2] = b; imgData.data[outIdxCanvas + 3] = a;
+            buffer[outIdxBuffer] = r; buffer[outIdxBuffer + 1] = g; buffer[outIdxBuffer + 2] = b;
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    // Try to make corrected position...
+    const div5x = Math.floor(bbox[0] / 5);
+    const div5y = Math.floor(bbox[1] / 5);
+    const mod5x = bbox[0] % 5;
+    const mod5y = bbox[1] % 5;
+    const correctedX = div5x * 5 * 512 + mod5x * 51 * 10;
+    const correctedY = div5y * 5 * 512 + mod5y * 51 * 10;
+
+    return {
+        biomeName: biomeName,
+        x: bbox[0] * CHUNK_SIZE, 
+        y: bbox[1] * CHUNK_SIZE,
+        correctedX,
+        correctedY,
+        w: wangData.width * TILE_SIZE, 
+        h: wangData.height * TILE_SIZE,
+        canvas: canvas,
+        path: null,
+        // Storage for independent PW scanning
+        buffer: buffer, 
+        width: wangData.width, 
+        mapH: wangData.height,
+        tileIndices: null,
+        xmax: null, 
+        ymax: null, 
+        tileSize: null,
+        numHTiles: null, 
+        numVTiles: null,
+        chunkBasePos: {x: bbox[0], y: bbox[1]},
+        minX: bbox[0], // TODO: Refactor references to these
+        minY: bbox[1], 
+        validChunks: null, // Not needed for static tiles
+        poisByPW: {}, // Initialize PW cache
+        pixelSceneRooms: null
+    };
+}
+
 /**
  * Visual Generation Loop
  * Removed PoI scanning from here. It now stores the raw buffer for later use.
@@ -234,33 +297,20 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
     const t0 = performance.now();
     const layers = [];
 
-    //const worldChunkSize = (ngPlus > 0) ? 64 : 70;
-    // Main layer (old idea of having the holy mountains and stuff on a separate layer, no longer needed.)
-    /*
-    layers.push({
-        biomeName: 'other',
-        x: 0, y: 0,
-        w: worldChunkSize * TILE_SIZE, h: worldChunkSize * TILE_SIZE,
-        canvas: null,
-        path: null,
-        // Storage for independent PW scanning
-        buffer: null, width: worldChunkSize, mapH: worldChunkSize,
-        minX: 0, minY: 0, validChunks: new Set(),
-        poisByPW: {} // Initialize PW cache
-    });
-    */
-    //const { regions, bboxes } = findBiomeRegions(biomePixels, width, height, 0); // Logic will loop through names
-
     for (let biomeName of Object.keys(biomeConfig)) {
         const conf = biomeConfig[biomeName];
         if (!conf.enabled) continue;
-        // TODO: Now part of the settings instead
-        //if (conf.optional && !includeOptionalBiomes) continue;
 
         const offsetY = (conf.offsetY !== undefined) ? conf.offsetY : DEFAULT_OFFSET_Y;
         const { regions, bboxes } = findBiomeRegions(biomePixels, width, height, conf.color);
         
         for (let i = 0; i < regions.length; i++) {
+            if (!biomeConfig[biomeName].wangFile) continue;
+            if (biomeConfig[biomeName].wangFile.includes('static')) {
+                // Static tile, just use the image as the whole region
+                layers.push(generateStaticTile(biomeName, biomeConfig[biomeName], bboxes[i]));
+                continue;
+            }
             let valid = false;
             let currentRerolls = conf.extraRerolls || 0;
             currentRerolls += global_extra_rerolls; // Global extra rerolls for all biomes
