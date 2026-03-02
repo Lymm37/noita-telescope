@@ -1,11 +1,12 @@
+import { getFromZipFirst } from "./zip_extraction.js";
 
 /**
  * sanitizes a PNG buffer by removing ancillary chunks (gAMA, iCCP, sRGB, etc.)
  * that cause browsers to alter pixel values.
- * Returns a Blob URL to the cleaned image.
+ * Returns a Blob to the cleaned image.
  */
 export async function sanitizePng(url) {
-    const response = await fetch(url);
+    const response = await getFromZipFirst(url);
     const buffer = await response.arrayBuffer();
     const view = new DataView(buffer);
     
@@ -46,8 +47,7 @@ export async function sanitizePng(url) {
         offset += length + 12;
     }
 
-    const newBlob = new Blob(chunks, { type: 'image/png' });
-    return URL.createObjectURL(newBlob);
+    return new Blob(chunks, { type: 'image/png' });
 }
 
 // Also applies to "air"
