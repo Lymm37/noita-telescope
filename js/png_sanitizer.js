@@ -49,18 +49,3 @@ export async function sanitizePng(url) {
 
     return new Blob(chunks, { type: 'image/png' });
 }
-
-// Also applies to "air"
-export function makeBlackTransparent(ctx) {
-    const imgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-    const data = imgData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-        // Check if R=0, G=0, B=0
-        if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0) {
-            data[i + 3] = 0; // Set Alpha to 0 (Transparent)
-        }
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-}
