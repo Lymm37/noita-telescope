@@ -50,31 +50,27 @@ export async function loadPixelSceneData() {
 				const key = getPixelSceneKey(biome, scene.name);
 				if (!PIXEL_SCENE_DATA[key]) {
 					const url = `./data/pixel_scenes/${getBiomeAlias(biome)}/${scene.name}.png`;
-					const cleanUrl = await sanitizePng(url);
-					const img = new Image();
-					img.src = cleanUrl;
-					img.onload = () => {
-						const canvas = document.createElement('canvas');
-						canvas.width = img.width;
-						canvas.height = img.height;
-						const ctx = canvas.getContext('2d', { willReadFrequently: true });
-						ctx.drawImage(img, 0, 0);
-						makeBlackTransparent(ctx);
-						// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
-						const spawnPoints = prescanPixelScene(canvas, biome);
-						PIXEL_SCENE_DATA[key] = {
-							key: key,
-							biome: biome,
-							name: scene.name,
-							imgElement: canvas, // Store the canvas directly since we need to manipulate it for recoloring
-							width: img.width,
-							height: img.height,
-							spawnPoints: spawnPoints,
-							isCosmetic: spawnPoints.length === 0, // If there are no spawn points, we can consider it purely cosmetic and can optionally skip some checks during generation
-							variants: {}, // Used for color material changes, keyed as `${color}=${material}`
-						};
-						loaded++;
+					const cleanBlob = await sanitizePng(url);		
+					const img = await createImageBitmap(cleanBlob);
+
+					const canvas = new OffscreenCanvas(img.width, img.height);
+					const ctx = canvas.getContext('2d', { willReadFrequently: true });
+					ctx.drawImage(img, 0, 0);
+					makeBlackTransparent(ctx);
+					// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
+					const spawnPoints = prescanPixelScene(canvas, biome);
+					PIXEL_SCENE_DATA[key] = {
+						key: key,
+						biome: biome,
+						name: scene.name,
+						imgElement: canvas, // Store the canvas directly since we need to manipulate it for recoloring
+						width: img.width,
+						height: img.height,
+						spawnPoints: spawnPoints,
+						isCosmetic: spawnPoints.length === 0, // If there are no spawn points, we can consider it purely cosmetic and can optionally skip some checks during generation
+						variants: {}, // Used for color material changes, keyed as `${color}=${material}`
 					};
+					loaded++;
 				}
 			}
 		}
