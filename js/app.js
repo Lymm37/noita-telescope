@@ -586,17 +586,13 @@ export const app = {
 	},
 
 	async loadWangAsset(url) {
-		const cleanUrl = await sanitizePng(url);
-		return new Promise(resolve => {
-			const img = new Image(); img.src = cleanUrl;
-			img.onload = () => {
-				const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-				const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
-				resolve({ data: ctx.getImageData(0,0,img.width,img.height).data, width: img.width, height: img.height });
-				URL.revokeObjectURL(cleanUrl);
-			};
-			img.onerror = () => resolve(null);
-		});
+		const cleanBlob = await sanitizePng(url);
+		const img = await createImageBitmap(cleanBlob);
+		const canvas = new OffscreenCanvas(img.width, img.height);
+		const ctx = canvas.getContext('2d');
+		ctx.drawImage(img, 0, 0);
+		const imageData = ctx.getImageData(0, 0, img.width, img.height);
+		return { data: imageData.data, width: imageData.width, height: imageData.height };
 	},
 
 	// Could probably default rescan to true if tiles is true
