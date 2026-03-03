@@ -1251,6 +1251,8 @@ export const app = {
 						case 'great_chest':
 							poiColor = '#FF5500AA';
 							break;
+						case 'shop':
+						case 'eye_room':
 						case 'holy_mountain_shop':
 							poiColor = '#00FF00AA';
 							break;

@@ -189,6 +189,7 @@
             border: 1px solid #444;
             font-size: 11px;
             cursor: text;
+            -moz-appearance: textfield;
         }
 
         .dual-range-control input[type="number"]::-webkit-outer-spin-button,
@@ -309,6 +310,29 @@
             color: #666;
             font-size: 10px;
             line-height: 1.1;
+        }
+
+        .legend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            color: #ccc;
+        }
+
+        /* The colored square/dot */
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px; /* Square with slight rounding */
+            flex-shrink: 0;
+            display: inline-block;
         }
 
     </style>
@@ -601,6 +625,48 @@
             <label title="Upload your flags folder to sync unlocks to your current progress. If your unlocks are not synced, spell generation predictions are likely to be incorrect">Sync Unlocks:</label>
             <input type="file" id="unlock-folder-picker" webkitdirectory directory multiple style="display:none;">
             <button onclick="document.getElementById('unlock-folder-picker').click()" title="Navigate to %appdata%/../LocalLow/Nolla_Games_Noita/save00/persistent and upload the entire flags folder to sync your unlocked spells">Upload Flags Folder</button>
+        </div>
+
+        <div id="poi-legend" style="font-weight:bold; font-size:14px; margin-bottom:5px; border-top:1px solid #444;">
+            <h3>Legend</h3>
+            <div class="legend-list">
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #FF0000;"></span>
+                    <span class="label">Heart</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #FF5500;"></span>
+                    <span class="label">Great Treasure Chest</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #FFA500;"></span>
+                    <span class="label">Treasure Chest</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #FFFF00;"></span>
+                    <span class="label">Item / Spell</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #00FF00;"></span>
+                    <span class="label">Shop</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #00FFFF;"></span>
+                    <span class="label">Wand</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #0000FF;"></span>
+                    <span class="label">Potion / Pouch</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #FF00FF;"></span>
+                    <span class="label">Utility Box</span>
+                </div>
+                <div class="legend-item">
+                    <span class="dot" style="background-color: #FFFFFF;"></span>
+                    <span class="label">Other</span>
+                </div>
+            </div>
         </div>
 
         <span class="debug-toggle" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;" title="Show or hide options which you probably will not need to enable for normal use">Debug Options...</span>

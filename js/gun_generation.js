@@ -516,12 +516,12 @@ function addRandomCards(worldSeed, ngPlusCount, gun, x, y, level, prng) {
 }
 
 
-
+// T10 unshuffle (tiny drop)
 export function generateGunStandalone(rngState) {
     let wandType = 'normal';
-    let cost = 200;
+    let cost = 180;
     let level = 11;
-    let force_unshuffle = false;
+    let force_unshuffle = true;
     let gun = {};
     const prng = new NollaPrng(rngState);
     
