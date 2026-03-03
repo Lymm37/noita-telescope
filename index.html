@@ -36,7 +36,7 @@
         
         input[type="number"], input[type="text"] { background: #333; color: white; border: 1px solid #555; width: 100%; padding: 5px; box-sizing: border-box; }
         
-        button { background: #dca44b; color: #111; border: none; padding: 10px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        button { background: #dca44b; color: #111; border: none; padding: 10px; font-weight: bold; cursor: pointer; border-radius: 3px; }
         button:disabled { background: #555; cursor: wait; }
         
         .options-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; text-align: left;}
@@ -45,6 +45,8 @@
         .search-row label b { color: #dca44b; }
         .adv-toggle { font-size: 11px; color: #dca44b; cursor: pointer; text-decoration: underline; margin-bottom: 5px; display: block; }
         #advanced-ui { display: none; background: #1a1a1a; padding: 10px; border: 1px solid #333; margin-top: 5px; }
+        .debug-toggle { font-size: 11px; color: #dca44b; cursor: pointer; text-decoration: underline; margin-bottom: 5px; display: block; }
+        #debug-options { display: none; background: #1a1a1a; padding: 10px; border: 1px solid #333; margin-top: 5px; }
 
         input[type="range"] { width: 100%; height: 5px; margin: 5px 0; accent-color: #dca44b; cursor: pointer; }
 
@@ -171,35 +173,144 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Attempt to make explainer text but didn't work because I don't know CSS */
-
-        /* Tooltip container, such as "Exclude Edge Cases" */
-        .textReceivingTooltip {
-        position: relative;
-        display: inline-block;
-        /* border-bottom: 1px dotted black;  Add dots under the hoverable text */
-        cursor: pointer;
+        /* Dual Range Slider Styling */
+        .dual-range-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
         }
 
-        /* Tooltip text */
-        .tooltiptext {
-        visibility: hidden; /* Hidden by default; the action of hovering over the tooltip container sets the visibility to visible, as seen below */
-        width: 130px;
-        background-color: black;
-        color: #ffffff;
-        text-align: center;
-        padding: 5px 0;
-        border-radius: 6px;
-        position: absolute;
-        top: -5px;
-        left: 105%;
-        z-index: 1; /* Ensure tooltip is displayed above content */
+        .dual-range-control input[type="number"] {
+            width: 6ch;
+            text-align: center;
+            background: #111;
+            color: #fff;
+            border: 1px solid #444;
+            font-size: 11px;
+            cursor: text;
         }
 
-        /* Show the tooltip text on hover */
-        .text:hover .tooltiptext {
-        visibility: visible;
+        .dual-range-control input[type="number"]::-webkit-outer-spin-button,
+        .dual-range-control input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
+
+        .slider-container {
+            position: relative;
+            width: 100%;
+            height: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .slider-track {
+            position: absolute;
+            height: 4px;
+            width: 100%;
+            background: #333;
+            border-radius: 2px;
+            /* Visual highlight for the selected range */
+            background: linear-gradient(to right, 
+                #333 var(--range-start), 
+                #dca44b var(--range-start), 
+                #dca44b var(--range-end), 
+                #333 var(--range-end)
+            );
+        }
+
+        .slider-container input[type="range"] {
+            position: absolute;
+            width: 100%;
+            pointer-events: none; /* Let clicks pass through the track */
+            appearance: none;
+            background: none;
+            margin: 0;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            pointer-events: auto; /* Thumbs remain clickable */
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #dca44b;
+            cursor: pointer;
+            border: none;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            appearance: none;
+            pointer-events: auto;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #dca44b;
+            cursor: pointer;
+            border: none;
+        }
+
+        select {
+            background: #333; 
+            color: white; 
+            border: 1px solid #555; 
+            width: 40%;
+        }
+
+        .compact-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px; /* Tight vertical spacing */
+            font-size: 12px;
+        }
+
+        .label-orange {
+            color: #dca44b;
+            cursor: pointer;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 4px; /* Tight gap between input and Max button */
+        }
+
+        /* Minimal width for number inputs without arrows */
+        .pw-num-input {
+            width: 3.5ch;
+            height: 18px;
+            background: #1a1a1a;
+            color: #fff;
+            border: 1px solid #444;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .btn-small {
+            height: 20px;
+            padding: 0 6px;
+            background: #333;
+            border: 1px solid #444;
+            color: #aaa;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .btn-small:hover {
+            background: #444;
+            color: #fff;
+        }
+
+        .help-text {
+            display: block;
+            margin-top: 4px;
+            color: #666;
+            font-size: 10px;
+            line-height: 1.1;
+        }
+
     </style>
 </head>
 <body>
@@ -207,22 +318,22 @@
         <h1>Lymm's Telescope</h1>
         <small style="font-size: 10px;">Warning: Not everything implemented, may give incorrect predictions (especially on edges of biomes), make sure to check your unlocks, etc.</small>
         <h3>Settings</h3>
-        <label>Seed</label> <input type="number" id="seed" placeholder="Enter your seed" value="" min="0" max="2147483647" autocomplete="off">
-        <label>NG+ Count</label> <input type="number" id="ng" value="0" min="0" max="28" autocomplete="off">
+        <label>Seed</label> <input type="number" id="seed" placeholder="Enter your seed" value="" min="0" max="2147483647" autocomplete="off" title="World seed">
+        <label>NG+ Count</label> <input type="number" id="ng" value="0" min="0" max="28" autocomplete="off" title="New Game Plus count, 0 for New Game, max 28">
         
         <label>Parallel Worlds (PWs)</label>
 
         <label>Horizontal</label>
         <div class="pw-controls">
             <button id="pw-dec" class="btn-small" style="flex:0.3">-</button>
-            <input id="pw" type="number" value="0" min="-512" max="512" autocomplete="off">
+            <input id="pw" type="number" value="0" min="-512" max="512" autocomplete="off" title="Positive for East, Negative for West, Zero for the main world">
             <button id="pw-inc" class="btn-small" style="flex:0.3">+</button>
         </div>
 
         <label>Vertical</label>
         <div class="pw-controls">
             <button id="pw-dec-vertical" class="btn-small" style="flex:0.3">-</button>
-            <input id="pw-vertical" type="number" value="0" min="-683" max="683" autocomplete="off">
+            <input id="pw-vertical" type="number" value="0" min="-683" max="683" autocomplete="off" title="Positive for Down (Hell), Negative for Up (Heaven), Zero for the main world">
             <button id="pw-inc-vertical" class="btn-small" style="flex:0.3">+</button>
         </div>
 
@@ -233,92 +344,224 @@
         <div id="search-container" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
             <span style="font-weight:bold; font-size:14px;">Search World</span>
             <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <input type="text" id="search-input" placeholder="Spells, items..." style="flex: 1;" autocomplete="off">
-                <button id="search-btn" style="flex: 0.4;">Find</button>
+                <input type="text" id="search-input" placeholder="Spells, items..." style="flex: 1;" autocomplete="off" title="Enter the name of a spell, item, potion/pouch material, or other point of interest (e.g. puzzle, dragon). Leave blank to just search for wands meeting the filter criteria.">
+                <button id="search-btn" style="flex: 0.4;" title="Start Search">Find</button>
             </div>
 
             <div id="search-nav" style="display: none; align-items: center; justify-content: space-between; margin-top: 8px; background: #1a1a1a; padding: 5px; border: 1px solid #333;">
-                <button id="search-prev" class="btn-small" style="padding: 2px 8px;">&lt;</button>
-                <span id="search-count" style="font-size: 11px; color: #dca44b;">0 / 0</span>
-                <button id="search-next" class="btn-small" style="padding: 2px 8px;">&gt;</button>
+                <button id="search-prev" class="btn-small" style="padding: 2px 8px; width: 20%;" title="Previous Result">&lt;</button>
+                <span id="search-count" style="font-size: 11px; color: #dca44b; width: 20%;">0 / 0</span>
+                <button id="search-next" class="btn-small" style="padding: 2px 8px; width: 20%;" title="Next Result">&gt;</button>
             </div>
-            <button id="cancel-search" class="btn-small" style="display:none; background:#822; color:white;">CANCEL SEARCH</button>
+            <button id="cancel-search" class="btn-small" style="display:none; background:#822; color:white;" title="Cancel the current search and remove highlighted matches">CANCEL SEARCH</button>
 
             <div id="search-results">
                 <!-- Am I even using this? -->
             </div>
             
 
-            <span class="adv-toggle">Advanced Filters...</span>
+            <span class="adv-toggle" title="Show or hide advanced filters for more specific search criteria">Advanced Filters...</span>
             
             <div id="advanced-ui">
-                <div class="search-row">
+                <div class="search-row" title="Used for special wand names like the ones from prebuilt puzzle wands, or the hidden wand name modifiers just for fun">
                     <label>Wand Name Modifier</label>
                     <input type="text" id="search-name" placeholder="e.g. Varpuluuta, Taikasauva, Bitcoin..." autocomplete="off">
                 </div>
-                <div class="search-row">
+                <div class="search-row" title="Enter a specific sprite index by number, without the 'wand_' prefix. This is mostly for testing, but it can be used to find specific sprites if you know their index. WIP">
+                    <label>Sprite (index only, for now)</label>
+                    <input type="number" id="search-sprite" placeholder="Sprite index..." min="0" max="1000" autocomplete="off">
+                </div>
+
+                <div class="search-row" title="Spell the wand casts every time. Enter a specific spell, or search for wands with or without any always casts">
                     <label>Always Casts</label>
                     <input type="text" id="search-ac" placeholder="Spell name..." autocomplete="off">
-                    <label style="justify-content: flex-start; gap: 5px; margin-top: 2px;">
-                        <input type="checkbox" id="search-ac-any"> Any Always Cast
-                    </label>
+                    <select id="search-ac-mode" style="width:auto;">
+                        <option value="any">Don't care</option>
+                        <option value="must">Must have Always Cast</option>
+                        <option value="none">Must NOT have Always Cast</option>
+                    </select>
                 </div>
-                <div class="search-row" style="flex-direction:row; justify-content:space-between; align-items:center;">
-                    <label>Only Non-Shuffle</label>
-                    <input type="checkbox" id="search-non-shuffle" style="width:auto;">
+                <div class="search-row" style="flex-direction:row; justify-content:space-between; align-items:center;" title="Whether the wand's spells are shuffled or not">
+                    <label>Shuffle</label>
+                    <select id="search-shuffle-mode" style="width:auto;">
+                        <option value="any">Don't care</option>
+                        <option value="shuffle">Must be Shuffle</option>
+                        <option value="non-shuffle">Must be Non-Shuffle</option>
+                    </select>
                 </div>
-                <div class="search-row">
-                    <label>Min Spells/Cast <b id="val-spells">1</b></label>
-                    <input type="range" id="min-spells" min="1" max="26" value="1">
+
+                <!-- Dual sliders for wand stats -->
+
+                <div class="search-row" title="Number of spells cast per use of the wand">
+                    <label>Spells/Cast</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="spells-min-num" title="Min Spells/Cast">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="spells-min-range">
+                            <input type="range" id="spells-max-range">
+                        </div>
+
+                        <input type="number" id="spells-max-num" title="Max Spells/Cast">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Max Cast Delay <b id="val-delay">1.00</b>s</label>
-                    <input type="range" id="max-delay" min="0" max="1.0" step="0.05" value="1.0">
+
+                <div class="search-row" title="Delay between casts, in seconds">
+                    <label>Cast Delay (s)</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="delay-min-num" title="Min Cast Delay">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="delay-min-range">
+                            <input type="range" id="delay-max-range">
+                        </div>
+
+                        <input type="number" id="delay-max-num" title="Max Cast Delay">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Max Recharge Time <b id="val-rech">4.0</b>s</label>
-                    <input type="range" id="max-rech" min="0" max="4.0" step="0.05" value="4.0">
+
+                <div class="search-row" title="Time it takes for the wand to recharge after using all its spells, in seconds">
+                    <label>Recharge Time (s)</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="rech-min-num" title="Min Recharge Time">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="rech-min-range">
+                            <input type="range" id="rech-max-range">
+                        </div>
+
+                        <input type="number" id="rech-max-num" title="Max Recharge Time">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Min Mana Max <b id="val-mana">0</b></label>
-                    <input type="range" id="min-mana" min="0" max="3000" step="50" value="0">
+
+                <div class="search-row" title="Total amount of mana capacity for the wand">
+                    <label>Mana Max</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="mana-min-num" title="Min Mana Capacity">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="mana-min-range">
+                            <input type="range" id="mana-max-range">
+                        </div>
+
+                        <input type="number" id="mana-max-num" title="Max Mana Capacity">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Min Mana Charge Speed <b id="val-manarech">0</b></label>
-                    <input type="range" id="min-manarech" min="0" max="2000" step="10" value="0">
+
+                <div class="search-row" title="How quickly the wand regenerates mana, in mana per second">
+                    <label>Mana Charge Speed</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="manarech-min-num" title="Min Mana Charge Speed">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="manarech-min-range">
+                            <input type="range" id="manarech-max-range">
+                        </div>
+
+                        <input type="number" id="manarech-max-num" title="Max Mana Charge Speed">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Min Capacity <b id="val-cap">1</b></label>
-                    <input type="range" id="min-cap" min="1" max="27" value="1">
+
+                <div class="search-row" title="Number of spell slots on the wand">
+                    <label>Capacity</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="cap-min-num" title="Min Capacity">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="cap-min-range">
+                            <input type="range" id="cap-max-range">
+                        </div>
+
+                        <input type="number" id="cap-max-num" title="Max Capacity">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Max Spread <b id="val-spread">35</b>°</label>
-                    <input type="range" id="max-spread" min="-33" max="35" value="35">
+
+                <div class="search-row" title="Spread of the wand's projectiles in degrees">
+                    <label>Spread (°)</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="spread-min-num" title="Min Spread">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="spread-min-range">
+                            <input type="range" id="spread-max-range">
+                        </div>
+
+                        <input type="number" id="spread-max-num" title="Max Spread">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Min Speed Multiplier <b id="val-speed">0.5</b></label>
-                    <input type="range" id="min-speed" min="0.5" max="10.0" step="0.1" value="0.5">
+
+                <div class="search-row" title="Hidden speed multiplier for the wand's projectiles">
+                    <label>Speed Multiplier</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="speed-min-num" title="Min Speed Multiplier">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="speed-min-range">
+                            <input type="range" id="speed-max-range">
+                        </div>
+
+                        <input type="number" id="speed-max-num" title="Max Speed Multiplier">
+                    </div>
                 </div>
-                <div class="search-row">
-                    <label>Min Length <b id="val-len">0</b></label>
-                    <input type="range" id="min-len" min="0" max="25" value="0">
+
+                <div class="search-row" title="Length of the wand in pixels">
+                    <label>Length (px)</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="len-min-num" title="Min Length">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="len-min-range">
+                            <input type="range" id="len-max-range">
+                        </div>
+
+                        <input type="number" id="len-max-num" title="Max Length">
+                    </div>
                 </div>
-                <div class="search-row" style="border-top:1px solid #333; padding-top:5px; margin-top:5px;">
-                    <label style="color:#dca44b; cursor:pointer;">
-                        <input type="checkbox" id="search-all-pw"> Search All PWs (Iterative)
-                    </label>
-                    <label>Limit PW Search <input type="checkbox" checked id="limit-pw-search" style="width:auto; margin-right:5px;"></label>
-                    <label>PW Limit: <input type="number" id="search-pw-limit" style="width:100px;" value="6" min="0" max="468" autocomplete="off"> </label>
-                    <label>Search Vertical PWs <input type="checkbox" id="search-vertical-pw" style="width:auto; margin-right:5px;"></label>
-                    <label>Vertical PW Limit: <input type="number" id="search-pw-vertical-limit" style="width:100px;" value="6" min="0" max="683" autocomplete="off"> </label>
-                    <small style="font-size:8px">Only tier 10 spells spawn in vertical PWs, don't use it for wand/item searches or it will be slow for no reason</small>
+
+               <div class="search-section-compact" style="border-top:1px solid #333; padding-top:8px; margin-top:8px;">
+                    <div class="compact-row" title="Check this in order to search multiple PWs. If not checked, it will only search the current PW">
+                        <span class="label-orange">Search Over Multiple PWs</span>
+                        <input type="checkbox" id="search-all-pw">
+                    </div>
+
+                    <div class="compact-row" title="Set the limit for the number of PWs to search">
+                        <span>PW Limit:</span>
+                        <div class="control-group">
+                            <input type="number" id="search-pw-limit" class="pw-num-input" value="6" min="0" max="468">
+                            <button class="btn-small" id="pw-set-max" title="Set to maximum PW limit (up to precision loss)">Max</button>
+                        </div>
+                    </div>
+
+                    <div class="compact-row" title="Include vertical PWs in the search. Both horizontal and vertical PWs will be searched, in order of closest to farthest">
+                        <span>Include Vertical PWs in Search</span>
+                        <input type="checkbox" id="search-vertical-pw">
+                    </div>
+
+                    <div class="compact-row" title="Set the limit for the number of vertical PWs to search">
+                        <span>Vertical PW Limit:</span>
+                        <div class="control-group">
+                            <input type="number" id="search-pw-vertical-limit" class="pw-num-input" value="6" min="0" max="683">
+                            <button class="btn-small" id="pw-set-max-vertical" title="Set to maximum vertical PW limit (up to precision loss)">Max</button>
+                        </div>
+                    </div>
+
+                    <small class="help-text">Only tier 10 spells spawn in vertical PWs, don't use it for wand/item searches or it will be slow for no reason</small>
                 </div>
             </div>
         </div>
 
         <!-- Perks (global) -->
         <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
-            <span style="font-weight:bold; font-size:14px;">Perks</span>
+            <span style="font-weight:bold; font-size:14px;" title="These are global perks that affect wand and item generation">Perks</span>
             <div class="options-row">
                 <label style="justify-content: flex-start; gap: 5px; margin-top: 2px;">
                     <input type="checkbox" id="no-more-shuffle"> No More Shuffle
@@ -333,60 +576,61 @@
                 <label> Extra Items in Holy Mountains <input type="number" value="0" min="0" max="5" style="width: 40px;" id="extra-shop-items" autocomplete="off"></label>
             </div>
         </div>
-        
-        <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
-            <span style="font-weight:bold; font-size:14px;">Settings/Debug Options</span>
-            <label class="debug-opt"><input type="checkbox" id="recolor-materials" checked> Recolor Materials</label>
-            <label class="debug-opt"><input type="checkbox" id="clear-spawn-pixels"> Clear Spawn Pixels</label>
-            <label class="debug-opt"><input type="checkbox" id="exclude-taikasauva"> Exclude Taikasauva Spawns</label>
-            <label class="debug-opt"><input type="checkbox" id="visited-coalmine-alt-shrine"> Visited Coalmine Alt Shrine</label>
-            <label class="debug-opt"><input type="checkbox" id="debug-hide-pois"> Hide PoIs</label>
-            <label class="debug-opt"><input type="checkbox" id="debug-original-biome-map"> Show Original Biome Map Colors</label>
-            <label class="debug-opt"><input type="checkbox" id="debug-enable-edge-noise"> Enable Edge Noise</label>
-            <label class="debug-opt"><input type="checkbox" id="debug-edge-noise"> Show Biome Edge Noise Debug</label>
-            <label class="debug-opt">
+
+        <div id="regions-container">
+            <span style="font-weight:bold; font-size:14px; margin-bottom:5px;">Region Options</span>
+            <div class="btn-group">
+                <button id="regions-all" class="btn-small" title="Generate tile data for all biomes, looks pretty but some of them are unnecessary for searching">All</button>
+                <button id="regions-useful" class="btn-small" title="Generate tile data only for regions which contain wands and items, default setting">Useful</button>
+                <button id="regions-none" class="btn-small" title="Deselect all regions, so you can select a single region for faster limited searches">None</button>
+            </div>
+            <div id="regions-list"></div>
+            <label class="region-opt"><input type="checkbox" id="skip-cosmetic-scenes" title="Do not generate or display pixel scenes which do not contain any spawn pixels with wands or items, saves a small amount of time but doesn't look as nice"> Skip Cosmetic Pixel Scenes</label>
+        </div>
+
+        <div id="unlocks-container">
+            <span style="font-weight:bold; font-size:14px; margin-bottom:5px;">Spell Unlocks</span>
+            <div class="btn-group">
+                <button id="unlock-all" class="btn-small" title="Unlock all spells, from completing all quests and bosses">All</button>
+                <button id="unlock-none" class="btn-small" title="Unlock state as if you just started the game or reset all progress">None</button>
+            </div>
+            <div id="unlocks-list"></div>
+        </div>
+
+        <div class="settings-group">
+            <label title="Upload your flags folder to sync unlocks to your current progress. If your unlocks are not synced, spell generation predictions are likely to be incorrect">Sync Unlocks:</label>
+            <input type="file" id="unlock-folder-picker" webkitdirectory directory multiple style="display:none;">
+            <button onclick="document.getElementById('unlock-folder-picker').click()" title="Navigate to %appdata%/../LocalLow/Nolla_Games_Noita/save00/persistent and upload the entire flags folder to sync your unlocked spells">Upload Flags Folder</button>
+        </div>
+
+        <span class="debug-toggle" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;" title="Show or hide options which you probably will not need to enable for normal use">Debug Options...</span>
+        <div id="debug-options">
+            <label class="debug-opt" title="There is a single *unique* pixel scene in the game, which is the Shrine pixel scene in the Collapsed Mines. Being unique, once you visit/load it, it permanently alters the spawn probability of other pixel scenes in the Collapsed Mines on your run. Only the Collapsed Mines version of this scene is unique, the Mines version is not. If the pixel scenes predicted for the Collapsed Mines are incorrect, it's probably because you need to toggle this setting."><input type="checkbox" id="visited-coalmine-alt-shrine"> Visited Collapsed Mine Shrine</label>
+            <label class="debug-opt" title="Exclude Taikasauva Spawns from the map. Taikasauvas are a source of wands and spells, but they can be somewhat inconsistent because they have a tendency to randomly unload."><input type="checkbox" id="exclude-taikasauva"> Exclude Natural Taikasauva Spawns</label>
+            <label class="debug-opt" title="Whether to recolor wang colors to material colors. Colors are still incorrect for some materials because they use textures which have different colors than their wang/material colors."><input type="checkbox" id="recolor-materials" checked> Recolor Materials</label>
+            <label class="debug-opt" title="Remove spawn pixels after pre-scanning spawns from tiles and pixel scenes. Makes the world look quite a bit more empty, or more clean, depending on your point of view. Might be buggy with attempting to deselect this setting."><input type="checkbox" id="clear-spawn-pixels"> Clear Spawn Pixels</label>
+            <label class="debug-opt" title="Hide PoI circles to show the underlying tile map more clearly"><input type="checkbox" id="debug-hide-pois"> Hide PoIs</label>
+            <label class="debug-opt" title="Show the colors from the original biome map as the background, instead of the recolored ones based on the average color of the backgrounds"><input type="checkbox" id="debug-original-biome-map"> Show Original Biome Map Colors</label>
+            <label class="debug-opt" title="Edge noise is the wavy edge between chunks. Some spawns near the edges of biomes may be false positives or false negatives depending on whether or not they get culled by the edge noise, like for example if EDR protrudes into a biome and blocks a spawn. This feature hasn't been fully consistent with the game quite yet."><input type="checkbox" id="debug-enable-edge-noise"> Enable Edge Noise</label>
+            <label class="debug-opt" title="Click somewhere on the map to show a local view of the edge noise at the pixel level. Colors of chunks are according to their chunk position ID value (0-3)."><input type="checkbox" id="debug-edge-noise"> Show Biome Edge Noise Debug</label>
+            <label class="debug-opt" title="Change the overlay which colors the foreground materials of biomes. None mode uses the original white color of the tiles. Cheap mode calculates straight edges of the biomes but still checks accurately which biome they are in. Other modes require edge noise to be enabled to show any difference. Normal mode calculates the edge noise but only within the interior of biomes. Expanded mode attempts to use the edge noise with an area slightly extended from the biome to show the wavy edges more clearly, but it's currently a bit broken.">
                 Overlay Mode
-                <select id="debug-biome-overlay-mode" style="background: #333; color: white; border: 1px solid #555; width: 40%;">
+                <select id="debug-biome-overlay-mode">
                     <option value="none">None</option>
                     <option value="cheap" selected>Cheap</option>
                     <option value="normal">Normal</option>
                     <option value="expanded">Expanded (currently broken, also very slow)</option>
                 </select>
             </label>
-            <label class="debug-opt"><input type="checkbox" id="debug-draw"> Show Tile Bounds</label>
-            <label class="debug-opt"><input type="checkbox" id="debug-path"> Show Paths</label>
-            <label class="debug-opt hidden"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
-            <label class="debug-opt hidden"><input type="checkbox" id="debug-fix-holy-mountain-edge-noise" checked> Fix Holy Mountain Edge Noise</label>
-            <label class="debug-opt hidden"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases (Unfinished)</label>
-            <label class="debug-opt hidden">Extra Rerolls (Pathfinding Debug)<input type="number" value="0" min="0" max="100" style="width: 60px;" id="debug-extra-rerolls" autocomplete="off"> </label>
-            <label class="debug-opt hidden"><input type="checkbox" id="debug-rng-info"> Display RNG Info (Deprecated)</label>
+            <label class="debug-opt" title="Show tile bounds for each region, with numerical values of the tile indices shown."><input type="checkbox" id="debug-draw"> Show Tile Bounds</label>
+            <label class="debug-opt" title="Show the calculated pathfinding validation step for the region. This may not be exactly the same as the path the game uses, and is definitely not the shortest path or anything, it's just a verification that there is some path to the bottom of the biome. If it seems broken and nonsensical sometimes, it's because the way the game does it is too."><input type="checkbox" id="debug-path"> Show Paths</label>
+            <label class="debug-opt hidden" title="Make PoIs very small to try to see their precise positions better"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
+            <label class="debug-opt hidden" title="Apply straight edges to the Holy Mountain biomes instead of using the normal wavy edge noise"><input type="checkbox" id="debug-fix-holy-mountain-edge-noise" checked> Fix Holy Mountain Edge Noise</label>
+            <label class="debug-opt hidden" title="Exclude edge cases (unfinished)"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases (Unfinished)</label>
+            <label class="debug-opt hidden" title="Set extra rerolls for pathfinding debug (requires pathfinding requirement to be disabled)">Extra Rerolls (Pathfinding Debug)<input type="number" value="0" min="0" max="100" style="width: 60px;" id="debug-extra-rerolls" autocomplete="off"> </label>
+            <label class="debug-opt hidden" title="Display RNG info (deprecated)"><input type="checkbox" id="debug-rng-info"> Display RNG Info (Deprecated)</label>
         </div>
 
-        <div id="regions-container">
-            <span style="font-weight:bold; font-size:14px; margin-bottom:5px;">Region Options</span>
-            <div class="btn-group">
-                <button id="regions-all" class="btn-small">All</button>
-                <button id="regions-useful" class="btn-small">Useful</button>
-                <button id="regions-none" class="btn-small">None</button>
-            </div>
-            <div id="regions-list"></div>
-            <label class="region-opt"><input type="checkbox" id="skip-cosmetic-scenes"> Skip Cosmetic Pixel Scenes</label>
-        </div>
-
-        <div id="unlocks-container">
-            <span style="font-weight:bold; font-size:14px; margin-bottom:5px;">Spell Unlocks</span>
-            <div class="btn-group">
-                <button id="unlock-all" class="btn-small">All</button>
-                <button id="unlock-none" class="btn-small">None</button>
-            </div>
-            <div id="unlocks-list"></div>
-        </div>
-
-        <div class="settings-group">
-            <label>Sync Unlocks:</label>
-            <input type="file" id="unlock-folder-picker" webkitdirectory directory multiple style="display:none;">
-            <button onclick="document.getElementById('unlock-folder-picker').click()">Upload Flags Folder</button>
-        </div>
     </div>
     
     <div id="view">
@@ -394,6 +638,7 @@
         <canvas id="canvas"></canvas>
         <canvas id="overlay"></canvas>
         <div id="tooltip"></div>
+        <div id="field-tooltip"></div>
         <div id="coords"></div>
         <div id="loading-overlay">
             <div class="spinner"></div>

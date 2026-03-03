@@ -23,12 +23,67 @@ function generateHeaderHtml(name, sprite, extra, material=null) {
 	if (translatedName && translatedName.toLowerCase() !== name.toLowerCase()) {
 		name = translatedName;
 	}
+	let wikiName = name;
+	if (name.toLowerCase().includes('wand')) {
+		// Wand names are not really going to work here...
+		// I want to be able to get the custom wands, otherwise just redirect to the base wand page
+		// Actually these are all on the same Wands page, at... Wands#Unique_wands
+		if (name.toLowerCase().includes('ruusu')) {
+			wikiName = 'Ruusu';
+		}
+		else if (name.toLowerCase().includes('kiekurakeppi')) {
+			wikiName = 'Kiekurakeppi';
+		}
+		else if (name.toLowerCase().includes('valtikka')) {
+			wikiName = 'Valtikka';
+		}
+		else if (name.toLowerCase().includes('vasta')) {
+			wikiName = 'Vasta';
+		}
+		else if (name.toLowerCase().includes('vihta')) {
+			wikiName = 'Vihta';
+		}
+		else if (name.toLowerCase().includes('arpaluu')) {
+			wikiName = 'Arpaluu';
+		}
+		else if (name.toLowerCase().includes('varpuluuta')) {
+			wikiName = 'Varpuluuta';
+		}
+		else if (name.toLowerCase().includes('taikasauva')) {
+			wikiName = 'Taikasauva';
+		}
+		else {
+			wikiName = 'Wands';
+		}
+	}
+	if (name.toLowerCase().includes('potion')) {
+		wikiName = name.toLowerCase().replace(' potion', ''); // Remove "potion" from the end of the name to just link to the material
+	}
+	if (name.toLowerCase().includes('pouch')) {
+		wikiName = name.toLowerCase().replace(' pouch', ''); // Remove "pouch" from the end of the name to just link to the material
+	}
+	if (name.toLowerCase().includes('puzzle')) {
+		if (name.toLowerCase() === 'vault puzzle') {
+			wikiName = 'The_Vault#Puzzles';
+		}
+		// Need more details for the others which we don't really have here oops
+	}
+	if (name.toLowerCase().includes('holy mountain') || name.toLowerCase().includes('pacifist')) {
+		wikiName = 'Holy_Mountain';
+	}
+	if (name.toLowerCase().includes('utility_box')) {
+		wikiName = 'Utility_Box'; // Annoying this one doesn't redirect properly
+	}
+	// TODO: Still missing a lot, but at least the spells work correctly
+	const wikiPage = `https://noita.wiki.gg/wiki/${wikiName.replace(/\s+/g, '_')}`;
 	return `
 		<div class="item-header">
+			<a href=${wikiPage} target="_blank">
 			<div class="header-slot" style="overflow: hidden; position: relative;">
 				<img class="item-sprite-header" src="./data/${sprite}.png" onerror="this.style.display='none'">
 				${extraSprite}
 			</div>
+			</a>
 			<div>
 				<b style="color:#dca44b; font-size: 20px;">${name.toUpperCase()}</b><br>
 				${extra || ''}
@@ -66,9 +121,10 @@ function generateWandHtml(wand) {
 		wandName = `${wandName} ×${wand.count}`;
 	}
 
-	const pos = `(${Math.floor(wand.x)}, ${Math.floor(wand.y)})`;
+	//const pos = `(${Math.floor(wand.x)}, ${Math.floor(wand.y)})`;
 
-	let extraInfo = `<small>${pos} | ${wandType} tier ${wand.level} ${wand.is_rare ? '(rare)' : ''} | Length ${length}${tipOffsetText}</small>`;
+	let wandTier = wand.level ? 'tier ' + wand.level : '';
+	let extraInfo = `<small>${wandType} ${wandTier} ${wand.is_rare ? '(rare)' : ''} | Length ${length}${tipOffsetText} | Sprite ${wand.sprite.substring(5)} </small>`;
 	if (document.getElementById('debug-rng-info').checked) {
 		extraInfo += `<br><small>RNG State: ${wand.r}, ${wand.r0}</small>`;
 	}
@@ -170,7 +226,10 @@ function generateItemListHtml(items) {
 			else if (item.count && item.count > 1) {
 				itemCount = ` ×${item.count}&nbsp;`;
 			}
-			html += `<img class="spell-icon" src="./data/item_sprites/${icon}" title="${item.item}" onerror="this.style.display='none'">`;
+			const translatedName = getDisplayName(item.item.toLowerCase());
+			const title = translatedName ? translatedName : item.item;
+			const wikiPage = `https://noita.wiki.gg/wiki/${item.item}`;
+			html += `<a href="${wikiPage}" target="_blank"><img class="spell-icon" src="./data/item_sprites/${icon}" title="${title}" onerror="this.style.display='none'"></a>`;
 			html += `</div>${itemCount}`;
 		}
 	}
@@ -185,7 +244,10 @@ function generateSpellListHtml(spells, capacity) {
 		html += `<div class="slot">`;
 		if (spellName) {
 			const icon = spellName.toLowerCase() + ".png";
-			html += `<img class="spell-icon" src="./data/spell_sprites/${icon}" title="${spellName}" onerror="this.style.display='none'">`;
+			const translatedName = getDisplayName(spellName);
+			const title = translatedName ? `${translatedName} (${spellName})` : spellName;
+			const wikiPage = `https://noita.wiki.gg/wiki/${spellName}`;
+			html += `<a href="${wikiPage}" target="_blank"><img class="spell-icon" src="./data/spell_sprites/${icon}" title="${title}" onerror="this.style.display='none'"></a>`;
 		}
 		html += `</div>`;
 	}

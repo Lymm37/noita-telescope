@@ -41,18 +41,28 @@ function getSearchFilters() {
 	return {
 		queryList: document.getElementById('search-input').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s),
 		name: document.getElementById('search-name').value.toLowerCase(),
+		sprite: document.getElementById('search-sprite').value,
 		ac: document.getElementById('search-ac').value.toLowerCase(),
-		acAny: document.getElementById('search-ac-any').checked,
-		nonShuffle: document.getElementById('search-non-shuffle').checked,
-		minMana: parseInt(document.getElementById('min-mana').value),
-		minCap: parseInt(document.getElementById('min-cap').value),
-		maxRech: parseFloat(document.getElementById('max-rech').value),
-		minSpells: parseInt(document.getElementById('min-spells').value),
-		maxDelay: parseFloat(document.getElementById('max-delay').value),
-		minManaRech: parseInt(document.getElementById('min-manarech').value),
-		maxSpread: parseInt(document.getElementById('max-spread').value),
-		minSpeed: parseFloat(document.getElementById('min-speed').value),
-		minLen: parseInt(document.getElementById('min-len').value)
+		acMode: document.getElementById('search-ac-mode').value,
+		shuffleMode: document.getElementById('search-shuffle-mode').value,
+		minSpells: parseInt(document.getElementById('spells-min-num').value),
+		maxSpells: parseInt(document.getElementById('spells-max-num').value),
+		minDelay: parseFloat(document.getElementById('delay-min-num').value),
+		maxDelay: parseFloat(document.getElementById('delay-max-num').value),
+		minRech: parseFloat(document.getElementById('rech-min-num').value),
+		maxRech: parseFloat(document.getElementById('rech-max-num').value),
+		minMana: parseInt(document.getElementById('mana-min-num').value),
+		maxMana: parseInt(document.getElementById('mana-max-num').value),
+		minManaRech: parseInt(document.getElementById('manarech-min-num').value),
+		maxManaRech: parseInt(document.getElementById('manarech-max-num').value),
+		minCap: parseInt(document.getElementById('cap-min-num').value),
+		maxCap: parseInt(document.getElementById('cap-max-num').value),
+		minSpread: parseInt(document.getElementById('spread-min-num').value),
+		maxSpread: parseInt(document.getElementById('spread-max-num').value),
+		minSpeed: parseFloat(document.getElementById('speed-min-num').value),
+		maxSpeed: parseFloat(document.getElementById('speed-max-num').value),
+		minLen: parseInt(document.getElementById('len-min-num').value),
+		maxLen: parseInt(document.getElementById('len-max-num').value)
 	};
 }
 
@@ -114,7 +124,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
 	await findNextPWMatches(searchAllPW);
 
 	if (search.results.length > 0) {
-		document.getElementById('search-nav').style.display = 'flex';
+		document.getElementById('search-nav').style.display = 'block';
 		// Keep the cancel button visible so highlights can be cleared later
         cancelBtn.style.display = 'block'; 
         cancelBtn.innerText = "Clear Results"; // Update text for clarity
@@ -127,10 +137,53 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
 		}
 	} else {
 		document.getElementById('search-nav').style.display = 'none';
-		document.getElementById('search-results').innerHTML = '<div style="padding:5px; color:#888;">No results found in range.</div>';
+		if (searchAllPW) {
+			document.getElementById('search-results').innerHTML = '<div style="padding:5px; color:#888;">No results found in this range of PWs.</div>';
+		}
+		else {
+			document.getElementById('search-results').innerHTML = '<div style="padding:5px; color:#888;">No results found in this PW.</div>';
+		}
 		//cancelBtn.style.display = 'none';
 		app.setLoading(false);
 		searchActive = false;
+
+		// Just testing to see what the sprite distributions are like, no need to actually log this though
+		/*
+		if (searchAllPW && search.lastPwIdx === search.pwSequence.length - 1) {
+			// Get statistics on all scanned PoIs
+			let totalWands = 0;
+			let spriteCounts = {};
+			for (let i = 1; i <= 1000; i++) {
+				spriteCounts[`wand_${i.toString().padStart(4, '0')}`] = 0;
+			}
+			for (let pwKey in app.poisByPW) {
+				const pois = app.poisByPW[pwKey];
+				for (let poi of pois) {
+					if (poi.type === 'wand') {
+						totalWands += 1;
+						const sprite = poi.sprite;
+						if (sprite && spriteCounts[sprite] !== undefined) {
+							spriteCounts[sprite] += 1;
+						}
+					}
+					else if (CONTAINER_TYPES.includes(poi.type) && poi.items) {
+						for (let item of poi.items) {
+							if (item.type === 'wand') {
+								totalWands += 1;
+								const sprite = item.sprite;
+								if (sprite && spriteCounts[sprite] !== undefined) {
+									spriteCounts[sprite] += 1;
+								}
+							}
+						}
+					}
+				}
+			}
+			console.log(`Scanned ${search.lastPwIdx + 1} PW coordinates with a total of ${totalWands} wands found.`);
+			console.log("Sprite distribution among found wands:");
+			console.log(spriteCounts);
+		}
+		*/
 	}
 
 	const t1 = performance.now();
@@ -141,24 +194,31 @@ function checkWandMatch(w, f) {
 	const length = w.tip.x - w.grip.x;
 	
 	// Stat filters
-	if (w.mana_max < f.minMana) return false;
-	if (w.deck_capacity < f.minCap) return false;
-	if ((w.reload_time / 60) > f.maxRech) return false;
-	if (w.actions_per_round < f.minSpells) return false;
-	if ((w.fire_rate_wait / 60) > f.maxDelay) return false;
-	if (w.mana_charge_speed < f.minManaRech) return false;
-	if (w.spread_degrees > f.maxSpread) return false;
-	if (w.speed_multiplier < f.minSpeed) return false;
-	if (length < f.minLen) return false;
-	if (f.nonShuffle && w.shuffle_deck_when_empty) return false;
+	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
+	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
+	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
+	if (w.actions_per_round < f.minSpells || w.actions_per_round > f.maxSpells) return false;
+	if ((w.fire_rate_wait / 60) < f.minDelay || (w.fire_rate_wait / 60) > f.maxDelay) return false;
+	if (w.mana_charge_speed < f.minManaRech || w.mana_charge_speed > f.maxManaRech) return false;
+	if (w.spread_degrees < f.minSpread || w.spread_degrees > f.maxSpread) return false;
+	if (w.speed_multiplier < f.minSpeed || w.speed_multiplier > f.maxSpeed) return false;
+	if (length < f.minLen || length > f.maxLen) return false;
 	if (f.name && !isMatch(w.name, f.name)) return false;
+	if (f.sprite && w.sprite !== `wand_${f.sprite.toString().padStart(4, '0')}`) return false;
 
-	// AC Logic
+	// Shuffle
+	if (f.shuffleMode === 'shuffle' && !w.shuffle_deck_when_empty) return false;
+	if (f.shuffleMode === 'non-shuffle' && w.shuffle_deck_when_empty) return false;
+
+	// Always Casts
 	if (f.ac) {
 		if (!w.always_casts || w.always_casts.length === 0) return false;
 		if (!isMatch(w.always_casts.join(','), f.ac)) return false;
-	} else if (f.acAny) {
+	} else if (f.acMode === 'must') {
 		if (!w.always_casts || w.always_casts.length === 0) return false;
+	}
+	else if (f.acMode === 'none') {
+		if (w.always_casts && w.always_casts.length > 0) return false;
 	}
 
 	// Spell set (Comma separated AND, order agnostic)

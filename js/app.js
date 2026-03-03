@@ -81,11 +81,11 @@ export const app = {
 
 		this.initUnlocks();
 		this.initRegions();
-		this.preload();
-		//.then(() => this.generate(true, true));
+		this.preload().then(() => this.getDailyRunSeed());
 
 		// Menu Toggles
 		document.querySelector('.adv-toggle').onclick = () => this.toggleAdvancedSearch();
+		document.querySelector('.debug-toggle').onclick = () => this.toggleDebugOptions();
 		
 		// PW Controls
 		// Horizontal
@@ -231,12 +231,6 @@ export const app = {
 		};
 		document.getElementById('search-prev').onclick = () => navigateSearch(-1);
 		document.getElementById('search-next').onclick = () => navigateSearch(1);
-		['min-spells', 'max-delay', 'max-rech', 'min-mana', 'min-manarech', 'min-cap', 'max-spread', 'min-speed', 'min-len'].forEach(id => {
-			const el = document.getElementById(id);
-			const suffix = id.split('-').pop();
-			const display = document.getElementById('val-' + suffix);
-			el.oninput = () => { display.innerText = parseFloat(el.value).toFixed(el.step.includes('.') ? 2 : 0); };
-		});
 		const cancelBtn = document.getElementById('cancel-search');
 		cancelBtn.onclick = () => { 
 			cancelSearch();
@@ -244,43 +238,23 @@ export const app = {
 			this.setLoading(false); // Clear overlay immediately on cancel
 			this.draw();
 		};
-		document.getElementById('limit-pw-search').onchange = () => {
-			if (document.getElementById('limit-pw-search').checked) {
-				// No real need to disable the input fields
-			} else {
-				if (this.ngPlusCount > 0) {
-					document.getElementById('search-pw-limit').value = 512;
-				}
-				else {
-					document.getElementById('search-pw-limit').value = 468;
-				}
-				if (document.getElementById('search-vertical-pw').checked) {
-					document.getElementById('search-pw-vertical-limit').value = 683;
-				}
+		//document.getElementById('search-all-pw').onchange = () => {};
+		const setPWMaxButton = document.getElementById('pw-set-max');
+		setPWMaxButton.onclick = () => {
+			document.getElementById('search-all-pw').checked = true;
+			if (this.ngPlusCount > 0) {
+				document.getElementById('search-pw-limit').value = 512;
 			}
-		};
-		document.getElementById('search-vertical-pw').onchange = () => {
-			if (document.getElementById('search-vertical-pw').checked) {
-				// No real need to disable the input fields
-			} else {
-				document.getElementById('search-pw-vertical-limit').value = 683;
-			}
-		};
-		document.getElementById('search-pw-limit').onchange = () => {
-			let value = parseInt(document.getElementById('search-pw-limit').value);
-			if (!value || isNaN(value) || value < 0) value = 0;
 			else {
-				if (this.isNGP && value > 512) value = 512;
-				if (!this.isNGP && value > 468) value = 468;
+				document.getElementById('search-pw-limit').value = 468;
 			}
-			document.getElementById('search-pw-limit').value = value;
 		};
-		document.getElementById('search-pw-vertical-limit').onchange = () => {
-			let value = parseInt(document.getElementById('search-pw-vertical-limit').value);
-			if (!value || isNaN(value) || value < 0) value = 0;
-			else if (value > 683) value = 683;
-			document.getElementById('search-pw-vertical-limit').value = value;
+		const setPWMaxVerticalButton = document.getElementById('pw-set-max-vertical');
+		setPWMaxVerticalButton.onclick = () => {
+			document.getElementById('search-vertical-pw').checked = true;
+			document.getElementById('search-pw-vertical-limit').value = 683;
 		};
+
 
 		// Event Handlers
 
@@ -368,6 +342,40 @@ export const app = {
 			}
 			if (!this.pinnedTooltip) this.hover(e);
 		};
+
+		// Init search filters
+
+		document.getElementById('search-ac').onchange = () => {
+			const acInput = document.getElementById('search-ac');
+			if (acInput.value.trim() !== "") {
+				document.getElementById('search-ac-mode').value = 'must';
+			}
+		};
+		document.getElementById('search-ac-mode').onchange = () => {
+			const mode = document.getElementById('search-ac-mode').value;
+			if (mode === 'none') {
+				document.getElementById('search-ac').value = '';
+			}
+		};
+
+		// Spells/Cast (1 - 26)
+		 this.initDualSlider('spells', 1, 26, 1);
+		// Cast Delay (0.0s - 1.0s)
+		this.initDualSlider('delay', 0.0, 1.0, 1/60);
+		// Recharge Time (0.0s - 4.0s)
+		this.initDualSlider('rech', 0.0, 4.0, 1/60);
+		// Mana Max (0 - 3000)
+		this.initDualSlider('mana', 0, 3000, 10);
+		// Mana Charge Speed (0 - 3000)
+		this.initDualSlider('manarech', 0, 3000, 10);
+		// Capacity (1 - 27+)
+		this.initDualSlider('cap', 1, 27, 1);
+		// Spread (-35 - 35 degrees)
+		this.initDualSlider('spread', -35, 35, 1);
+		// Speed multiplier (0.5x - 10x)
+		this.initDualSlider('speed', 0.5, 10, 0.1);
+		// Length (1 - 25 px)
+		this.initDualSlider('len', 1, 25, 1);
 	},
 
 	setLoading(show, text = "Generating...") {
@@ -477,6 +485,112 @@ export const app = {
 		};
 		// Generate function sets the unlocks based on the current state of the checkboxes, so no need to do it here
 		setUnlocks([]); // Initialize with no unlocks
+	},
+
+	// Dual Range Sliders
+	/**
+	 * Dual Range Slider Component
+	 * @param {string} idPrefix - The ID prefix used in HTML
+	 * @param {number} minLimit - Absolute minimum
+	 * @param {number} maxLimit - Absolute maximum
+	 * @param {number} step - Step size (e.g., 1 for capacity, 0.01666 for frames)
+	 * @param {number} initMin - Initial start value
+	 * @param {number} initMax - Initial end value
+	 */
+	initDualSlider(idPrefix, minLimit, maxLimit, step = 1, initMin = null, initMax = null) {
+		const minRange = document.getElementById(`${idPrefix}-min-range`);
+		const maxRange = document.getElementById(`${idPrefix}-max-range`);
+		const minNum = document.getElementById(`${idPrefix}-min-num`);
+		const maxNum = document.getElementById(`${idPrefix}-max-num`);
+		const container = minRange.parentElement;
+
+		// Set default bounds and steps
+		[minRange, maxRange, minNum, maxNum].forEach(el => {
+			el.min = minLimit;
+			el.max = maxLimit;
+			el.step = step;
+		});
+
+		// Load initial values without triggering bounds clobbering
+		minRange.value = initMin !== null ? initMin : minLimit;
+		maxRange.value = initMax !== null ? initMax : maxLimit;
+
+		const formatValue = (val) => {
+			if (step >= 1) return Math.round(val);
+			return parseFloat(parseFloat(val).toFixed(2));
+		};
+
+		function update(caller) {
+			let valMin = parseFloat(minRange.value);
+			let valMax = parseFloat(maxRange.value);
+
+			// Independent Bounds Checking (Stops handles from crossing)
+			if (caller === 'min' && valMin > valMax) {
+			minRange.value = valMax;
+			valMin = valMax;
+			} else if (caller === 'max' && valMax < valMin) {
+			maxRange.value = valMin;
+			valMax = valMin;
+			}
+
+			// Update text fields
+			minNum.value = formatValue(valMin);
+			maxNum.value = formatValue(valMax);
+
+			// Update visual track gradient
+			const percentStart = ((valMin - minLimit) / (maxLimit - minLimit)) * 100;
+			const percentEnd = ((valMax - minLimit) / (maxLimit - minLimit)) * 100;
+			container.style.setProperty('--range-start', `${percentStart}%`);
+			container.style.setProperty('--range-end', `${percentEnd}%`);
+		}
+
+		// --- Proximity Radar: Fixes interaction when handles are stacked ---
+		container.addEventListener('mousemove', (e) => {
+			const rect = container.getBoundingClientRect();
+			const pos = (e.clientX - rect.left) / rect.width;
+			const val = minLimit + (maxLimit - minLimit) * pos;
+			
+			const distMin = Math.abs(val - parseFloat(minRange.value) + 0.01);
+			const distMax = Math.abs(val - parseFloat(maxRange.value) - 0.01);
+
+			// Bring the closer thumb to the front so it can be grabbed
+			minRange.style.zIndex = distMin < distMax ? "11" : "10";
+			maxRange.style.zIndex = distMax <= distMin ? "11" : "10";
+		});
+
+		// --- Validation & Interaction ---
+		const validate = (el, isMin) => {
+			let val = parseFloat(el.value);
+			if (isNaN(val)) val = isMin ? minLimit : maxLimit;
+			
+			// Snap to step and clamp
+			val = Math.round(val / step) * step;
+			if (val < minLimit) val = minLimit;
+			if (val > maxLimit) val = maxLimit;
+
+			if (isMin) {
+			if (val > parseFloat(maxRange.value)) val = parseFloat(maxRange.value);
+			minRange.value = val;
+			update('min');
+			} else {
+			if (val < parseFloat(minRange.value)) val = parseFloat(minRange.value);
+			maxRange.value = val;
+			update('max');
+			}
+		};
+
+		minRange.addEventListener('input', () => update('min'));
+		maxRange.addEventListener('input', () => update('max'));
+		minNum.addEventListener('blur', () => validate(minNum, true));
+		maxNum.addEventListener('blur', () => validate(maxNum, false));
+		minNum.addEventListener('click', () => minNum.select());
+		maxNum.addEventListener('click', () => maxNum.select());
+		
+		[minNum, maxNum].forEach(el => {
+			el.addEventListener('keydown', (e) => { if (e.key === 'Enter') el.blur(); });
+		});
+
+		update(); // Initial Draw
 	},
 
 	getHitObject(e) {
@@ -1225,6 +1339,11 @@ export const app = {
 		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
 	},
 
+	toggleDebugOptions() {
+		const ui = document.getElementById('debug-options');
+		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+	},
+
 	gotoPOI(poi) {
 		// Math adjusted for the visual map shift
 		const viewX = poi.x + (getWorldCenter(this.isNGP) * 512) - (this.pw * 512 * getWorldSize(this.isNGP));
@@ -1251,7 +1370,30 @@ export const app = {
 		toggleTooltipPinned(tip, true);
 	},
 
-	
+	getDailyRunSeed() {
+		if (!USE_DAILY_RUN_SEED) return;
+		fetch('https://zptr.cc/api/noita-daily-seed').then(response => {
+			if (!response.ok) {
+				console.log("Failed to fetch daily seed:", response.status);
+				return;
+			}
+			response.text().then(content => {
+				const seedResult = parseInt(content);
+				if (!isNaN(seedResult)) {
+					document.getElementById('seed').value = seedResult;
+					document.getElementById('ng').value = 0;
+					this.generate(true, true);
+				}
+				else {
+					console.error('Failed to fetch daily seed:', content);
+				}
+			});
+		}).catch(error => {
+			console.error('Error fetching daily seed:', error);
+		});
+	}
 };
+
+const USE_DAILY_RUN_SEED = true; // Avoid spamming while debugging lol
 
 app.init();

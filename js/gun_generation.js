@@ -670,25 +670,35 @@ export function generateGunStandalone(rngState) {
 
     gun['actions_per_round'] = clamp(gun['actions_per_round'], 1, gun['deck_capacity']);
 
+    // Note: normal wands, not "better"
+    getWandSprite(gun, prng);
+
     // Ignore cards, only care about capacity right now
     return gun;
 }
+
 
 /*
 // Search all RNG states
 // Obviously this takes a long time
 // Start after timer
-await new Promise(resolve => setTimeout(resolve, 1000));
+console.log("Waiting a few seconds before starting search...");
+await new Promise(resolve => setTimeout(resolve, 3000));
 console.log("Starting search...");
+let sprites = {};
+for (let i = 1; i <= 1000; i++) {
+    sprites[`wand_${i.toString().padStart(4, '0')}`] = 0;
+}
 for (let rngState = 0; rngState < Math.pow(2, 31); rngState++) {
     if (rngState % 100000 == 0) {
         console.log("Current RNG state: ", rngState);
     }
     let gun = generateGunStandalone(rngState);
-    if (gun['deck_capacity'] > 50) {
-        console.log("Found gun with capacity > 50 at RNG state: ", rngState, " Gun: ", gun);
-    }
+    const sprite = gun['sprite'];
+    sprites[sprite] += 1;
 }
+console.log("Sprite distribution: ");
+console.log(sprites);
 */
 
 /*
