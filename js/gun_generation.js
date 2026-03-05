@@ -685,7 +685,11 @@ export function generateGunStandalone(rngState, type) {
 
 
 
-// Current task: Summon taikasauva wand sprite distribution
+// Done:
+// - wand_level_10 (GTC, sometimes)
+// - wand_unshuffle_10 (tiny drops)
+// - wand_level_03 (summon taikasauva)
+// - next: idk, any of the others
 
 // Search all RNG states
 // Obviously this takes a long time
@@ -696,7 +700,7 @@ await new Promise(resolve => setTimeout(resolve, 3000));
 console.log("Starting search...");
 const wandType = 'wand_level_03';
 let sprites = {};
-for (let i = 1; i <= 1000; i++) {
+for (let i = 0; i <= 1000; i++) {
     sprites[`wand_${i.toString().padStart(4, '0')}`] = 0;
 }
 // Math.pow(2, 31)
