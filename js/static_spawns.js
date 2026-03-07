@@ -2,6 +2,7 @@ import { BIOMES_WITHOUT_WAVY_EDGE } from "./generator_config.js";
 import { NollaPrng } from "./nolla_prng.js";
 import { loadPixelScene } from "./pixel_scene_generation.js";
 import { getWorldCenter, getWorldSize } from "./utils.js";
+import { app } from "./app.js";
 
 const STATIC_PIXEL_SCENES = [
 	{name: "pyramid/boss_limbs", x: 9726, y: -1024},
@@ -182,15 +183,21 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		// Hiisi hourglass shop
 		const is_right = prng.ProceduralRandom(ws, 0, 0) > 0.5;
 		if (is_right) {
-			const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_right", ws, ng, 3*512 - 50, 10*512, skipCosmeticPixelScenes, false);
-			if (pixelScene) {
-				newPixelScenes.push(pixelScene);
+			app.hiisiHourglassPosition = 'right';
+			if (pixelSceneOption === 'all') {
+				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_right", ws, ng, 3*512 - 50, 10*512, skipCosmeticPixelScenes, false);
+				if (pixelScene) {
+					newPixelScenes.push(pixelScene);
+				}
 			}
 		}
 		else {
-			const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_left", ws, ng, -5*512 + 50, 10*512, skipCosmeticPixelScenes, false);
-			if (pixelScene) {
-				newPixelScenes.push(pixelScene);
+			app.hiisiHourglassPosition = 'left';
+			if (pixelSceneOption === 'all') {
+				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_left", ws, ng, -5*512 + 50, 10*512, skipCosmeticPixelScenes, false);
+				if (pixelScene) {
+					newPixelScenes.push(pixelScene);
+				}
 			}
 		}
 
@@ -254,32 +261,34 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	const holyMountainWidths = {'ng': [7, 8, 10, 7, 9, 11, 9], 'ngplus': [7, 7, 7, 9, 9]};
 	
 	const ngpkey = ng === 0 ? 'ng' : 'ngplus';
-	for (let i = 0; i < holyMountainDepths[ngpkey].length; i++) {
-		const depth = holyMountainDepths[ngpkey][i];
-		const width = holyMountainWidths[ngpkey][i];
-		const start = holyMountainStarts[ngpkey][i];
-		for (let j = 0; j < width; j++) {
-			// Check whether chunk is correct first
-			const idx = ((depth + 14) * mapWidth) + start + j + mapWidth/2;
-			const biomeColor = biomeData.pixels[idx] & 0xffffff;
-			// Skip any chunk that is not holy mountain related (these have straight edges... This is a bit hacky)
-			// TODO: Make a list of holy mountain biome colors instead, even though it's nearly identical to this list
-			if (!BIOMES_WITHOUT_WAVY_EDGE.has(biomeColor)) continue;
-			const basin = {x: 512 * (start + j) + pwIndex*mapWidth*512, y: 512 * depth};
-			let material = '';
-			if (basin.y > 12000) material = '_ending'; // boss_arena... is this the same?
-			else {
-				prng.SetRandomSeed(ws + ng, basin.x, basin.y);
-				const randomTop = prng.Random(1, 50);
-				if (randomTop === 5) material = '_water';
-				else if (randomTop === 8) material = '_blood';
-				else if (randomTop === 11) material = '_oil';
-				else if (randomTop === 13) material = '_radioactive';
-				else if (randomTop === 15) material = '_lava';
-			}
-			const pixelScene = loadPixelScene(biomeData, 'temple', `altar_top${material}`, ws, ng, basin.x, basin.y-40, skipCosmeticPixelScenes, false);
-			if (pixelScene) {
-				newPixelScenes.push(pixelScene);
+	if (pwIndexVertical === 0) {
+		for (let i = 0; i < holyMountainDepths[ngpkey].length; i++) {
+			const depth = holyMountainDepths[ngpkey][i];
+			const width = holyMountainWidths[ngpkey][i];
+			const start = holyMountainStarts[ngpkey][i];
+			for (let j = 0; j < width; j++) {
+				// Check whether chunk is correct first
+				const idx = ((depth + 14) * mapWidth) + start + j + mapWidth/2;
+				const biomeColor = biomeData.pixels[idx] & 0xffffff;
+				// Skip any chunk that is not holy mountain related (these have straight edges... This is a bit hacky)
+				// TODO: Make a list of holy mountain biome colors instead, even though it's nearly identical to this list
+				if (!BIOMES_WITHOUT_WAVY_EDGE.has(biomeColor)) continue;
+				const basin = {x: 512 * (start + j) + pwIndex*mapWidth*512, y: 512 * depth};
+				let material = '';
+				if (basin.y > 12000) material = '_ending'; // boss_arena... is this the same?
+				else {
+					prng.SetRandomSeed(ws + ng, basin.x, basin.y);
+					const randomTop = prng.Random(1, 50);
+					if (randomTop === 5) material = '_water';
+					else if (randomTop === 8) material = '_blood';
+					else if (randomTop === 11) material = '_oil';
+					else if (randomTop === 13) material = '_radioactive';
+					else if (randomTop === 15) material = '_lava';
+				}
+				const pixelScene = loadPixelScene(biomeData, 'temple', `altar_top${material}`, ws, ng, basin.x, basin.y-40, skipCosmeticPixelScenes, false);
+				if (pixelScene) {
+					newPixelScenes.push(pixelScene);
+				}
 			}
 		}
 	}

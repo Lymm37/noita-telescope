@@ -8,6 +8,7 @@ export const CONTAINER_TYPES = [
     'utility_box',
     'chest',
     'great_chest',
+    'holy_mountain_shop',
     'pacifist_chest',
     'eye_room',
     'shop',

@@ -74,6 +74,7 @@ export const app = {
 
 	debugCanvas: null,
 	debugX: 0, debugY: 0,
+	hiisiHourglassPosition: null, // "left" or "right", set in static_spawns.js based on the generated position of the hourglass
 
 	init() {
 		this.canvas = document.getElementById('canvas');
@@ -1058,14 +1059,24 @@ export const app = {
 		this.surfaceOverlayPWAdditional = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_pw_addition.png');
 		//this.surfaceOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp.png');
 		//this.surfaceOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp_pw.png');
-		/*
+		
 		this.surfaceOverlayScenes = {
+			"hiisi_hourglass_left": await loadPNGBitmap('./data/biome_maps/custom/hiisi_hourglass_left.png'),
+			"hiisi_hourglass_right": await loadPNGBitmap('./data/biome_maps/custom/hiisi_hourglass_right.png'),
 			"orb_room": await loadPNGBitmap('./data/biome_maps/custom/orb_room.png'),
 			"cursed_orb_room": await loadPNGBitmap('./data/biome_maps/custom/cursed_orb_room.png'),
 			"echoing_spire": await loadPNGBitmap('./data/biome_maps/custom/echoing_spire.png'),
 		};
-		*/
 		
+		
+	},
+
+	getViewArea() {
+		const left = this.cam.x - (this.canvas.width / 2) / this.cam.z;
+		const right = this.cam.x + (this.canvas.width / 2) / this.cam.z;
+		const top = this.cam.y - (this.canvas.height / 2) / this.cam.z;
+		const bottom = this.cam.y + (this.canvas.height / 2) / this.cam.z;
+		return { left, right, top, bottom };
 	},
 
 	draw() {
@@ -1111,6 +1122,15 @@ export const app = {
 					if (this.surfaceOverlay) {
 						this.ctx.drawImage(this.surfaceOverlay, 0, 0, this.w * 512, this.h * 512);
 					}
+					// Hiisi shop
+					if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['hiisi_hourglass_left'] && this.surfaceOverlayScenes['hiisi_hourglass_right']) {
+						if (this.hiisiHourglassPosition === 'left') {
+							this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_left'], 30*512, 24*512, 512, 576);
+						}
+						else if (this.hiisiHourglassPosition === 'right') {
+							this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_right'], 38*512, 24*512, 512, 576);
+						}
+					}
 				}
 				else {
 					if (this.surfaceOverlayPW) {
@@ -1141,7 +1161,20 @@ export const app = {
 						this.ctx.drawImage(this.surfaceOverlayPWAdditional, 0, 0, this.w * 512, this.h * 512);
 					}
 				}
-				// TODO: Orb rooms
+			}
+		}
+		// Echoing spire (so silly, why does this even exist? no one knows)
+		if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['echoing_spire']) {
+			if (this.pw > 0) {
+				const height = this.pw * 512 * 25;
+				const posX = (35-25) * 512;
+				// Need to get the segments that are in view based on vertical PW and height
+				//const viewArea = this.getViewArea();
+				//console.log(viewArea);
+				// TODO: Need to rework the shift to get this to work with the panning, that will take a bit
+				// For now I will make it look very funny
+				const posY = 14 * 512 - height;
+				this.ctx.drawImage(this.surfaceOverlayScenes['echoing_spire'], posX, posY, 512, height);
 			}
 		}
 
@@ -1247,13 +1280,27 @@ export const app = {
 		// Skip rendering these for vertical PWs
 		if (this.pwVertical === 0) {
 			this.biomeData.orbs.forEach(o => {
-				const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
-				// Fill in chunk entirely to overwrite any tiles underneath, since orbs break the tile rules and can appear under other PoIs
-				this.ctx.fillStyle = '#ffd100';
-				this.ctx.fillRect(ox - 256, oy - 256, 512, 512);
-				this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
-				this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
-				this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
+				if (document.getElementById('custom-art').checked && this.surfaceOverlayScenes && this.surfaceOverlayScenes['orb_room']) {
+					// Technically always NGP the way I have this set up but whatever
+					const sceneName = this.pw === 0 ? 'orb_room' : 'cursed_orb_room';
+					this.ctx.drawImage(this.surfaceOverlayScenes[sceneName], o.x * 512, o.y * 512, 512, 512);
+					// Circle (not really needed with exaggerated orb size in art)
+					/*
+					const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
+					this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
+					this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
+					this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
+					*/
+				}
+				else {
+					const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
+					// Fill in chunk entirely to overwrite any tiles underneath, since orbs break the tile rules and can appear under other PoIs
+					this.ctx.fillStyle = '#ffd100';
+					this.ctx.fillRect(ox - 256, oy - 256, 512, 512);
+					this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
+					this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
+					this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
+				}
 			});
 		}
 
