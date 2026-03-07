@@ -32,6 +32,10 @@ export const app = {
 
 	overlay: null, 
 	surfaceOverlay: null,
+	surfaceOverlayPW: null,
+	surfaceOverlayNGP: null,
+	surfaceOverlayNGPPW: null,
+
 	ctxo: null, 
 	// Background maps, recolored by biome
 	recolorOffscreen: null,
@@ -193,9 +197,12 @@ export const app = {
 		document.getElementById('debug-custom-art').onchange = async () => {
 			if (!document.getElementById('debug-custom-art').checked) {
 				this.surfaceOverlay = null;
+				this.surfaceOverlayPW = null;
+				this.surfaceOverlayNGP = null;
+				this.surfaceOverlayNGPPW = null;
 			}
 			else {
-				this.surfaceOverlay = await this.getSurfaceOverlay();
+				await this.getSurfaceOverlays();
 			}
 			this.draw();
 		}
@@ -721,7 +728,7 @@ export const app = {
 		console.log("Finished loading pixel scene data.");
 
 		if (document.getElementById('debug-custom-art').checked) {
-			this.surfaceOverlay = await this.getSurfaceOverlay();
+			await this.getSurfaceOverlays();
 		}
 		this.setLoading(false);
 	},
@@ -1011,16 +1018,15 @@ export const app = {
 			this.recolorOffscreenHellBuffer[i*3+2] = recolor & 0xFF;
 		}
 		ctxHell.putImageData(hellData, 0, 0);
-
-		// Disabled for now, waiting for a redraw
-		//this.getSurfaceOverlay();
 	},
 
-	async getSurfaceOverlay() {
+	async getSurfaceOverlays() {
 		// TODO: Add variants for PWs/NG+
-		const url = './data/biome_maps/surface_overlay.png';
 		// Going to use this mode when I don't need to modify the image data
-		this.surfaceOverlay = await loadPNGBitmap(url);
+		this.surfaceOverlay = await loadPNGBitmap('./data/biome_maps/surface_overlay.png');
+		//this.surfaceOverlayPW = await loadPNGBitmap('./data/biome_maps/surface_overlay_pw.png');
+		//this.surfaceOverlayNGP = await loadPNGBitmap('./data/biome_maps/surface_overlay_ngp.png');
+		//this.surfaceOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/surface_overlay_ngp_pw.png');
         return this.surfaceOverlay;
 	},
 
@@ -1060,10 +1066,31 @@ export const app = {
 		}
 
 		// Render debug surface overlay 
-		if (this.surfaceOverlay) { 
-			if (this.pwVertical === 0 && this.ngPlusCount === 0) {
+		if (this.pwVertical === 0) {
+			if (this.ngPlusCount === 0) {
 				// TODO: Need the PW/NG+ versions of the overlay, for now disable
-				this.ctx.drawImage(this.surfaceOverlay, 0, 0, this.w * 512, this.h * 512);
+				if (this.pw === 0) {
+					if (this.surfaceOverlay) {
+						this.ctx.drawImage(this.surfaceOverlay, 0, 0, this.w * 512, this.h * 512);
+					}
+				}
+				else {
+					if (this.surfaceOverlayPW) {
+						this.ctx.drawImage(this.surfaceOverlayPW, 0, 0, this.w * 512, this.h * 512);
+					}
+				}
+			}
+			else {
+				if (this.pw === 0) {
+					if (this.surfaceOverlayNGP) {
+						this.ctx.drawImage(this.surfaceOverlayNGP, 0, 0, this.w * 512, this.h * 512);
+					}
+				}
+				else {
+					if (this.surfaceOverlayNGPPW) {
+						this.ctx.drawImage(this.surfaceOverlayNGPPW, 0, 0, this.w * 512, this.h * 512);
+					}
+				}
 			}
 		}
 
