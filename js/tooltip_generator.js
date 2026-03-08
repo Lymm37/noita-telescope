@@ -10,7 +10,7 @@ function generateHeaderHtml(name, sprite, extra, material=null) {
 		//const transparency = 'aa'; // Problem with this is that it makes the colors less saturated...
 		// TODO: Look up colors from the material
 		if (POTION_COLORS[material]) {
-			const color = POTION_COLORS[material]; // Transparency ends up looking bad here anyway
+			const color = POTION_COLORS[material].substring(2); // Transparency ends up looking bad here anyway
 			extraSprite = `<img class="item-sprite-header" src="./data/${sprite}_mask.png" style="filter: drop-shadow(0px 2000px 0 #${color}); mix-blend-mode: multiply; transform: translateY(-2000px);" onerror="this.style.display='none'">`;
 		}
 		else {

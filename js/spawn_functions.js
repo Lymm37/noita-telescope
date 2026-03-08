@@ -181,7 +181,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			// TODO: Wand from this puzzle?
 			//console.log("Spawning oiltank puzzle at", x, y);
 			const materials = ["water", "blood", "alcohol", "radioactive_liquid", "water_salt", "slime", "water", "blood", "alcohol", "radioactive_liquid", "water_salt", "slime", "magic_liquid_berserk", "magic_liquid_charm", "oil"];
-			const choice = 1 + (materials.length - 1) * Math.floor(prng.ProceduralRandom(ws + ng, x, y));
+			const choice = prng.ProceduralRandomi(ws + ng, x, y, 1, materials.length);
 			console.log(`Oiltank puzzle material choice: ${materials[choice-1]}`); // Material not actually relevant to the puzzle
 			// Might be better to recolor the pixel scene with it instead, even though it technically spawns a material spawner and not a pool of the material
 			return spawnChest(ws, ng, x, y - 25, false, perks);

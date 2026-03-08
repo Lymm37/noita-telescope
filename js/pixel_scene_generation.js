@@ -22,6 +22,12 @@ const PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS = {
 	"altar_vault_capsule": 0xff,
 	"altar_snowcave_capsule": 0xff,
 	"tower_start": 0xff,
+	"solid_wall_hidden_cavern": 0xff,
+	"watercave_layout_1": 0xff,
+	"watercave_layout_2": 0xff,
+	"watercave_layout_3": 0xff,
+	"watercave_layout_4": 0xff,
+	"watercave_layout_5": 0xff,
 	// Otherwise assume transparent?
 }
 
@@ -430,7 +436,11 @@ function recolorPixelSceneForBiome(sceneName, sourceData, width, height, targetB
 			outData[i + 1] = bgColorG;
 			outData[i + 2] = bgColorB;
 			// I think I need to set this differently depending on what the scene is, in the case of some of the static pixel scenes.
-			if (PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS[sceneName]) {
+			// Hiisi base seems to be an exception in general, not sure how I broke it
+			if (targetBiome === "snowcastle") {
+				outData[i + 3] = 0xff;
+			}
+			else if (PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS[sceneName]) {
 				outData[i + 3] = PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS[sceneName];
 			}
 			else {
