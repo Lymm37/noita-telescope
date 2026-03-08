@@ -12,6 +12,19 @@ import { app } from './app.js'; // Hacky but I don't feel like figuring out how 
 export let PIXEL_SCENE_DATA = {};
 const PIXEL_SCENE_CANVAS_CACHE = {};
 
+const SCENES_TO_NOT_RECOLOR = ["wand_altar", "wand_altar_vault", "potion_altar", "potion_altar_vault"]; // It would be a waste to recolor these for every biome
+const PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS = {
+	"the_end_shop": 0xff,
+	"cavern": 0xff,
+	"friendroom": 0xff,
+	"eyespot": 0xff,
+	"altar_snowcastle_capsule": 0xff,
+	"altar_vault_capsule": 0xff,
+	"altar_snowcave_capsule": 0xff,
+	"tower_start": 0xff,
+	// Otherwise assume transparent?
+}
+
 export async function reloadPixelSceneCache() {
 	PIXEL_SCENE_DATA = {};
 	await loadPixelSceneData();
@@ -220,13 +233,18 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		}
 	}
 	// Recolor the pixel scene for the biome if needed
-	let variantKey = '';
-	if (biomeName) {
-		variantKey = `biome=${biomeName}`;
-		if (!PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey]) {
-			PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey] = recolorPixelSceneForBiome(getPixelSceneVariant(pixelSceneKey, ''), PIXEL_SCENE_DATA[pixelSceneKey].width, PIXEL_SCENE_DATA[pixelSceneKey].height, biomeName, x, y);
-			//console.log(`Created biome variant of pixel scene ${pixelSceneKey} with key ${variantKey}`);
+	if (!biomeName || biomeName === "general") {
+		// Better fallback
+		if (SCENES_TO_NOT_RECOLOR.includes(sceneName)) {
+			biomeName = "general";
+		} else {
+			biomeName = getBiomeAtWorldCoordinates(app.biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, app.ngPlusCount > 0)?.biome || "general";
 		}
+	}
+	const variantKey = `biome=${biomeName}`;
+	if (!PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey]) {
+		PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey] = recolorPixelSceneForBiome(sceneName, getPixelSceneVariant(pixelSceneKey, ''), PIXEL_SCENE_DATA[pixelSceneKey].width, PIXEL_SCENE_DATA[pixelSceneKey].height, biomeName, x, y);
+		//console.log(`Created biome variant of pixel scene ${pixelSceneKey} with key ${variantKey}`);
 	}
 	const pixelSceneImage = PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey];
 	return {
@@ -337,7 +355,7 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 			// Recolor the pixel scene for the biome if needed
 			const finalVariantKey = variantKey + (variantKey !== '' ? '&' : '') + `biome=${biomeName}`;
 			if (!PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey]) {
-				PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey] = recolorPixelSceneForBiome(getPixelSceneVariant(pixelSceneKey, variantKey), PIXEL_SCENE_DATA[pixelSceneKey].width, PIXEL_SCENE_DATA[pixelSceneKey].height, biomeName, x, y);
+				PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey] = recolorPixelSceneForBiome(scene.name, getPixelSceneVariant(pixelSceneKey, variantKey), PIXEL_SCENE_DATA[pixelSceneKey].width, PIXEL_SCENE_DATA[pixelSceneKey].height, biomeName, x, y);
 				//console.log(`Created biome variant of pixel scene ${pixelSceneKey} with key ${finalVariantKey}`);
 			}
 			outputScene.variantKey = finalVariantKey;
@@ -352,11 +370,14 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 	return null;
 }
 
-function recolorPixelSceneForBiome(sourceData, width, height, targetBiome, x, y) {
+function recolorPixelSceneForBiome(sceneName, sourceData, width, height, targetBiome, x, y) {
 	const recolorMaterials = document.getElementById('recolor-materials').checked;
 	
 	const outData = new Uint8Array(sourceData.length);
 	outData.set(sourceData);
+
+	// Some scene name exceptions because this just isn't working
+
 
 	let targetColor = TILE_OVERLAY_COLORS[targetBiome] || 0xff00ff;
 	let bgColor = BIOME_BACKGROUND_COLORS[targetBiome] || 0x000000;
@@ -366,6 +387,7 @@ function recolorPixelSceneForBiome(sourceData, width, height, targetBiome, x, y)
 	let bgColorR = (bgColor >> 16) & 0xFF;
 	let bgColorG = (bgColor >> 8) & 0xFF;
 	let bgColorB = bgColor & 0xFF;
+	/*
 	const biomeMapWidth = getWorldSize(app.ngPlusCount > 0);
 	if (targetR === 255 && targetG === 0 && targetB === 255) {
 		// As a fallback, use the color of the biome map?
@@ -375,7 +397,11 @@ function recolorPixelSceneForBiome(sourceData, width, height, targetBiome, x, y)
 		let chunkY = Math.floor((14*512 + y + height/2) / 512);
 		if (chunkY < 0) chunkY = 0;
 		if (chunkY > 47) chunkY = 47;
-		const bgColorIdx = chunkY * biomeMapWidth + chunkX;
+		const bgColorIdx = (chunkY * biomeMapWidth + chunkX)*3;
+		const bgColor = (app.recolorOffscreenBuffer[bgColorIdx] << 16) | (app.recolorOffscreenBuffer[bgColorIdx + 1] << 8) | app.recolorOffscreenBuffer[bgColorIdx + 2];
+		if (y > 22000) {
+			console.log(bgColor, BIOME_BACKGROUND_COLORS["the_end"] & 0xffffff)
+		}
 		// TODO: Some attempt to make the background color not exactly the same as the terrain color... Need to just get a better background and foreground.
 		targetR = Math.floor(app.recolorOffscreenBuffer[bgColorIdx] * 0.75);
 		targetG = Math.floor(app.recolorOffscreenBuffer[bgColorIdx + 1] * 0.75);
@@ -384,6 +410,7 @@ function recolorPixelSceneForBiome(sourceData, width, height, targetBiome, x, y)
 		bgColorG = 0;
 		bgColorB = 0;
 	}
+	*/
 
 	for (let i = 0; i < outData.length; i += 4) {
 		const r = outData[i];
@@ -402,8 +429,13 @@ function recolorPixelSceneForBiome(sourceData, width, height, targetBiome, x, y)
 			outData[i] = bgColorR;
 			outData[i + 1] = bgColorG;
 			outData[i + 2] = bgColorB;
-			// Or just transparent? Having some issues with backgrounds making things invisible so I'll just do 50% for now
-			outData[i + 3] = 0x80;
+			// I think I need to set this differently depending on what the scene is, in the case of some of the static pixel scenes.
+			if (PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS[sceneName]) {
+				outData[i + 3] = PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS[sceneName];
+			}
+			else {
+				outData[i + 3] = 0x00;
+			}
 		} 
 		// Recolor Wang Colors
 		else if (recolorMaterials && (r > 0 || g > 0 || b > 0)) {

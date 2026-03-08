@@ -144,6 +144,10 @@ export function getWorldCenter(isNGP) {
     return isNGP ? 32 : 35;
 }
 
+export function getPWLimit(isNGP) {
+    return isNGP ? 512 : 468;
+}
+
 export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false) {
     let biomeMap = biomeData.pixels;
     // Don't need this anymore?
@@ -283,6 +287,13 @@ export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, w
         }
     }
     return null;
+}
+
+export function getPWIndices(worldX, worldY, pw = 0, pwVertical = 0, isNGP = false) {
+    const worldSize = getWorldSize(isNGP) * 512;
+    const pwX = Math.floor((worldX + pw * worldSize) / worldSize);
+    const pwY = Math.floor((worldY + pwVertical * 24576) / 24576);
+    return [pwX, pwY];
 }
 
 

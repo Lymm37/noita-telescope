@@ -6,9 +6,9 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive } from './search.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights } from './search.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y } from './constants.js';
-import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getWorldCenter, getWorldSize } from './utils.js';
+import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
 import { BIOME_COLOR_LOOKUP, createTileOverlays, createTileOverlaysCheap, createTileOverlaysExpanded } from './image_processing.js';
@@ -34,9 +34,13 @@ export const app = {
 	surfaceOverlay: null,
 	surfaceOverlayPW: null,
 	surfaceOverlayPWAddition: null,
+	skyOverlay: null,
+	skyOverlayPW: null,
 	surfaceOverlayNGP: null,
 	surfaceOverlayNGPPW: null,
 	surfaceOverlayNGPPWAddition: null,
+	skyOverlayNGP: null,
+	skyOverlayNGPPW: null,
 
 	ctxo: null, 
 	// Background maps, recolored by biome
@@ -52,7 +56,7 @@ export const app = {
 	w: 0, h: 0, 
 	biomeData: null,
 	tileLayers: [],
-	cam: { x: CHUNK_SIZE*35, y: CHUNK_SIZE*24, z: 0.053 },
+	cam: { x: CHUNK_SIZE*35, y: CHUNK_SIZE*24, z: 0.0625 },
 	drag: { on: false, lx: 0, ly: 0 },
 	pinnedTooltip: null,
 	pw: 0,
@@ -75,6 +79,8 @@ export const app = {
 	debugCanvas: null,
 	debugX: 0, debugY: 0,
 	hiisiHourglassPosition: null, // "left" or "right", set in static_spawns.js based on the generated position of the hourglass
+
+	worldsInView: new Set(),
 
 	init() {
 		this.canvas = document.getElementById('canvas');
@@ -119,6 +125,7 @@ export const app = {
 			// Regenerate/Scan for wands/items in the new PW
 			cancelSearch(); // Cancel any active search when changing PW
 			cancelBtn.style.display = 'none';
+			this.checkBounds();
 			this.generate(false, false).then(() => {
 				// Rerun the search after scanning is complete to find new matches
 				//cancelSearch(); // No need to cancel it here, new PW means new results anyway
@@ -144,6 +151,7 @@ export const app = {
 			// Regenerate/Scan for wands/items in the new PW
 			cancelSearch(); // Cancel any active search when changing PW
 			cancelBtn.style.display = 'none';
+			this.checkBounds();
 			this.generate(false, false).then(() => {
 				// Rerun the search after scanning is complete to find new matches
 				//cancelSearch(); // No need to cancel it here, new PW means new results anyway
@@ -294,12 +302,8 @@ export const app = {
 		const setPWMaxButton = document.getElementById('pw-set-max');
 		setPWMaxButton.onclick = () => {
 			document.getElementById('search-all-pw').checked = true;
-			if (this.ngPlusCount > 0) {
-				document.getElementById('search-pw-limit').value = 512;
-			}
-			else {
-				document.getElementById('search-pw-limit').value = 468;
-			}
+			document.getElementById('search-pw-limit').value = getPWLimit(this.isNGP);
+
 		};
 		const setPWMaxVerticalButton = document.getElementById('pw-set-max-vertical');
 		setPWMaxVerticalButton.onclick = () => {
@@ -401,6 +405,7 @@ export const app = {
 			if (this.cam.z < 0.02) this.cam.z = 0.02;
 			this.cam.x = wx - (mouseX - this.canvas.width/2)/this.cam.z;
 			this.cam.y = wy - (mouseY - this.canvas.height/2)/this.cam.z;
+			this.checkBounds();
 			this.draw();
 		};
 
@@ -410,6 +415,41 @@ export const app = {
 				this.cam.y -= (e.clientY - this.drag.ly)/this.cam.z;
 				this.drag.lx = e.clientX; 
 				this.drag.ly = e.clientY;
+				// Check for PW change
+				let pwChange = {x: 0, y: 0};
+				if (this.cam.x < 0 && this.pw > -getPWLimit(this.isNGP)) {
+					this.cam.x += getWorldSize(this.isNGP) * 512;
+					pwChange.x = -1;
+				}
+				if (this.cam.x > getWorldSize(this.isNGP) * 512 && this.pw < getPWLimit(this.isNGP)) {
+					this.cam.x -= getWorldSize(this.isNGP) * 512;
+					pwChange.x = 1;
+				}
+				if (this.cam.y < 0 && this.pwVertical > -683) {
+					this.cam.y += 512 * 48;
+					pwChange.y = -1;
+				}
+				if (this.cam.y > 512 * 48 && this.pwVertical < 683) {
+					this.cam.y -= 512 * 48;
+					pwChange.y = 1;
+				}
+				if (pwChange.x !== 0 || pwChange.y !== 0) {
+					// Clear highlighted PoIs *before* changing PW...
+					if (isSearchActive()) {
+						clearHighlights(); // Clear without canceling
+					}
+					this.pw += pwChange.x;
+					this.pwVertical += pwChange.y;
+					// Can I do this without triggering the change events?
+					document.getElementById('pw').value = this.pw;
+					document.getElementById('pw-vertical').value = this.pwVertical;
+					this.generate(false, false);
+					// Attempt to re-search in new PW
+					if (isSearchActive()) {
+						performSearch(false, false);
+					}
+				}
+				this.checkBounds();
 				this.draw();
 			}
 			if (!this.pinnedTooltip) this.hover(e);
@@ -678,19 +718,32 @@ export const app = {
 		const wx = (e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x;
 		const wy = (e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y;
 
-		// Check Orbs
-		let hit = this.biomeData.orbs.find(o => {
-			const ox = (o.x + 0.5) * BIOME_CONFIG.CHUNK_SIZE;
-			const oy = (o.y + 0.5) * BIOME_CONFIG.CHUNK_SIZE;
-			return Math.sqrt((ox - wx) ** 2 + (oy - wy) ** 2) < BIOME_CONFIG.CHUNK_SIZE / 2;
-		});
-
+		const [mousePWX, mousePWY] = getPWIndices(wx, wy, this.pw, this.pwVertical, this.isNGP);
 		// Check cached PoIs for the current Parallel World
-		if (!hit) {
-			const currentPois = this.poisByPW[`${this.pw},${this.pwVertical}`];
+		for (const worldKey of this.worldsInView) {
+			// Add a quick bounds check before doing the more expensive distance calculation
+			const [pwX, pwY] = worldKey.split(',').map(Number);
+			if (mousePWX !== pwX || mousePWY !== pwY) continue;
+
+			const shiftX = pwX * 512 * this.w - this.pw * 512 * this.w;
+			const shiftY = pwY * 24576 - this.pwVertical * 24576;
+
+			// Check Orbs
+			let hit = this.biomeData.orbs.find(o => {
+				const ox = (o.x + 0.5) * BIOME_CONFIG.CHUNK_SIZE + shiftX;
+				const oy = (o.y + 0.5) * BIOME_CONFIG.CHUNK_SIZE + shiftY;
+				return Math.sqrt((ox - wx) ** 2 + (oy - wy) ** 2) < BIOME_CONFIG.CHUNK_SIZE / 2;
+			});
+
+			if (hit) {
+				return {...hit, x: hit.x + this.w*pwX};
+			}
+
+			const currentPois = this.poisByPW[`${pwX},${pwY}`];
+			if (!currentPois) continue;
 			const poiHit = currentPois.find(p => {
-				const px = p.x - (this.pw * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512;
-				const py = p.y + 14 * 512 - (this.pwVertical * 24576);
+				const px = p.x + getWorldCenter(this.isNGP) * 512 - this.pw * 512 * this.w;
+				const py = p.y + 14 * 512 - this.pwVertical * 24576;
 				let tempRadius = POI_RADIUS;
 				if (p.highlight) {
 					tempRadius = POI_RADIUS / this.cam.z;
@@ -700,7 +753,7 @@ export const app = {
 			});
 			if (poiHit) return poiHit;
 		}
-		return hit;
+		return null;
 	},
 
 	hover(e) {
@@ -760,6 +813,8 @@ export const app = {
 		if (document.getElementById('custom-art').checked) {
 			await this.getSurfaceOverlays();
 		}
+		this.worldsInView = new Set();
+		this.worldsInView.add(`0,0`);
 		this.setLoading(false);
 	},
 
@@ -786,33 +841,17 @@ export const app = {
 		this.isNGP = ngVal > 0;
 
 		// Set limits on PWs
-		if (this.isNGP) {
-			document.getElementById('search-pw-limit').max = 512;
-			if (document.getElementById('search-pw-limit').value > 512) {
-				document.getElementById('search-pw-limit').value = 512;
-			}
-			if (this.pw > 512) {
-				this.pw = 512;
-				document.getElementById('pw').value = 512;
-			}
-			else if (this.pw < -512) {
-				this.pw = -512;
-				document.getElementById('pw').value = -512;
-			}
+		document.getElementById('search-pw-limit').max = getPWLimit(this.isNGP);
+		if (document.getElementById('search-pw-limit').value > getPWLimit(this.isNGP)) {
+			document.getElementById('search-pw-limit').value = getPWLimit(this.isNGP);
 		}
-		else {
-			document.getElementById('search-pw-limit').max = 468;
-			if (document.getElementById('search-pw-limit').value > 468) {
-				document.getElementById('search-pw-limit').value = 468;
-			}
-			if (this.pw > 468) {
-				this.pw = 468;
-				document.getElementById('pw').value = 468;
-			}
-			else if (this.pw < -468) {
-				this.pw = -468;
-				document.getElementById('pw').value = -468;
-			}
+		if (this.pw > getPWLimit(this.isNGP)) {
+			this.pw = getPWLimit(this.isNGP);
+			document.getElementById('pw').value = getPWLimit(this.isNGP);
+		}
+		else if (this.pw < -getPWLimit(this.isNGP)) {
+			this.pw = -getPWLimit(this.isNGP);
+			document.getElementById('pw').value = -getPWLimit(this.isNGP);
 		}
 
 		if (this.pwVertical > 683) {
@@ -916,6 +955,24 @@ export const app = {
 		btn.innerText = "Generate World";
 		this.setLoading(false);
 		document.getElementById('status').innerText = `Done (PW ${this.pw}, ${this.pwVertical}).`;
+	},
+
+	loadWorld(pwX, pwY) {
+		// Scan a single world, assuming tiles are already generated. Pixel scenes and PoIs should be cleared if a world needs to be regenerated (if perks or unlocks changed, for example)
+		// TODO: Need to run this in a separate thread
+		if (!this.pixelScenesByPW[`${pwX},${pwY}`] || !this.poisByPW[`${pwX},${pwY}`]) {
+			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, pwX, pwY, this.skipCosmeticScenes, this.perks);
+			this.pixelScenesByPW[`${pwX},${pwY}`] = scanResults.finalPixelScenes;
+			const specialPoIs = getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, pwX, pwY, this.perks);
+			this.poisByPW[`${pwX},${pwY}`] = scanResults.generatedSpawns.concat(specialPoIs);
+		
+			// Static pixel scenes (stupid)
+			if (document.getElementById('enable-static-pixel-scenes').value !== 'off') {
+				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, pwX, pwY, this.biomeData, this.skipCosmeticScenes);
+				this.pixelScenesByPW[`${pwX},${pwY}`] = this.pixelScenesByPW[`${pwX},${pwY}`].concat(staticPixelScenesResults.pixelScenes);
+				this.poisByPW[`${pwX},${pwY}`] = this.poisByPW[`${pwX},${pwY}`].concat(staticPixelScenesResults.pois);
+			}
+		}
 	},
 
 	renderOffscreen() {
@@ -1057,8 +1114,12 @@ export const app = {
 		this.surfaceOverlay = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay.png');
 		this.surfaceOverlayPW = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_pw.png');
 		this.surfaceOverlayPWAdditional = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_pw_addition.png');
+		this.skyOverlay = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay.png');
+		this.skyOverlayPW = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_pw.png');
 		//this.surfaceOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp.png');
 		//this.surfaceOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp_pw.png');
+		//this.skyOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_ngp.png');
+		//this.skyOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_ngp_pw.png');
 		
 		this.surfaceOverlayScenes = {
 			"hiisi_hourglass_left": await loadPNGBitmap('./data/biome_maps/custom/hiisi_hourglass_left.png'),
@@ -1072,14 +1133,42 @@ export const app = {
 	},
 
 	getViewArea() {
-		const left = this.cam.x - (this.canvas.width / 2) / this.cam.z;
-		const right = this.cam.x + (this.canvas.width / 2) / this.cam.z;
-		const top = this.cam.y - (this.canvas.height / 2) / this.cam.z;
-		const bottom = this.cam.y + (this.canvas.height / 2) / this.cam.z;
+		const worldShiftX = this.pw * 512 * getWorldSize(this.isNGP);
+		const worldShiftY = this.pwVertical * 24576; // 512 * 48
+		const left = worldShiftX + this.cam.x - (this.canvas.width / 2) / this.cam.z;
+		const right = worldShiftX + this.cam.x + (this.canvas.width / 2) / this.cam.z;
+		const top = worldShiftY + this.cam.y - (this.canvas.height / 2) / this.cam.z;
+		const bottom = worldShiftY + this.cam.y + (this.canvas.height / 2) / this.cam.z;
 		return { left, right, top, bottom };
 	},
 
+	checkBounds() {
+		const worldWidth = getWorldSize(this.isNGP) * 512;
+		const worldHeight = 24576; // 512 * 48
+		const viewArea = this.getViewArea();
+		const prevWorldsInView = this.worldsInView ? this.worldsInView : new Set();
+		this.worldsInView = new Set();
+		for (let x = Math.floor(viewArea.left/worldWidth); x <= Math.floor(viewArea.right/worldWidth); x++) {
+			for (let y = Math.floor(viewArea.top/worldHeight); y <= Math.floor(viewArea.bottom/worldHeight); y++) {
+				// We have to set limits here...
+				if (x < -getPWLimit(this.isNGP) || x > getPWLimit(this.isNGP) || y < -683 || y > 683) continue;
+				this.worldsInView.add(`${x},${y}`);
+			}
+		}
+		// Check if sets are different
+		const worldDiff = this.worldsInView.difference(prevWorldsInView);
+		if (worldDiff.size > 0) {
+			//console.log("Worlds in view changed, new worlds: ", worldDiff);
+			for (let worldKey of worldDiff) {
+				const [x, y] = worldKey.split(',').map(Number);
+				this.loadWorld(x, y);
+			}
+		}
+	},
+
 	draw() {
+		// Panning update: Render layers for each world in view, shifted by the appropriate amount based on the PW and camera position
+
 		// Don't draw unless things are actually loaded
 		if (!this.biomeData || !this.tileLayers) return;
 		//const t0 = performance.now();
@@ -1091,90 +1180,131 @@ export const app = {
 		this.setupCamera(this.ctx);
 		
 		this.ctx.imageSmoothingEnabled = false;
+
+		// Precompute offsets by key
+		const worldOffsets = {};
+		for (let worldKey of this.worldsInView) {
+			const [pwX, pwY] = worldKey.split(',').map(Number);
+			const shiftX = pwX * 512 * this.w - this.pw * 512 * this.w;
+			const shiftY = pwY * 24576 - this.pwVertical * 24576;
+			worldOffsets[worldKey] = { pwX, pwY, shiftX, shiftY };
+		}
+
+		// Layer 1
 		// Background biome colors
-		if (document.getElementById('debug-original-biome-map').checked) {
-			if (this.pwVertical === 0) {
-				this.ctx.drawImage(this.offscreen, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
-			}
-			else if (this.pwVertical > 0) {
-				this.ctx.drawImage(this.offscreenHell, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
-			}
-			else {
-				this.ctx.drawImage(this.offscreenHeaven, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
-			}
-		} else {
-			if (this.pwVertical === 0) {
-				this.ctx.drawImage(this.recolorOffscreen, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
-			}
-			else if (this.pwVertical > 0) {
-				this.ctx.drawImage(this.recolorOffscreenHell, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
-			}
-			else {
-				this.ctx.drawImage(this.recolorOffscreenHeaven, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+		for (let worldKey of this.worldsInView) {
+			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+			if (document.getElementById('debug-original-biome-map').checked) {
+				if (pwY === 0) {
+					this.ctx.drawImage(this.offscreen, shiftX, shiftY, this.w * 512, this.h * 512);
+				}
+				else if (pwY > 0) {
+					this.ctx.drawImage(this.offscreenHell, shiftX, shiftY, this.w * 512, this.h * 512);
+				}
+				else {
+					this.ctx.drawImage(this.offscreenHeaven, shiftX, shiftY, this.w * 512, this.h * 512);
+				}
+			} else {
+				if (pwY === 0) {
+					this.ctx.drawImage(this.recolorOffscreen, shiftX, shiftY, this.w * 512, this.h * 512);
+				}
+				else if (pwY > 0) {
+					this.ctx.drawImage(this.recolorOffscreenHell, shiftX, shiftY, this.w * 512, this.h * 512);
+				}
+				else {
+					this.ctx.drawImage(this.recolorOffscreenHeaven, shiftX, shiftY, this.w * 512, this.h * 512);
+				}
 			}
 		}
 
-		// Render debug surface overlay 
-		if (this.pwVertical === 0) {
-			if (this.ngPlusCount === 0) {
-				// TODO: Need the PW/NG+ versions of the overlay, for now disable
-				if (this.pw === 0) {
-					if (this.surfaceOverlay) {
-						this.ctx.drawImage(this.surfaceOverlay, 0, 0, this.w * 512, this.h * 512);
-					}
-					// Hiisi shop
-					if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['hiisi_hourglass_left'] && this.surfaceOverlayScenes['hiisi_hourglass_right']) {
-						if (this.hiisiHourglassPosition === 'left') {
-							this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_left'], 30*512, 24*512, 512, 576);
+		// Layer 2
+		// Custom art background (and foreground in places without tiles)
+		for (let worldKey of this.worldsInView) {
+			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+			if (pwY === 0) {
+				if (this.ngPlusCount === 0) {
+					// TODO: Need the PW/NG+ versions of the overlay, for now disable
+					if (pwX === 0) {
+						if (this.surfaceOverlay) {
+							this.ctx.drawImage(this.surfaceOverlay, shiftX, shiftY, this.w * 512, this.h * 512);
 						}
-						else if (this.hiisiHourglassPosition === 'right') {
-							this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_right'], 38*512, 24*512, 512, 576);
+						// Hiisi shop
+						if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['hiisi_hourglass_left'] && this.surfaceOverlayScenes['hiisi_hourglass_right']) {
+							if (this.hiisiHourglassPosition === 'left') {
+								this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_left'], shiftX + 30*512, shiftY + 24*512, 512, 576);
+							}
+							else if (this.hiisiHourglassPosition === 'right') {
+								this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_right'], shiftX + 38*512, shiftY + 24*512, 512, 576);
+							}
+						}
+					}
+					else {
+						if (this.surfaceOverlayPW) {
+							this.ctx.drawImage(this.surfaceOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
+					}
+					// Extra overlay for just PW +/- 1
+					if (pwX === -1 || pwX === 1) {
+						if (this.surfaceOverlayPWAdditional) {
+							this.ctx.drawImage(this.surfaceOverlayPWAdditional, shiftX, shiftY, this.w * 512, this.h * 512);
 						}
 					}
 				}
 				else {
-					if (this.surfaceOverlayPW) {
-						this.ctx.drawImage(this.surfaceOverlayPW, 0, 0, this.w * 512, this.h * 512);
+					if (pwX === 0) {
+						if (this.surfaceOverlayNGP) {
+							this.ctx.drawImage(this.surfaceOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
 					}
-				}
-				// Extra overlay for just PW +/- 1
-				if (this.pw === -1 || this.pw === 1) {
-					if (this.surfaceOverlayPWAdditional) {
-						this.ctx.drawImage(this.surfaceOverlayPWAdditional, 0, 0, this.w * 512, this.h * 512);
+					else {
+						if (this.surfaceOverlayNGPPW) {
+							this.ctx.drawImage(this.surfaceOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
 					}
 				}
 			}
-			else {
-				if (this.pw === 0) {
-					if (this.surfaceOverlayNGP) {
-						this.ctx.drawImage(this.surfaceOverlayNGP, 0, 0, this.w * 512, this.h * 512);
+			else if (pwY < 0) {
+				if (this.ngPlusCount === 0) {
+					if (pwX === 0) {
+						if (this.skyOverlay) {
+							this.ctx.drawImage(this.skyOverlay, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
+					}
+					else {
+						if (this.skyOverlayPW) {
+							this.ctx.drawImage(this.skyOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
 					}
 				}
 				else {
-					if (this.surfaceOverlayNGPPW) {
-						this.ctx.drawImage(this.surfaceOverlayNGPPW, 0, 0, this.w * 512, this.h * 512);
+					if (pwX === 0) {
+						if (this.skyOverlayNGP) {
+							this.ctx.drawImage(this.skyOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
 					}
-				}
-				// Extra overlay for just PW +/- 1
-				if (this.pw === -1 || this.pw === 1) {
-					if (this.surfaceOverlayPWAdditional) {
-						this.ctx.drawImage(this.surfaceOverlayPWAdditional, 0, 0, this.w * 512, this.h * 512);
+					else {
+						if (this.skyOverlayNGPPW) {
+							this.ctx.drawImage(this.skyOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
 					}
 				}
 			}
 		}
+
 		// Echoing spire (so silly, why does this even exist? no one knows)
 		if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['echoing_spire']) {
-			if (this.pw > 0) {
-				const height = this.pw * 512 * 25;
-				const posX = (35-25) * 512;
-				// Need to get the segments that are in view based on vertical PW and height
-				//const viewArea = this.getViewArea();
-				//console.log(viewArea);
-				// TODO: Need to rework the shift to get this to work with the panning, that will take a bit
-				// For now I will make it look very funny
-				const posY = 14 * 512 - height;
-				this.ctx.drawImage(this.surfaceOverlayScenes['echoing_spire'], posX, posY, 512, height);
+			const viewArea = this.getViewArea();
+			const minPW = Math.floor(viewArea.left / (512 * this.w));
+			const maxPW = Math.floor(viewArea.right / (512 * this.w));
+			const minVerticalSegment = Math.floor((viewArea.top + 11*512) / (512 * 25));
+			const maxVerticalSegment = Math.floor((viewArea.bottom + 11*512) / (512 * 25));
+			for (let pwX = minPW; pwX <= maxPW; pwX++) {
+				for (let verticalSegment = minVerticalSegment; verticalSegment <= maxVerticalSegment; verticalSegment++) {
+					if (verticalSegment > 0 || verticalSegment < -pwX+1) continue;
+					const posX = (getWorldCenter(this.isNGP) - 25) * 512 + pwX * 512 * this.w - this.pw * 512 * this.w;
+					const posY = verticalSegment * 512 * 25 - 11*512 - this.pwVertical * 24576;
+					this.ctx.drawImage(this.surfaceOverlayScenes['echoing_spire'], posX, posY, 512, 512*25);
+				}
 			}
 		}
 
@@ -1183,27 +1313,8 @@ export const app = {
 
 		const biomeOverlayMode = document.getElementById('debug-biome-overlay-mode').value;
 
-		// Hack PW offsets
-		let pwOffset = 0;
-		if (this.isNGP) {
-			pwOffset = -this.pw * 8;
-		}
-		let pwOffsetVertical = -this.pwVertical * 6;
-
-		// Draw original tile data
-		if (biomeOverlayMode === 'none') {
-			for (const layer of this.tileLayers) {
-				if (layer.canvas) {
-					this.ctx.drawImage(layer.canvas, layer.correctedX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y, layer.w, layer.h);
-				}
-			}
-		}
-		
-		// TODO: Might need to overwrite outside the region of the map for NG+ shifts of way too much
-		// This might also just fix itself when cross-world panning is implemented
-
-		// OVERLAYS
-		// Tile overlay (recolor white to biome foreground average color)
+		// TODO: Layer 3
+		// Tile background, needs to overwrite custom art in some places in NG+ based on a mask
 
 		// Biome map overlay (static chunks)
 		// This is drawn before the main overlay, and covers up shifted parts of the tiles...
@@ -1214,168 +1325,233 @@ export const app = {
 		}
 		*/
 
-		if (biomeOverlayMode !== 'none') {
-			if (!this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`]) {
-				// Generate it now (this seems like a bad idea since it will hang)
-				// Use different recolor map for vertical PWs
-				let recolorMapUsed = this.recolorOffscreenBuffer;
-				if (this.pwVertical < 0) {
-					recolorMapUsed = this.recolorOffscreenHeavenBuffer;
-				}
-				else if (this.pwVertical > 0) {
-					recolorMapUsed = this.recolorOffscreenHellBuffer;
-				}
-				if (biomeOverlayMode === 'expanded') {
-					this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`] = createTileOverlaysExpanded(this.biomeData, recolorMapUsed, this.tileLayers, this.pw, this.pwVertical, this.isNGP);
-				}
-				else if (biomeOverlayMode === 'normal') {
-					this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`] = createTileOverlays(this.biomeData, recolorMapUsed, this.tileLayers, this.pw, this.pwVertical, this.isNGP);
-				}
-				else {
-					this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`] = createTileOverlaysCheap(this.biomeData, this.tileLayers, this.pw, this.pwVertical, this.isNGP);
-				}
+		// Layer 4
+		// Tile data
+
+		for (let worldKey of this.worldsInView) {
+			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+
+			// Hack PW offsets
+			let pwOffset = 0;
+			if (this.isNGP) {
+				pwOffset = -pwX * 8;
 			}
-			if (this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`]) {
-				for (let i = 0; i < this.tileLayers.length; i++) {
-					const layer = this.tileLayers[i];
-					const overlay = this.tileOverlaysByPW[`${this.pw},${this.pwVertical}`][i];
-					
-					if (overlay) {
-						if (document.getElementById('debug-enable-edge-noise').checked && biomeOverlayMode === 'expanded') {
-							this.ctx.drawImage(
-								overlay, 
-								layer.correctedX + pwOffset + VISUAL_TILE_OFFSET_X - 40, 
-								layer.correctedY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - 40,
-								layer.w+80,
-								layer.h+80
-							);
-						}
-						else {
-							this.ctx.drawImage(
-								overlay, 
-								layer.correctedX + pwOffset + VISUAL_TILE_OFFSET_X, 
-								layer.correctedY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y,
-								layer.w,
-								layer.h
-							);
-						}
+			let pwOffsetVertical = -pwY * 6;
+
+			// Draw original tile data
+			if (biomeOverlayMode === 'none') {
+				for (const layer of this.tileLayers) {
+					if (layer.canvas) {
+						this.ctx.drawImage(layer.canvas, layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y, layer.w, layer.h);
 					}
 				}
 			}
-		}
+			
+			// TODO: Might need to overwrite outside the region of the map for NG+ shifts of way too much
+			// This might also just fix itself when cross-world panning is implemented
 
-		// Render pixel scenes (after overlays)
-		if (this.pixelScenesByPW && this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]) {
-			for (let scene of this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]) {
-				if (!scene || !scene.imgElement) return;
-				// Note positions of these *do not* use the tile offset
-				this.ctx.drawImage(getPixelSceneCanvas(scene), 
-					scene.x + getWorldCenter(this.isNGP)*512 - this.pw*getWorldSize(this.isNGP)*512, 
-					scene.y + 14*512 - this.pwVertical*24576
-				);
-			}
-		}
+			// OVERLAYS
+			// Tile overlay (recolor white to biome foreground average color)
 
-		// Orb rooms (effectively another pixel scene overlay)
-		// Skip rendering these for vertical PWs
-		if (this.pwVertical === 0) {
-			this.biomeData.orbs.forEach(o => {
-				if (document.getElementById('custom-art').checked && this.surfaceOverlayScenes && this.surfaceOverlayScenes['orb_room']) {
-					// Technically always NGP the way I have this set up but whatever
-					const sceneName = this.pw === 0 ? 'orb_room' : 'cursed_orb_room';
-					this.ctx.drawImage(this.surfaceOverlayScenes[sceneName], o.x * 512, o.y * 512, 512, 512);
-					// Circle (not really needed with exaggerated orb size in art)
-					/*
-					const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
-					this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
-					this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
-					this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
-					*/
+			if (biomeOverlayMode !== 'none') {
+				if (!this.tileOverlaysByPW[`${pwX},${pwY}`]) {
+					// Major timesave in NG, we can reuse the same overlay...
+					if (!this.isNGP) {
+						if (this.tileOverlaysByPW[`0,${pwY}`]) {
+							this.tileOverlaysByPW[`${pwX},${pwY}`] = this.tileOverlaysByPW[`0,${pwY}`];
+						}
+					}
+					if (!this.tileOverlaysByPW[`${pwX},${pwY}`]) {
+						// Generate it now (this seems like a bad idea since it will hang)
+						// Use different recolor map for vertical PWs
+						let recolorMapUsed = this.recolorOffscreenBuffer;
+						if (pwY < 0) {
+							recolorMapUsed = this.recolorOffscreenHeavenBuffer;
+						}
+						else if (pwY > 0) {
+							recolorMapUsed = this.recolorOffscreenHellBuffer;
+						}
+						if (biomeOverlayMode === 'expanded') {
+							this.tileOverlaysByPW[`${pwX},${pwY}`] = createTileOverlaysExpanded(this.biomeData, recolorMapUsed, this.tileLayers, pwX, pwY, this.isNGP);
+						}
+						else if (biomeOverlayMode === 'normal') {
+							this.tileOverlaysByPW[`${pwX},${pwY}`] = createTileOverlays(this.biomeData, recolorMapUsed, this.tileLayers, pwX, pwY, this.isNGP);
+						}
+						else {
+							this.tileOverlaysByPW[`${pwX},${pwY}`] = createTileOverlaysCheap(this.biomeData, this.tileLayers, pwX, pwY, this.isNGP);
+						}
+					}
 				}
-				else {
-					const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
-					// Fill in chunk entirely to overwrite any tiles underneath, since orbs break the tile rules and can appear under other PoIs
-					this.ctx.fillStyle = '#ffd100';
-					this.ctx.fillRect(ox - 256, oy - 256, 512, 512);
-					this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
-					this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
-					this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
-				}
-			});
-		}
-
-		// Draw debug boxes and paths above overlays/pixel scenes so they aren't obscured
-		if (showBoxes || showPaths) {
-			for (const layer of this.tileLayers) {
-				if (showBoxes) {
-					this.ctx.lineWidth = 2; // Thinner for individual tiles
-					
-					for (let ty = 0; ty < layer.ymax; ty++) {
-						for (let tx = 0; tx < layer.xmax; tx++) {
-							const idx = ty * layer.xmax + tx;
-							const tileVal = layer.tileIndices[idx];
-							if (tileVal === 0) continue;
-
-							// Root Check: We only draw the box starting from the 'first' half of a tile
-							// Horizontal Root: No 0xC000 or 0x4000 flags, just the raw index (or 0x8000 for the pair)
-							// Vertical Root: Top half has 0x4000 flag, but NOT 0x8000
-							let isHorizontalRoot = (tileVal >= 0 && (tileVal & 0xC000) === 0);
-							let isVerticalRoot = (tileVal & 0x4000) && !(tileVal & 0x8000);
-
-							if (isHorizontalRoot || isVerticalRoot) {
-								let baseIndex = tileVal;
-								let colorVal = 0.0;
-								if (isHorizontalRoot) {
-									baseIndex = tileVal % layer.numHTiles;
-									colorVal = baseIndex / layer.numHTiles;
-								}
-								else if (isVerticalRoot) {
-									baseIndex = tileVal % layer.numVTiles;
-									colorVal = baseIndex / layer.numVTiles;
-								}
-								
-								// Visual Styling
-								this.ctx.strokeStyle = `hsla(${(colorVal * 360) % 360}, 80%, 60%, 0.8)`;
-								this.ctx.fillStyle = this.ctx.strokeStyle.replace('0.8', '0.15');
-
-								const worldX = layer.correctedX + (tx * layer.tileSize * 10) + pwOffset + VISUAL_TILE_OFFSET_X;
-								const worldY = layer.correctedY + (ty * layer.tileSize * 10) - 40  + pwOffsetVertical + VISUAL_TILE_OFFSET_Y;
-
-								// Dimensions: Horizontal is 2x1, Vertical is 1x2
-								const rectW = isHorizontalRoot ? layer.tileSize * 20 : layer.tileSize * 10;
-								const rectH = isHorizontalRoot ? layer.tileSize * 10 : layer.tileSize * 20;
-
-								this.ctx.fillRect(worldX, worldY, rectW, rectH);
-								this.ctx.strokeRect(worldX, worldY, rectW, rectH);
-								
-								// Tile Index Label
-								if (this.cam.z > 0.25) {
-									this.ctx.fillStyle = 'red';
-									this.ctx.font = `${layer.tileSize * 5}px monospace`;
-									this.ctx.fillText(baseIndex, worldX + (layer.tileSize * 2), worldY + (layer.tileSize * 7));
-								}
+				if (this.tileOverlaysByPW[`${pwX},${pwY}`]) {
+					for (let i = 0; i < this.tileLayers.length; i++) {
+						const layer = this.tileLayers[i];
+						const overlay = this.tileOverlaysByPW[`${pwX},${pwY}`][i];
+						
+						if (overlay) {
+							if (document.getElementById('debug-enable-edge-noise').checked && biomeOverlayMode === 'expanded') {
+								this.ctx.drawImage(
+									overlay, 
+									layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - 40, 
+									layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - 40,
+									layer.w+80,
+									layer.h+80
+								);
+							}
+							else {
+								this.ctx.drawImage(
+									overlay, 
+									layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X, 
+									layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y,
+									layer.w,
+									layer.h
+								);
 							}
 						}
 					}
 				}
+			}
+		}
 
-				if (showPaths && layer.path && layer.path.length > 0) {
-					this.ctx.beginPath(); this.ctx.strokeStyle = '#FF00FF'; this.ctx.lineWidth = 5;
-					const start = layer.path[0];
-					this.ctx.moveTo(layer.correctedX + start.x * 10 + 5 + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + start.y * 10 + 5 + pwOffsetVertical + VISUAL_TILE_OFFSET_Y);
-					for (let p of layer.path) this.ctx.lineTo(layer.correctedX + p.x * 10 + 5 + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + p.y * 10 + 5 + pwOffsetVertical + VISUAL_TILE_OFFSET_Y);
-					this.ctx.stroke();
+		// Layer 5
+		// Pixel scenes
+
+		for (let worldKey of this.worldsInView) {
+			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+
+			// Render pixel scenes (after overlays)
+			if (this.pixelScenesByPW && this.pixelScenesByPW[`${pwX},${pwY}`]) {
+				for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
+					if (!scene || !scene.imgElement) return;
+					// Note positions of these *do not* use the tile offset
+					this.ctx.drawImage(getPixelSceneCanvas(scene), 
+						scene.x + getWorldCenter(this.isNGP)*512 - pwX*getWorldSize(this.isNGP)*512 + shiftX, 
+						scene.y + 14*512 - pwY*24576 + shiftY
+					);
+				}
+			}
+
+			// Orb rooms (effectively another pixel scene overlay)
+			// Skip rendering these for vertical PWs
+			if (pwY === 0) {
+				this.biomeData.orbs.forEach(o => {
+					if (document.getElementById('custom-art').checked && this.surfaceOverlayScenes && this.surfaceOverlayScenes['orb_room']) {
+						// Technically always NGP the way I have this set up but whatever
+						const sceneName = pwX === 0 ? 'orb_room' : 'cursed_orb_room';
+						this.ctx.drawImage(this.surfaceOverlayScenes[sceneName], o.x * 512 + shiftX, o.y * 512 + shiftY, 512, 512);
+						// Circle (not really needed with exaggerated orb size in art)
+						/*
+						const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
+						this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
+						this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
+						this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
+						*/
+					}
+					else {
+						const ox = (o.x + 0.5) * 512 + shiftX; const oy = (o.y + 0.5) * 512 + shiftY;
+						// Fill in chunk entirely to overwrite any tiles underneath, since orbs break the tile rules and can appear under other PoIs
+						this.ctx.fillStyle = '#ffd100';
+						this.ctx.fillRect(ox - 256, oy - 256, 512, 512);
+						this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
+						this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
+						this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
+					}
+				});
+			}
+		}
+
+		// Layer 6
+		// Debug overlays (tile bounds, pathfinding)
+
+		// Draw debug boxes and paths above overlays/pixel scenes so they aren't obscured
+		if (showBoxes || showPaths) {
+			for (let worldKey of this.worldsInView) {
+				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+				// Hack PW offsets
+				let pwOffset = 0;
+				if (this.isNGP) {
+					pwOffset = -pwX * 8;
+				}
+				let pwOffsetVertical = -pwY * 6;
+
+				for (const layer of this.tileLayers) {
+					if (showBoxes) {
+						this.ctx.lineWidth = 2; // Thinner for individual tiles
+						
+						for (let ty = 0; ty < layer.ymax; ty++) {
+							for (let tx = 0; tx < layer.xmax; tx++) {
+								const idx = ty * layer.xmax + tx;
+								const tileVal = layer.tileIndices[idx];
+								if (tileVal === 0) continue;
+
+								// Root Check: We only draw the box starting from the 'first' half of a tile
+								// Horizontal Root: No 0xC000 or 0x4000 flags, just the raw index (or 0x8000 for the pair)
+								// Vertical Root: Top half has 0x4000 flag, but NOT 0x8000
+								let isHorizontalRoot = (tileVal >= 0 && (tileVal & 0xC000) === 0);
+								let isVerticalRoot = (tileVal & 0x4000) && !(tileVal & 0x8000);
+
+								if (isHorizontalRoot || isVerticalRoot) {
+									let baseIndex = tileVal;
+									let colorVal = 0.0;
+									if (isHorizontalRoot) {
+										baseIndex = tileVal % layer.numHTiles;
+										colorVal = baseIndex / layer.numHTiles;
+									}
+									else if (isVerticalRoot) {
+										baseIndex = tileVal % layer.numVTiles;
+										colorVal = baseIndex / layer.numVTiles;
+									}
+									
+									// Visual Styling
+									this.ctx.strokeStyle = `hsla(${(colorVal * 360) % 360}, 80%, 60%, 0.8)`;
+									this.ctx.fillStyle = this.ctx.strokeStyle.replace('0.8', '0.15');
+
+									const worldX = layer.correctedX + (tx * layer.tileSize * 10) + shiftX + pwOffset + VISUAL_TILE_OFFSET_X;
+									const worldY = layer.correctedY + (ty * layer.tileSize * 10) - 40  + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y;
+
+									// Dimensions: Horizontal is 2x1, Vertical is 1x2
+									const rectW = isHorizontalRoot ? layer.tileSize * 20 : layer.tileSize * 10;
+									const rectH = isHorizontalRoot ? layer.tileSize * 10 : layer.tileSize * 20;
+
+									this.ctx.fillRect(worldX, worldY, rectW, rectH);
+									this.ctx.strokeRect(worldX, worldY, rectW, rectH);
+									
+									// Tile Index Label
+									if (this.cam.z > 0.25) {
+										this.ctx.fillStyle = 'red';
+										this.ctx.font = `${layer.tileSize * 5}px monospace`;
+										this.ctx.fillText(baseIndex, worldX + (layer.tileSize * 2), worldY + (layer.tileSize * 7));
+									}
+								}
+							}
+						}
+					}
+
+					if (showPaths && layer.path && layer.path.length > 0) {
+						this.ctx.beginPath(); this.ctx.strokeStyle = '#FF00FF'; this.ctx.lineWidth = 5;
+						const start = layer.path[0];
+						this.ctx.moveTo(layer.correctedX + start.x * 10 + 5 + shiftX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + start.y * 10 + 5 + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y);
+						for (let p of layer.path) this.ctx.lineTo(layer.correctedX + p.x * 10 + 5 + shiftX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + p.y * 10 + 5 + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y);
+						this.ctx.stroke();
+					}
 				}
 			}
 		}
 
+		// Layer 7
+		// Secrets
+		// TODO: These are only near the center and should just render with a sort of absolute position, no reason to iterate over worlds in view for this
+
 		// Draw secret messages
+		renderWallMessages(this.ctx, this.isNGP, this.pw, this.pwVertical);
 		if (this.pwVertical === 0) {
+			/*
 			if (this.pw === 0) {
 				// TODO: Two of these are really in the first vertical PW in main
 				renderWallMessages(this.ctx, this.isNGP);
 			}
-			else if (this.pw === 1) {
+			*/
+			// For now I'll leave these as is because it is kind of accurate to the game that the eyes just pop in when you enter the PW
+			if (this.pw === 1) {
 				renderEyeMessages(this.ctx, this.eyes.east);
 			} 
 			else if (this.pw === -1) {
@@ -1383,80 +1559,8 @@ export const app = {
 			}
 		}
 
-		// Render PoIs
-		if (!document.getElementById('debug-hide-pois').checked) {
-			const currentPois = this.poisByPW[`${this.pw},${this.pwVertical}`];
-			if (currentPois) {
-				for (let p of currentPois) {
-					// Calculate visual position on the current map
-					
-					let poiColor = '#FFFFFFAA'; // Default color for unknown PoIs
-					// If the wand has specific world data, use it for exact precision
-					switch (p.type) {
-						case 'wand':
-							poiColor = '#00FFFFAA';
-							break;
-						case 'item':
-							if (p.item) {
-								if (p.item.includes('heart') || p.item === 'full_heal') {
-									poiColor = '#FF0000AA';
-								}
-								else if (p.item.includes('potion') || p.item.includes('pouch')) {
-									poiColor = '#0000FFAA';
-								}
-								else if (p.item === 'portal') {
-									poiColor = '#800080AA';
-								}
-								else {
-									poiColor = '#FFFF00AA';
-								}
-							}
-							break;
-						case 'utility_box':
-							poiColor = '#FF00FFAA';
-							break;
-						case 'chest':
-						case 'pacifist_chest':
-							poiColor = '#FFA500AA';
-							break;
-						case 'great_chest':
-							poiColor = '#FF5500AA';
-							break;
-						case 'shop':
-						case 'eye_room':
-						case 'holy_mountain_shop':
-							poiColor = '#00FF00AA';
-							break;
-						// Add more cases as needed for different PoI types
-					}
-
-					const px = p.x - (this.pw * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512;
-					const py = p.y + 14 * 512 - (this.pwVertical * 24576); // Shift already baked into the tile spawns
-					let tempRadius = POI_RADIUS;
-					if (p.highlight === true) {
-						this.ctx.strokeStyle = '#000000AA';
-						this.ctx.lineWidth = 20 / this.cam.z;
-						if (this.ctx.lineWidth < 4) this.ctx.lineWidth = 4;
-						tempRadius = POI_RADIUS / this.cam.z; // Scale highlight with zoom for better visibility
-						if (tempRadius < POI_RADIUS) tempRadius = POI_RADIUS;
-					}
-					else {
-						this.ctx.strokeStyle = '#000000AA';
-						this.ctx.lineWidth = 4;
-					}
-
-					this.ctx.beginPath();
-					
-					if (document.getElementById('debug-small-pois').checked) {
-						tempRadius = 5;
-					}
-					this.ctx.arc(px, py, tempRadius, 0, Math.PI * 2);
-					this.ctx.fillStyle = poiColor;
-					this.ctx.fill();
-					this.ctx.stroke();
-				}
-			}
-		}
+		// Layer 8
+		// Other debug stuff maybe
 
 		// Debug: Render background mask (looks good)
 		/*
@@ -1476,8 +1580,90 @@ export const app = {
 		}
 		*/
 
+		// TODO: Check this with panning
 		if (document.getElementById('debug-edge-noise').checked && this.debugCanvas) {
 			this.ctx.drawImage(this.debugCanvas, this.debugX - this.debugCanvas.width/2 + getWorldCenter(this.isNGP)*512, this.debugY - this.debugCanvas.height/2 + 14*512);
+		}
+
+		// Layer 9
+		// PoIs
+
+		// Render PoIs
+		if (!document.getElementById('debug-hide-pois').checked) {
+			for (let worldKey of this.worldsInView) {
+				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+				const currentPois = this.poisByPW[`${pwX},${pwY}`];
+				if (currentPois) {
+					for (let p of currentPois) {
+						// Calculate visual position on the current map
+						
+						let poiColor = '#FFFFFFAA'; // Default color for unknown PoIs
+						// If the wand has specific world data, use it for exact precision
+						switch (p.type) {
+							case 'wand':
+								poiColor = '#00FFFFAA';
+								break;
+							case 'item':
+								if (p.item) {
+									if (p.item.includes('heart') || p.item === 'full_heal') {
+										poiColor = '#FF0000AA';
+									}
+									else if (p.item.includes('potion') || p.item.includes('pouch')) {
+										poiColor = '#0000FFAA';
+									}
+									else if (p.item === 'portal') {
+										poiColor = '#800080AA';
+									}
+									else {
+										poiColor = '#FFFF00AA';
+									}
+								}
+								break;
+							case 'utility_box':
+								poiColor = '#FF00FFAA';
+								break;
+							case 'chest':
+							case 'pacifist_chest':
+								poiColor = '#FFA500AA';
+								break;
+							case 'great_chest':
+								poiColor = '#FF5500AA';
+								break;
+							case 'shop':
+							case 'eye_room':
+							case 'holy_mountain_shop':
+								poiColor = '#00FF00AA';
+								break;
+							// Add more cases as needed for different PoI types
+						}
+
+						const px = p.x - (pwX * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512 + shiftX;
+						const py = p.y + 14 * 512 - (pwY * 24576) + shiftY; // Shift already baked into the tile spawns
+						let tempRadius = POI_RADIUS;
+						if (p.highlight === true) {
+							this.ctx.strokeStyle = '#000000AA';
+							this.ctx.lineWidth = 20 / this.cam.z;
+							if (this.ctx.lineWidth < 4) this.ctx.lineWidth = 4;
+							tempRadius = POI_RADIUS / this.cam.z; // Scale highlight with zoom for better visibility
+							if (tempRadius < POI_RADIUS) tempRadius = POI_RADIUS;
+						}
+						else {
+							this.ctx.strokeStyle = '#000000AA';
+							this.ctx.lineWidth = 4;
+						}
+
+						this.ctx.beginPath();
+						
+						if (document.getElementById('debug-small-pois').checked) {
+							tempRadius = 5;
+						}
+						this.ctx.arc(px, py, tempRadius, 0, Math.PI * 2);
+						this.ctx.fillStyle = poiColor;
+						this.ctx.fill();
+						this.ctx.stroke();
+					}
+				}
+			}
 		}
 
 		this.ctx.restore();
@@ -1511,7 +1697,7 @@ export const app = {
 		this.cam.z = 0.25; // Zoom in, but not too much
 		this.cam.x = viewX + 100 / this.cam.z;
 		this.cam.y = viewY;
-		
+		this.checkBounds();
 		
 		this.pinnedTooltip = poi;
 		this.draw();

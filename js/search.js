@@ -19,15 +19,19 @@ export function isSearchActive() {
 	return searchActive;
 }
 
-export function cancelSearch() {
-	searchActive = false;
-	// Clear the sequence and results to reset UI state
-    search.results = [];
-    search.index = -1;
-	// Disable highlights on PoIs
+// Soft cancel, without really canceling, but clearing highlights and resetting
+export function clearHighlights() {
+	search.results = [];
+	search.index = -1;
 	app.poisByPW[`${app.pw},${app.pwVertical}`]?.forEach(poi => {
 		poi.highlight = false;
 	});
+}
+
+export function cancelSearch() {
+	searchActive = false;
+	// Disable highlights on PoIs and reset search
+	clearHighlights();
 	// Update UI elements
     const cancelBtn = document.getElementById('cancel-search');
     const searchNav = document.getElementById('search-nav');
@@ -133,7 +137,8 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
 		if (autoNavigate) {
 			await navigateSearch(1); 
 		} else {
-			search.index = 0;
+			search.index = -1;
+			document.getElementById('search-count').innerText = `${search.index + 1} / ${search.results.length}`;
 			//searchActive = false; // Keep active so that highlights remain and navigation can work without re-searching
 			app.setLoading(false);
 		}

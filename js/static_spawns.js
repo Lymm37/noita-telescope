@@ -5,14 +5,14 @@ import { getWorldCenter, getWorldSize } from "./utils.js";
 import { app } from "./app.js";
 
 const STATIC_PIXEL_SCENES = [
-	{name: "pyramid/boss_limbs", x: 9726, y: -1024},
-	{name: "temple/altar_snowcastle_capsule", x: 143, y: 5112},
+	{name: "pyramid/boss_limbs", x: 9726, y: -1024, required: true},
+	{name: "snowcastle/altar_snowcastle_capsule", x: 143, y: 5112, required: true},
 	{name: "snowcastle/forge", x: 1464, y: 5976},
-	{name: "temple/altar_vault_capsule", x: 143, y: 8704},
-	{name: "temple/altar_snowcave_capsule", x: 127, y: 3072},
-	{name: "general/tower_start", x: 9676, y: 9086},
-	{name: "general/the_end_shop", x: 0, y: 24576},
-	{name: "general/the_end_shop", x: 0, y: -13954},
+	{name: "vault/altar_vault_capsule", x: 143, y: 8704, required: true},
+	{name: "snowcave/altar_snowcave_capsule", x: 127, y: 3072, required: true},
+	{name: "general/tower_start", x: 9676, y: 9086, required: true},
+	{name: "general/the_end_shop", x: 0, y: 24576, required: true},
+	{name: "general/the_end_shop", x: 0, y: -13954, required: true},
 	{name: "general/greed_treasure", x: 9216, y: 4096},
 	{name: "general/fishing_hut", x: -12600, y: 140},
 	{name: "overworld/essence_altar", x: -6948, y: -270, inNGP: true},
@@ -26,11 +26,11 @@ const STATIC_PIXEL_SCENES = [
 	{name: "overworld/snowy_ruins_eye_pillar", x: -2446, y: -223},
 	{name: "general/rainbow_cloud", x: -14059, y: -2851},
 	{name: "overworld/cliff", x: -12400, y: -400},
-	{name: "general/eyespot", x: -3408, y: 1712},
-	{name: "general/eyespot", x: 5852, y: -4944},
-	{name: "general/eyespot", x: 15024, y: 1712},
-	{name: "general/eyespot", x: -1360, y: 9904},
-	{name: "general/eyespot", x: 12976, y: 9904},
+	{name: "general/eyespot", x: -3408, y: 1712, required: true}, 
+	{name: "general/eyespot", x: 5852, y: -4944}, // This one is in the art
+	{name: "general/eyespot", x: 15024, y: 1712, required: true},
+	{name: "general/eyespot", x: -1360, y: 9904, required: true},
+	{name: "general/eyespot", x: 12976, y: 9904, required: true},
 	{name: "overworld/desert_ruins_base_01", x: 5890, y: 0},
 	{name: "overworld/music_machine_stand", x: 14650, y: -34},
 	{name: "overworld/music_machine_stand", x: -1953, y: -1360},
@@ -42,6 +42,7 @@ const STATIC_PIXEL_SCENES = [
 ];
 
 // Using 'required' for ones which look bad if they're missing
+// I think all of these are replaced by the art overlay at this point
 const PIXEL_SCENE_BIOMES = {
 	// Biome color: scene name
 	0xff24888a: {biome: "excavationsite_cube_chamber", name: "cube_chamber"},
@@ -87,7 +88,7 @@ const PIXEL_SCENE_BIOMES = {
 	0xffc88f5f: {biome: "pyramid_top", name: "top"},
 	0xff967f5f: {biome: "pyramid_entrance", name: "entrance"},
 	0xff167f5f: {biome: "pyramid_hallway", name: "hallway"},
-	0xfff0d517: {biome: "roadblock", name: "roadblock"},
+	0xfff0d517: {biome: "roadblock", name: "roadblock"}, // TODO: I forgot what this was
 	0xff93cb5a: {biome: "temple_altar_right_snowcastle", name: "altar_right_snowcastle", offsetY: 256},
 	0xff93cb4f: {biome: "temple_altar_right_snowcave", name: "altar_right_snowcastle", offsetY: 256},
 	0xff93cb4e: {biome: "temple_altar_right", name: "altar_right", offsetY: 256},
@@ -129,16 +130,17 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	const pixelSceneOption = document.getElementById('enable-static-pixel-scenes').value;
 	// TODO: Currently this makes the static PoIs also get skipped, which I don't really want...
-	if (pixelSceneOption === 'off') return [];
+	//if (pixelSceneOption === 'off') return [];
 	let newPixelScenes = [];
 	let newPois = [];
 	const mapWidth = getWorldSize(ng > 0);
 	const pwOffsetX = pwIndex * mapWidth * 512;
 	//const pwOffsetY = pwIndexVertical * 48 * 512;
 	// Hardcoded position pixel scenes
-	if (pixelSceneOption === 'all') {
+	if (pixelSceneOption !== 'off') {
 		for (const scene of STATIC_PIXEL_SCENES) {
 			if (!scene.inNGP && ng > 0) continue;
+			if (pixelSceneOption === 'some' && !scene.required) continue;
 			// Check PW position
 			const targetPW = Math.floor((scene.x + 512 * getWorldCenter(ng > 0))/(512*mapWidth));
 			const targetPWVertical = Math.floor((scene.y + 512 * 14)/(512*48));
@@ -150,23 +152,25 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 				newPixelScenes.push(pixelScene);
 			}
 		}
-		// Chunk based pixel scenes (none of these are in vertical PWs, at least not in NG... Though NG+3 does have the infinite orb room tower, TODO)
-		if (pwIndexVertical === 0) {
-			for (let x = 0; x < mapWidth; x++) {
-				for (let y = 0; y < 48; y++) {
-					const biomeColor = biomeData.pixels[y * mapWidth + x];
-					if (PIXEL_SCENE_BIOMES[biomeColor]) {
-						const biomePixelSceneInfo = PIXEL_SCENE_BIOMES[biomeColor];
-						const biomeName = biomePixelSceneInfo.biome;
-						const biomePixelSceneName = biomePixelSceneInfo.name;
-						const offsetX = biomePixelSceneInfo.offsetX || 0;
-						const offsetY = biomePixelSceneInfo.offsetY || 0;
-						const adjX = x * 512 - mapWidth * 256 + pwIndex * mapWidth * 512 + offsetX;
-						const adjY = y * 512 - 14*512 + pwIndexVertical * 48 * 512 + offsetY;
-						const pixelScene = loadPixelScene(biomeData, biomeName, biomePixelSceneName, ws, ng, adjX, adjY, skipCosmeticPixelScenes, false);
-						//console.log(`Biome color ${biomeColor.toString(16)} at (${x}, ${y}) corresponds to biome ${biomeName} and pixel scene ${biomePixelSceneName}`);
-						if (pixelScene) {
-							newPixelScenes.push(pixelScene);
+		if (pixelSceneOption === 'all') {
+			// Chunk based pixel scenes (none of these are in vertical PWs, at least not in NG... Though NG+3 does have the infinite orb room tower, TODO)
+			if (pwIndexVertical === 0) {
+				for (let x = 0; x < mapWidth; x++) {
+					for (let y = 0; y < 48; y++) {
+						const biomeColor = biomeData.pixels[y * mapWidth + x];
+						if (PIXEL_SCENE_BIOMES[biomeColor]) {
+							const biomePixelSceneInfo = PIXEL_SCENE_BIOMES[biomeColor];
+							const biomeName = biomePixelSceneInfo.biome;
+							const biomePixelSceneName = biomePixelSceneInfo.name;
+							const offsetX = biomePixelSceneInfo.offsetX || 0;
+							const offsetY = biomePixelSceneInfo.offsetY || 0;
+							const adjX = x * 512 - mapWidth * 256 + pwIndex * mapWidth * 512 + offsetX;
+							const adjY = y * 512 - 14*512 + pwIndexVertical * 48 * 512 + offsetY;
+							const pixelScene = loadPixelScene(biomeData, biomeName, biomePixelSceneName, ws, ng, adjX, adjY, skipCosmeticPixelScenes, false);
+							//console.log(`Biome color ${biomeColor.toString(16)} at (${x}, ${y}) corresponds to biome ${biomeName} and pixel scene ${biomePixelSceneName}`);
+							if (pixelScene) {
+								newPixelScenes.push(pixelScene);
+							}
 						}
 					}
 				}
@@ -238,21 +242,23 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 			newPixelScenes.push(pixelScene);
 		}
 
-		// Watercave
-		const layout = 1 + Math.floor(prng.ProceduralRandom(ws, -2048, 515)*5);
-		const waterCaveScene = loadPixelScene(biomeData, "watercave", `watercave_layout_${layout}`, ws, ng, -2048, 515, skipCosmeticPixelScenes, false);
-		if (waterCaveScene) {
-			newPixelScenes.push(waterCaveScene);
+		if (pwIndex === 0) {
+			// Watercave
+			const layout = 1 + Math.floor(prng.ProceduralRandom(ws, -2048, 515)*5);
+			const waterCaveScene = loadPixelScene(biomeData, "watercave", `watercave_layout_${layout}`, ws, ng, -2048, 515, skipCosmeticPixelScenes, false);
+			if (waterCaveScene) {
+				newPixelScenes.push(waterCaveScene);
+			}
+			// Add watercave PoIs based on layout
+			const waterCavePois = {
+				1: [{type: 'item', item: 'heart', x: -2048 + 184, y: 515 + 96, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 142, y: 515 + 386, biome: 'watercave'}],
+				2: [{type: 'item', item: 'heart', x: -2048 + 340, y: 515 + 329, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 142, y: 515 + 386, biome: 'watercave'}],
+				3: [{type: 'item', item: 'heart', x: -2048 + 144, y: 515 + 385, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 182, y: 515 + 96, biome: 'watercave'}],
+				4: [{type: 'item', item: 'heart', x: -2048 + 170, y: 515 + 384, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 182, y: 515 + 96, biome: 'watercave'}],
+				5: [{type: 'item', item: 'heart', x: -2048 + 184, y: 515 + 96, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 142, y: 515 + 386, biome: 'watercave'}],
+			};
+			newPois.push(...waterCavePois[layout]);
 		}
-		// Add watercave PoIs based on layout
-		const waterCavePois = {
-			1: [{type: 'item', item: 'heart', x: -2048 + 184, y: 515 + 96, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 142, y: 515 + 386, biome: 'watercave'}],
-			2: [{type: 'item', item: 'heart', x: -2048 + 340, y: 515 + 329, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 142, y: 515 + 386, biome: 'watercave'}],
-			3: [{type: 'item', item: 'heart', x: -2048 + 144, y: 515 + 385, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 182, y: 515 + 96, biome: 'watercave'}],
-			4: [{type: 'item', item: 'heart', x: -2048 + 170, y: 515 + 384, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 182, y: 515 + 96, biome: 'watercave'}],
-			5: [{type: 'item', item: 'heart', x: -2048 + 184, y: 515 + 96, biome: 'watercave'}, {type: 'item', item: 'full_heal', x: -2048 + 142, y: 515 + 386, biome: 'watercave'}],
-		};
-		newPois.push(...waterCavePois[layout]);
 	}
 
 	// Holy mountain basins
@@ -295,24 +301,25 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	// Static spliced pixel scenes (ew)
 	// Just set biome as "spliced" and don't deal with this bs
-	if (pixelSceneOption === 'all') {
+	if (pixelSceneOption !== 'off') {
 		const splicedScenes = [
 			{name: "boss_arena", x: 3*512, y: 24*512, inNGP: true},
 			{name: "gourd_room", x: -33*512, y: -14*512, inNGP: true},
 			{name: "lake_statue", x: -29*512, y: 0, inNGP: true},
 			{name: "lavalake_pit_bottom", x: 5*512, y: 6*512},
 			{name: "lavalake2", x: 4*512, y: 0},
-			{name: "moon", x: 0, y: -51*512, inNGP: true},
-			{name: "moon_dark", x: 0, y: 73*512 + 136, inNGP: true},
+			{name: "moon", x: 0, y: -51*512, inNGP: true, required: true},
+			{name: "moon_dark", x: 0, y: 73*512 + 136, inNGP: true, required: true},
 			{name: "mountain_lake", x: 5*512, y: 0}, // TODO: Top of this changes in NG vs NGP, also it's flat and missing in PWs...
-			{name: "skull", x: 29*512, y: 31*512 + 256},
+			{name: "skull", x: 29*512, y: 31*512 + 256}, // TODO: Looks weird with the default color
 			{name: "skull_in_desert", x: 14*512 - 68, y: -100, inNGP: true},
 			{name: "tree", x: -4*512, y: -3*512 + 212, inNGP: true},
-			{name: "watercave", x: -4*512, y: 0},
+			{name: "watercave", x: -4*512, y: 0, required: true}, // Just the top and bottom edges of the watercave
 		];
 
 		for (const splicedScene of splicedScenes) {
 			if (!splicedScene.inNGP && ng > 0) continue;
+			if (pixelSceneOption === 'some' && !splicedScene.required) continue;
 			const pixelScene = loadPixelScene(biomeData, "spliced", splicedScene.name, ws, ng, splicedScene.x, splicedScene.y, skipCosmeticPixelScenes, false);
 			if (pixelScene) {
 				newPixelScenes.push(pixelScene);

@@ -175,7 +175,7 @@ function generateItemHtml(item) {
 	
 	let spriteName = 'item_sprites/' + itemName.toLowerCase().replace(/\s+/g, '_');
 	// Hack for orbs
-	if (app.pw !== 0 && item.item === 'orb') {
+	if (item.item === 'orb' && (item.x < 0 || item.x >= getWorldSize(app.isNGP))) {
 		spriteName = 'item_sprites/orb_cursed';
 		itemName = 'Cursed Orb';
 	}

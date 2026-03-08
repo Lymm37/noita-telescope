@@ -195,6 +195,9 @@ export const SNOWCAVE_SCENES = {
 	],
 	"g_altar": [
 		{prob: 1.0, name: "trailer_altar"},
+	],
+	"extras": [
+		{name: "altar_snowcave_capsule"},
 	]
 };
 
@@ -242,7 +245,8 @@ export const SNOWCASTLE_SCENES = {
 		{name: "chamfer_inner_bottom_l"},
 		{name: "pillar_filler_01"},
 		{name: "pillar_filler_tall_01"},
-		{name: "forge"}
+		{name: "forge"},
+		{name: "altar_snowcastle_capsule"},
 	]
 };
 
@@ -395,6 +399,7 @@ export const VAULT_SCENES = {
 	],
 	"extras": [
 		{name: "hole"},
+		{name: "altar_vault_capsule"},
 	],
 };
 
@@ -623,9 +628,6 @@ export const TEMPLE_SCENES = {
 		{name: "altar_left"},
 		{name: "altar_right"},
 		{name: "altar_right_snowcastle"},
-		{name: "altar_snowcastle_capsule"},
-		{name: "altar_vault_capsule"},
-		{name: "altar_snowcave_capsule"},
 		{name: "altar_top"},
 		{name: "altar_top_blood"},
 		{name: "altar_top_lava"},
