@@ -442,7 +442,7 @@ export async function navigateSearch(dir) {
 	const current = search.results[search.index];
 	
 	// Sync app PW state to the result's world
-	if (current.pw && current.pwVertical && `${app.pw},${app.pwVertical}` !== `${current.pw},${current.pwVertical}`) {
+	if (current.pw !== undefined && current.pwVertical !== undefined && `${app.pw},${app.pwVertical}` !== `${current.pw},${current.pwVertical}`) {
 		app.pw = current.pw;
 		app.pwVertical = current.pwVertical;
 		document.getElementById('pw').value = app.pw;

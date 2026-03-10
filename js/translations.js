@@ -41,6 +41,9 @@ const ALIASES = {
 	'teleportatium potion': ['teleportatium potion', 'tele potion'],
 	'lively concoction potion': ['lively concoction potion', 'lc potion', 'lc'],
 	'alchemical precursor potion': ['alchemical precursor potion', 'ap potion', 'ap'],
+	'grass_ice': ['frozen grass'],
+	'grass_dry': ['dry grass'],
+	'shock_powder': ['shock powder', 'electric powder', 'fungal soil'], // typo in the game...
 	// Funny "lc" and "ap" don't really work because they are substrings of other things
 	// Puzzle aliases
 	'oil_receptacle_puzzle': ['oil receptacle puzzle', 'receptacle', 'oil puzzle', 'mines puzzle', 'puzzle', 'ruusu', 'rose wand', 'rose'],
@@ -77,6 +80,28 @@ const EXTRA_TRANSLATIONS = {
 	'refresh_mimic': 'Refresh Mimic',
 	'heart_mimic': 'Heart Mimic',
 	'chest_leggy': 'Leggy Mimic',
+	// Oddly named materials (using different names in their material data from their IDs)
+	'just_death': 'Instant Deathium',
+	
+	'fungus_powder': 'Fungal Soil',
+	'grass_ice': 'Ice', // Not a great display name
+	'grass_dark': 'Grass',
+	'grass_dry': 'Grass',
+	'plastic_grey': 'Plastic',
+	'plastic_grey_molten': 'Molten Plastic',
+	'material_darkness': 'Ominous Liquid',
+	'glass_broken': 'Glass',
+	'slime_yellow': 'Slime',
+	'slime_green': 'Slime',
+	'gunpowder_unstable_big': 'Gunpowder',
+	'sand_petrify': 'Sand',
+	'sand_surface': 'Sand',
+	'plant_material_dark': 'Plant Material',
+	'soil_lush': 'Soil',
+	'soil_dead': 'Barren Soil',
+	'soil_lush_dark': 'Soil',
+	'soil_dark': 'Barren Soil',
+	'shock_powder': 'Fungal Soil', // Typo included lol
 
 	// Missing biomes with weird capitalization (in no particular order)
 	'coalmine': 'Mines',
@@ -167,7 +192,7 @@ export function getDisplayName(techId) {
 
 export function isMatch(techId, query) {
 	if (!techId || !query) return false;
-	const tid = techId.toLowerCase();
+	const tid = techId.toLowerCase().replace(/_/g, ' ').trim();
 	const q = query.toLowerCase().trim();
 	if (ALIASES[techId]) {
 		return ALIASES[techId].some(alias => alias.toLowerCase().includes(q));

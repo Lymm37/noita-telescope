@@ -396,7 +396,7 @@ export const app = {
 			// Check if dragged
 			if (Math.abs(e.clientX - this.drag.startX) > 5 || Math.abs(e.clientY - this.drag.startY) > 5) {
 				// Finished dragging
-				console.log('Finished dragging');
+				//console.log('Finished dragging');
 			}
 			else {
 				// Treat as click if not dragged
