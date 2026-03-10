@@ -16,6 +16,7 @@ export const CONTAINER_TYPES = [
     'alchemist_boss',
     'pyramid_boss',
     'dragon',
+    'tiny',
     'laboratory',
     'vault_puzzle',
     'puzzle',

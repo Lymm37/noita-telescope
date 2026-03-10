@@ -582,7 +582,38 @@
 
                     <small class="help-text">Only tier 10 spells spawn in vertical PWs, don't use it for wand/item searches or it will be slow for no reason</small>
                 </div>
+
+                <!-- Testing new search modes -->
+                <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                    <span style="font-weight:bold; font-size:14px;" title="Experimental search modes that may give inaccurate results, use with caution">Local Search Modes</span>
+                    <div class="options-row">
+                        <label class="debug-opt" title="WIP">
+                            Local Search Mode (Experimental, slow)
+                            <select id="local-search-mode">
+                                <option value="off" selected>Off</option>
+                                <option value="taikasauva">Taikasauva</option>
+                                <option value="tiny">Tiny</option>
+                                <option value="eoe">EoE</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="options-row">
+                        <label class="debug-opt" title="WIP">
+                            Search Radius
+                        </label>
+                        <div class="dual-range-control">
+                            <input type="number" id="search-radius-num">
+                            <div class="slider-container" id="search-radius-container" style="--range-start: 0%; --range-end: 100%;">
+                                <div class="slider-track"></div>
+                                <input type="range" id="search-radius-range">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            
+
         </div>
 
         <!-- Perks (global) -->

@@ -6,7 +6,7 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights } from './search.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch } from './search.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y } from './constants.js';
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
@@ -57,7 +57,7 @@ export const app = {
 	biomeData: null,
 	tileLayers: [],
 	cam: { x: CHUNK_SIZE*35, y: CHUNK_SIZE*24, z: 0.0625 },
-	drag: { on: false, lx: 0, ly: 0 },
+	drag: { on: false, lx: 0, ly: 0, startX: -10, startY: -10 },
 	pinnedTooltip: null,
 	pw: 0,
 	pwVertical: 0,
@@ -71,6 +71,9 @@ export const app = {
 	pixelScenesByPW: {}, // Cached pixel scenes by PW after scanning
 	poisByPW: {}, // Cached PoIs by PW after scanning
 	tileOverlaysByPW: {}, // Cached biome tile overlays by PW after generation, to avoid expensive recoloring on every render
+
+	extraPois: [], // Used for local results
+	zoomPixel: null, // Used to store the single pixel that should be zoomed in on from local search results
 	
 	translations: {},
 	loadingTimer: null,
@@ -107,14 +110,26 @@ export const app = {
 
 		this.initUnlocks();
 		this.initRegions();
-		this.preload().then(() => this.loadFromURLParams());
+		// Wow do I hate async/await
+		this.preload().then(async () => await this.loadFromURLParams());
 
 		// Menu Toggles
 		document.querySelector('.adv-toggle').onclick = () => this.toggleAdvancedSearch();
 		document.querySelector('.debug-toggle').onclick = () => this.toggleDebugOptions();
 		
 		document.getElementById('daily-run-button').onclick = () => {
-			this.getDailyRunSeed();
+			this.getDailyRunSeed().then(seed => {
+				if (seed !== null) {
+					this.seed = seed;
+					document.getElementById('seed').value = this.seed;
+					this.ngPlusCount = 0;
+					document.getElementById('ng').value = 0;
+					const url = new URL(window.location.href);
+					url.searchParams.set('seed', this.seed);
+					window.history.replaceState({}, '', url.toString());
+					this.generate(true, true);
+				}
+			});
 		};
 
 		// PW Controls
@@ -177,7 +192,10 @@ export const app = {
 			if (!value || isNaN(value) || value < 0) value = 0;
 			else if (value > 2147483647) value = 2147483647;
 			document.getElementById('seed').value = value;
-			this.saveSettings();
+			//this.saveSettings();
+			const url = new URL(window.location.href);
+			url.searchParams.set('seed', value);
+			window.history.replaceState({}, '', url.toString());
 			this.generate(true, true);
 		};
 		document.getElementById('ng').onchange = () => {
@@ -185,7 +203,10 @@ export const app = {
 			if (!value || isNaN(value) || value < 0) value = 0;
 			else if (value > 28) value = 28;
 			document.getElementById('ng').value = value;
-			this.saveSettings();
+			//this.saveSettings();
+			const url = new URL(window.location.href);
+			url.searchParams.set('ng', value);
+			window.history.replaceState({}, '', url.toString());
 			this.generate(true, true);
 		};
 		// No longer using this button, just change the seed/NG+ count and it will auto-generate now
@@ -361,38 +382,67 @@ export const app = {
 		});
 
 		this.canvas.onmousedown = e => {
-			const hit = this.getHitObject(e);
-			if (hit) {
-				this.pinnedTooltip = hit;
-				const tip = document.getElementById('tooltip');
-				updateTooltip(e, hit, tip);
-				toggleTooltipPinned(tip, true);
-
-			} else {
-				this.pinnedTooltip = null;
-				document.getElementById('tooltip').style.display = 'none';
-				document.getElementById('tooltip').classList.remove('pinned');
-			}
+			// Hit moved to mouseup to avoid drag issues
 			this.drag.on = true; 
+			this.drag.startX = e.clientX;
+			this.drag.startY = e.clientY;
 			this.drag.lx = e.clientX; 
 			this.drag.ly = e.clientY; 
-
-			if (document.getElementById('debug-edge-noise').checked) {
-				const rect = document.getElementById('view').getBoundingClientRect();
-				this.debugX = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x - getWorldCenter(this.isNGP) * 512);
-				this.debugY = Math.floor((e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y - 14 * 512);
-				console.log(`Clicked at world coordinates: (${this.debugX}, ${this.debugY})`);
-				this.debugCanvas = document.getElementById('debug-noise-canvas');
-				this.debugCanvas.width = 512; 
-				this.debugCanvas.height = 512;
-				let dx = this.debugX - this.debugCanvas.width/2;
-				let dy = this.debugY - this.debugCanvas.height/2;
-				debugBiomeEdgeNoise(this.debugCanvas, dx, dy, false);
-				this.draw();
-			}
 		};
 
-		window.onmouseup = (e) => {this.drag.on = false; e.stopPropagation();};
+		window.onmouseup = (e) => {
+			this.drag.on = false; 
+			e.stopPropagation();
+			// Check if dragged
+			if (Math.abs(e.clientX - this.drag.startX) > 5 || Math.abs(e.clientY - this.drag.startY) > 5) {
+				// Finished dragging
+				console.log('Finished dragging');
+			}
+			else {
+				// Treat as click if not dragged
+				const hit = this.getHitObject(e);
+				let pinchange = false;
+				if (hit) {
+					this.pinnedTooltip = hit;
+					const tip = document.getElementById('tooltip');
+					updateTooltip(e, hit, tip);
+					toggleTooltipPinned(tip, true);
+					pinchange = true;
+					this.zoomPixel = null; // Clear zoom pixel when clicking off a PoI
+
+				} else if (this.pinnedTooltip) {
+					this.pinnedTooltip = null;
+					document.getElementById('tooltip').style.display = 'none';
+					document.getElementById('tooltip').classList.remove('pinned');
+					pinchange = true;
+					this.zoomPixel = null; // Clear zoom pixel when clicking off a PoI
+				}
+
+				if (document.getElementById('debug-edge-noise').checked) {
+					const rect = document.getElementById('view').getBoundingClientRect();
+					this.debugX = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x - getWorldCenter(this.isNGP) * 512);
+					this.debugY = Math.floor((e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y - 14 * 512);
+					console.log(`Clicked at world coordinates: (${this.debugX}, ${this.debugY})`);
+					this.debugCanvas = document.getElementById('debug-noise-canvas');
+					this.debugCanvas.width = 512; 
+					this.debugCanvas.height = 512;
+					let dx = this.debugX - this.debugCanvas.width/2;
+					let dy = this.debugY - this.debugCanvas.height/2;
+					debugBiomeEdgeNoise(this.debugCanvas, dx, dy, false);
+					this.draw();
+				}
+
+				if (!pinchange && document.getElementById('local-search-mode').value !== 'off') {
+					const localSearchMode = document.getElementById('local-search-mode').value;
+					const localSearchRadius = parseInt(document.getElementById('search-radius-num').value) || 20;
+					const rect = document.getElementById('view').getBoundingClientRect();
+					const x = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x) + this.pw * 512 * getWorldSize(this.isNGP) - getWorldCenter(this.isNGP) * 512;
+					const y = Math.floor((e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y) + this.pwVertical * 512 * 48 - 14 * 512;
+					console.log(`Performing local search at world coordinates: (${x}, ${y}) with radius ${localSearchRadius} and mode ${localSearchMode}`);
+					performLocalSearch(localSearchMode, localSearchRadius, x, y);
+				}
+			}
+		};
 		
 		this.canvas.onwheel = e => {
 			e.preventDefault();
@@ -452,7 +502,8 @@ export const app = {
 				this.checkBounds();
 				this.draw();
 			}
-			if (!this.pinnedTooltip) this.hover(e);
+			//if (!this.pinnedTooltip) 
+			this.hover(e);
 		};
 
 		// Init search filters
@@ -488,6 +539,9 @@ export const app = {
 		this.initDualSlider('speed', 0.5, 10, 0.1);
 		// Length (1 - 25 px)
 		this.initDualSlider('len', 1, 25, 1);
+
+		// Search radius
+		this.initSingleSlider('search-radius', 1, 100, 1, 20);
 	},
 
 	setLoading(show, text = "Generating...") {
@@ -606,6 +660,67 @@ export const app = {
 		setUnlocks([]); // Initialize with no unlocks
 	},
 
+	initSingleSlider(idPrefix, minLimit, maxLimit, step = 1, initVal = null) {
+		const range = document.getElementById(`${idPrefix}-range`);
+		const num = document.getElementById(`${idPrefix}-num`);
+		const container = range.parentElement;
+
+		// Set default bounds and steps
+		[range, num].forEach(el => {
+			el.min = minLimit;
+			el.max = maxLimit;
+			el.step = step;
+		});
+
+		// Load initial value
+		range.value = initVal !== null ? initVal : minLimit;
+
+		const formatValue = (val) => {
+			if (step >= 1) return Math.round(val);
+			return parseFloat(parseFloat(val).toFixed(2));
+		};
+
+		function update() {
+			const val = parseFloat(range.value);
+			
+			// Update text field
+			num.value = formatValue(val);
+
+			// Update visual track gradient (for CSS styling)
+			const percent = ((val - minLimit) / (maxLimit - minLimit)) * 100;
+			container.style.setProperty('--range-percent', `${percent}%`);
+		}
+
+		const validate = () => {
+			let val = parseFloat(num.value);
+			
+			// Handle empty or invalid input
+			if (isNaN(val)) val = minLimit;
+			
+			// Snap to step and clamp within limits
+			val = Math.round(val / step) * step;
+			if (val < minLimit) val = minLimit;
+			if (val > maxLimit) val = maxLimit;
+
+			range.value = val;
+			update();
+		};
+
+		// Events for immediate slider updates
+		range.addEventListener('input', update);
+
+		// Events for number input (validation on blur or Enter)
+		num.addEventListener('blur', validate);
+		num.addEventListener('keydown', (e) => { 
+			if (e.key === 'Enter') num.blur(); 
+		});
+		
+		// UI Polish: auto-select text on click
+		num.addEventListener('click', () => num.select());
+
+		update(); // Initial Draw
+	},
+
 	// Dual Range Sliders
 	/**
 	 * Dual Range Slider Component
@@ -714,6 +829,7 @@ export const app = {
 
 	getHitObject(e) {
 		if (!this.biomeData) return null;
+		if (document.getElementById('debug-hide-pois').checked) return null;
 		const rect = document.getElementById('view').getBoundingClientRect();
 		const wx = (e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x;
 		const wy = (e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y;
@@ -785,6 +901,8 @@ export const app = {
 				}
 			}
 			coordsDiv.innerHTML = `${absX}, ${absY}${biomeName}${materialName}`;
+
+			if (this.pinnedTooltip) return; // Don't update tooltip on hover if one is pinned
 
 			const hit = this.getHitObject(e);
 			const tip = document.getElementById('tooltip');
@@ -1666,6 +1784,15 @@ export const app = {
 			}
 		}
 
+		if (this.zoomPixel) {
+			const zoomPixelX = this.zoomPixel.x - (this.pw * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512;
+			const zoomPixelY = this.zoomPixel.y + 14 * 512 - (this.pwVertical * 24576);
+			this.ctx.fillStyle = '#FF0000';
+			this.ctx.fillRect(zoomPixelX-1, zoomPixelY-1, 3, 3);
+			this.ctx.fillStyle = '#FFFF00';
+			this.ctx.fillRect(zoomPixelX, zoomPixelY, 1, 1);
+		}
+
 		this.ctx.restore();
 
 		//const t1 = performance.now();
@@ -1694,7 +1821,13 @@ export const app = {
 		const viewY = poi.y + (14 * 512) - (this.pwVertical * 24570);
 
 		// Place to the side so it doesn't get immediately covered by the tooltip, which is centered on the screen
-		this.cam.z = 0.25; // Zoom in, but not too much
+		if (poi.zoom) {
+			this.cam.z = 5.0; // Zoom in more for important PoIs
+			this.zoomPixel = { x: poi.x, y: poi.y };
+		}
+		else {
+			this.cam.z = 0.25; // Zoom in, but not too much
+		}
 		this.cam.x = viewX + 100 / this.cam.z;
 		this.cam.y = viewY;
 		this.checkBounds();
@@ -1714,34 +1847,37 @@ export const app = {
 		toggleTooltipPinned(tip, true);
 	},
 
-	getDailyRunSeed() {
+	async getDailyRunSeed() {
 		if (!USE_DAILY_RUN_SEED) return;
-		fetch('https://zptr.cc/api/noita-daily-seed').then(response => {
+		try {
+			const response = await fetch('https://zptr.cc/api/noita-daily-seed');
 			if (!response.ok) {
 				console.log("Failed to fetch daily seed:", response.status);
 				return;
 			}
-			response.text().then(content => {
-				const seedResult = parseInt(content);
-				if (!isNaN(seedResult)) {
-					document.getElementById('seed').value = seedResult;
-					document.getElementById('ng').value = 0;
-					this.saveSettings();
-					this.generate(true, true);
+			const content = await response.text();
+			const seedResult = parseInt(content);
+			if (!isNaN(seedResult)) {
+				//document.getElementById('seed').value = seedResult;
+				//document.getElementById('ng').value = 0;
+				//this.saveSettings();
+					//this.generate(true, true);
+					return seedResult;
 				}
 				else {
 					console.error('Failed to fetch daily seed:', content);
+					return null;
 				}
-			});
-		}).catch(error => {
+		} catch (error) {
 			console.error('Error fetching daily seed:', error);
-		});
+		}
+		return null;
 	},
 
 	saveSettings() {
 		const settings = {
-			seed: document.getElementById('seed').value,
-			ngPlusCount: document.getElementById('ng').value,
+			//seed: document.getElementById('seed').value,
+			//ngPlusCount: document.getElementById('ng').value,
 			//pw: document.getElementById('pw').value,
 			//pwVertical: document.getElementById('pw-vertical').value,
 			noMoreShuffle: document.getElementById('no-more-shuffle').checked,
@@ -1785,8 +1921,8 @@ export const app = {
 		if (settingsStr) {
 			try {
 				const settings = JSON.parse(settingsStr);
-				document.getElementById('seed').value = settings.seed || '';
-				document.getElementById('ng').value = settings.ngPlusCount || 0;
+				//document.getElementById('seed').value = settings.seed || '';
+				//document.getElementById('ng').value = settings.ngPlusCount || 0;
 				//document.getElementById('pw').value = settings.pw || 0;
 				//document.getElementById('pw-vertical').value = settings.pwVertical || 0;
 				document.getElementById('no-more-shuffle').checked = settings.noMoreShuffle || false;
@@ -1828,12 +1964,16 @@ export const app = {
 		}
 	},
 
-	loadFromURLParams() {
+	async loadFromURLParams() {
 		const params = new URLSearchParams(window.location.search);
 		if (!params.has('seed')) return;
 
-		function parseParam(paramName, min, max) {
+		async function parseParam(paramName, min, max) {
 			if (!params.has(paramName)) return;
+			if (paramName === 'seed' && params.get(paramName) === 'daily') {
+				// Special case for daily seed
+				return await app.getDailyRunSeed();
+			};
 			const paramValue = params.get(paramName);
 			const parsed = Number.parseInt(paramValue, 10);
 			if (Number.isNaN(parsed)) {
@@ -1844,8 +1984,8 @@ export const app = {
 			return Math.max(min, Math.min(max, parsed));
 		};
 
-		const seedInt = parseParam('seed', 0, 2147483647);
-		const ngInt = parseParam('ng', 0, 28);
+		const seedInt = await parseParam('seed', 0, 2147483647);
+		const ngInt = await parseParam('ng', 0, 28);
 
 		const newURL = new URL(window.location);
 		newURL.search = params.toString();

@@ -4,6 +4,7 @@ import { unlockedSpells } from './unlocks.js';
 
 // Returns just the string
 export function GetRandomActionWithType(x, y, level, type, worldSeed, offset = 0) {
+    if (level > 10) level = 10;
     const prng = new NollaPrng(0);
     prng.SetRandomSeed(worldSeed + offset, x, y);
     

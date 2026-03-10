@@ -32,6 +32,8 @@ const ALIASES = {
 	'kammi': ['kammi', 'house', 'safe haven', 'safe', 'haven'],
 	'ukkoskivi': ['ukkoskivi', 'thunderstone', 'thunder stone', 'lightning stone'],
 	'kiuaskivi': ['kiuaskivi', 'fire stone', 'firestone', 'saunastone', 'sauna stone', 'heat stone'],
+	'vuoksikivi': ['vuoksikivi', 'water stone', 'waterstone'],
+	'kakkakikkare': ['kakkakikkare', 'poopstone', 'poop stone'],
 	'full_heal': ['full health regeneration', 'full heal', 'full regeneration', 'health regeneration', 'full health', 'full heart'],
 	'monster_powder_test': ['monstrous powder', 'monster powder', 'monstruous', 'monsterous'],
 	// Some shortcuts for potions which get passed through the translations

@@ -4,6 +4,8 @@ import { addStaticPixelScenes } from './static_spawns.js';
 import { TIME_UNTIL_LOADING } from './constants.js';
 import { app } from './app.js';
 import { CONTAINER_TYPES } from './utils.js';
+import { generateGreatChest } from './chest_generation.js';
+import { generateWand } from './wand_generation.js';
 
 const SEARCH_ENABLED = true; // Debug
 
@@ -12,7 +14,9 @@ let search = {
 	results: [],
 	index: -1,
 	lastPwIdx: -1, // Tracks position in pwSequence
-	pwSequence: []
+	pwSequence: [],
+	lastLocalIdx: -1,
+	localSequence: [],
 };
 
 export function isSearchActive() {
@@ -257,6 +261,58 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
 	console.log(`Search completed in ${((t1 - t0)/1000).toFixed(3)} s with ${search.results.length} results.`);
 }
 
+export async function performLocalSearch(mode, radius, startX, startY) {
+	const t0 = performance.now();
+	if (!SEARCH_ENABLED) return;
+	if (searchActive) cancelSearch(); // Clear previous search if active
+	const cancelBtn = document.getElementById('cancel-search');
+
+	searchActive = true;
+	search.results = [];
+	search.index = -1;
+	
+	const coords = [];
+	// Generate all valid coordinates within the rectangle
+	for (let x = startX-radius; x <= startX+radius; x++) {
+		for (let y = startY-radius; y <= startY+radius; y++) {
+			coords.push({ x, y, dist: Math.abs(x - startX) + Math.abs(y - startY) });
+		}
+	}
+	// Sort by Manhattan distance
+	// If distances are equal, sort by X then Y to keep it deterministic
+	coords.sort((a, b) => a.dist - b.dist || a.x - b.x || a.y - b.y);
+	search.localSequence = coords.map(c => `${c.x},${c.y}`);
+
+	search.lastLocalIdx = -1;
+	cancelBtn.style.display = 'block';
+	cancelBtn.innerText = "CANCEL SEARCH";
+
+	// Give a small yield for the setLoading timer to start
+	app.setLoading(true, "Initializing Search...");
+	await new Promise(r => setTimeout(r, TIME_UNTIL_LOADING));
+
+	await findNextLocalMatch(mode);
+
+	if (search.results.length > 0) {
+		document.getElementById('search-nav').style.display = 'block';
+		// Keep the cancel button visible so highlights can be cleared later
+        cancelBtn.style.display = 'block'; 
+        cancelBtn.innerText = "Clear Results"; // Update text for clarity
+		document.getElementById('search-results').innerHTML = '';
+		await navigateSearch(1); 
+	} else {
+		document.getElementById('search-nav').style.display = 'none';
+		document.getElementById('search-results').innerHTML = '<div style="padding:5px; color:#888;">No results found here.</div>';
+		//cancelBtn.style.display = 'none';
+		app.setLoading(false);
+		searchActive = false;
+		app.draw();
+	}
+
+	const t1 = performance.now();
+	console.log(`Local search completed in ${((t1 - t0)/1000).toFixed(3)} s with ${search.results.length} results.`);
+}
+
 function checkWandMatch(w, f) {
 	const length = w.tip.x - w.grip.x;
 	
@@ -265,6 +321,8 @@ function checkWandMatch(w, f) {
 	// Ignore nondeterministic wands. Luckily they all have mana max as a varying stat so this is a simple check
 	if (typeof w.mana_max !== 'number') return false;
 	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
+	// Oops, setting the dual limits broke 27+ search
+	if (f.minCap === 27) f.maxCap = 100;
 	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
 	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
 	if (w.actions_per_round < f.minSpells || w.actions_per_round > f.maxSpells) return false;
@@ -384,7 +442,7 @@ export async function navigateSearch(dir) {
 	const current = search.results[search.index];
 	
 	// Sync app PW state to the result's world
-	if (`${app.pw},${app.pwVertical}` !== `${current.pw},${current.pwVertical}`) {
+	if (current.pw && current.pwVertical && `${app.pw},${app.pwVertical}` !== `${current.pw},${current.pwVertical}`) {
 		app.pw = current.pw;
 		app.pwVertical = current.pwVertical;
 		document.getElementById('pw').value = app.pw;
@@ -452,6 +510,79 @@ async function findNextPWMatches(isIterative = true) {
 				app.setLoading(false);
 			}
 			return foundInThisWorld;
+		}
+		
+		// Yield to browser so the UI/Text updates can render
+		await new Promise(r => setTimeout(r, 0));
+	}
+
+	app.setLoading(false);
+	cancelBtn.style.display = 'none';
+	return false;
+}
+
+async function findNextLocalMatch(mode) {
+	const filters = getSearchFilters(); 
+	//const seed = parseInt(document.getElementById('seed').value);
+	const seed = app.seed;
+	const ngPlusCount = app.ngPlusCount;
+	const cancelBtn = document.getElementById('cancel-search');
+	let found = false;
+
+	for (let i = search.lastLocalIdx + 1; i < search.localSequence.length; i++) {
+		if (!searchActive) {
+			//cancelBtn.style.display = 'none';
+			app.setLoading(false);
+			return false;
+		}
+		
+		const [currX, currY] = search.localSequence[i].split(',').map(Number);
+		search.lastLocalIdx = i;
+
+		const percentage = ((i + 1) / search.localSequence.length * 100).toFixed(1);
+
+		app.setLoading(true, `Searching... (${percentage}%)`);
+
+		let item;
+
+		if (mode === "taikasauva") {
+			item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', app.perks);
+		}
+		else if (mode === "tiny") {
+			item = {type: 'tiny',
+				items: [
+					// Not going to both with the hearts
+					generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
+					generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
+				],
+				x: currX,
+				y: currY
+			};
+		}
+		else if (mode === "eoe") {
+			item = generateGreatChest(seed, ngPlusCount, currX, currY, app.perks);
+		}
+
+		if (item && checkMatch(item, filters)) {
+			item.highlight = true; // Highlight the PoI on the map
+			item.zoom = true; // Zoom more for single pixel...
+			// Add to results
+			app.extraPois = (app.extraPois || []).concat(item);
+			console.log(`Found local match at ${currX}, ${currY}:`);
+			console.log(item);
+			search.results.push({
+				poi: item,
+				x: currX,
+				y: currY,
+				//label: (poi.data.item || (poi.data.name || 'SPAWN')).toUpperCase()
+			});
+			found = true;
+		}
+
+		if (found) {
+			// Only hide the loader if we are stopping the search here
+			app.setLoading(false);
+			return true;
 		}
 		
 		// Yield to browser so the UI/Text updates can render
