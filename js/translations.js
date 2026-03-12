@@ -4,6 +4,7 @@ const ALIASES = {
 	// Spell aliases
 	'LONG_DISTANCE_CAST': ['long-distance cast', 'long distance cast', 'ldc'],
 	'TELEPORT_PROJECTILE_SHORT': ['short teleport bolt', 'small teleport bolt', 'tp'],
+	'TELEPORT_PROJECTILE_CLOSER': ['homebringer teleport bolt', 'homebringer bolt', 'homebringer tp'],
 	'TELEPORT_PROJECTILE': ['teleport bolt', 'tp'],
 	'BLACK_HOLE': ['black hole', 'bh'],
 	'SPELLS_TO_POWER': ['spells to power', 'stp'],

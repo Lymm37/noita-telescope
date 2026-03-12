@@ -2,6 +2,7 @@ import { getWorldSize, CONTAINER_TYPES } from "./utils.js";
 import { getDisplayName } from "./translations.js";
 import { app } from "./app.js"; // Hacky workaround for orbs and PW display...
 import { POTION_COLORS } from "./potion_config.js";
+import { SPRITE_RARITY } from "./wand_config.js";
 
 function generateHeaderHtml(name, sprite, extra, material=null) {
 	let extraSprite = '';
@@ -125,7 +126,41 @@ function generateWandHtml(wand) {
 
 	let wandTier = wand.level ? 'tier ' + wand.level : '';
 	const spriteName = wand.sprite; // Just use raw name instead
-	let extraInfo = `<small>${wandType} ${wandTier} ${wand.is_rare ? '(rare)' : ''} | Length ${length}${tipOffsetText} | Sprite ${spriteName} </small>`;
+	let spriteRarity = '';
+	let rarityColor = '#ffffff';
+	if (document.getElementById('show-wand-sprite-rarity').checked && SPRITE_RARITY !== undefined) {
+		if (SPRITE_RARITY[wand.sprite] !== undefined) {
+			if (SPRITE_RARITY[wand.sprite] > 0) {
+				let rate = 1.0/SPRITE_RARITY[wand.sprite];
+				let scale = '';
+				if (rate > 1e9) {
+					rate = Math.round(rate/1e9);
+					scale = ' billion';
+					rarityColor = '#ff0000';
+				}
+				else if (rate > 1e6) {
+					rate = Math.round(rate/1e6);
+					scale = ' million';
+					rarityColor = '#ff8800';
+				}
+				else if (rate > 1e3) {
+					rate = Math.round(rate/1e3);
+					scale = ' thousand';
+					rarityColor = '#ffff00';
+				}
+				else {
+					rate = Math.round(rate);
+				}
+				spriteRarity = `(~1 in ${rate}${scale})`;
+			}
+			else {
+				console.warn(`Apparently impossible ${wand.sprite}`);
+				spriteRarity = '(impossible??)';
+				rarityColor = '#ff00ff';
+			}
+		}
+	}
+	let extraInfo = `<small>${wandType} ${wandTier} ${wand.is_rare ? '(rare)' : ''} | Length ${length}${tipOffsetText}</small><br><small style="color:${rarityColor};">Sprite ${spriteName} ${spriteRarity}</small>`;
 	if (document.getElementById('debug-rng-info').checked) {
 		extraInfo += `<br><small>RNG State: ${wand.r}, ${wand.r0}</small>`;
 	}

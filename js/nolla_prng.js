@@ -335,3 +335,49 @@ export class NollaPrng {
         return min + v7 * (max - min);
     }
 }
+
+
+// Test
+/*
+// There are very few of these, about 21k, and only 128 with the orb.
+let sampo_seeds = [];
+let orb_seeds = [];
+for (let i = 2147462173; i <= 2147483647; i++) {
+    let prng = new NollaPrng(i);
+    prng.Seed = i;
+    prng.Prev()
+    let orig_seed = prng.Seed;
+    //samporb_seeds.push(orig_seed);
+    prng.Seed = i;
+    if (prng.Random(0, 1000) === 999) {
+        orb_seeds.push(orig_seed);
+    }
+    else {
+        sampo_seeds.push(orig_seed);
+    }
+}
+//console.log(samporb_seeds);
+console.log(sampo_seeds)
+console.log(orb_seeds);
+*/
+
+/*
+// There are kind of too many of these, about 800k...
+let healthium_seeds = [];
+for (let i = 1; i <= 1095205; i++) {
+    let prng = new NollaPrng(i);
+    prng.Seed = i;
+    if (Math.floor(101 * prng.Prev()) <= 75) {
+        prng.Prev();
+        healthium_seeds.push(prng.Seed);
+        // Validate?
+        if (Math.floor(101 * prng.Next()) <= 75 && Math.floor(100001 * prng.Next()) <= 50) {
+            console.log("valid");
+        }
+        else {
+            console.log("invalid");
+        }
+    }
+}
+console.log(healthium_seeds);
+*/

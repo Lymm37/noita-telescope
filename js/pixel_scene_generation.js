@@ -21,6 +21,9 @@ const PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS = {
 	"altar_snowcastle_capsule": 0xff,
 	"altar_vault_capsule": 0xff,
 	"altar_snowcave_capsule": 0xff,
+	// These two look good when solid if there isn't custom art, but bad if there is. Not really sure what the best option is
+	//"altar_top": 0xff,
+	//"altar_top_ending": 0xff,
 	"tower_start": 0xff,
 	"solid_wall_hidden_cavern": 0xff,
 	"watercave_layout_1": 0xff,

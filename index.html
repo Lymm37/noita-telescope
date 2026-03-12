@@ -553,6 +553,21 @@
                     </div>
                 </div>
 
+                <div class="search-row" title="Rarity of the wand sprite (order of magnitude)">
+                    <label>Sprite Rarity (log10)</label>
+                    <div class="dual-range-control">
+                        <input type="number" id="rarity-min-num" title="Min Rarity">
+                        
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="rarity-min-range">
+                            <input type="range" id="rarity-max-range">
+                        </div>
+
+                        <input type="number" id="rarity-max-num" title="Max Rarity">
+                    </div>
+                </div>
+
                <div class="search-section-compact" style="border-top:1px solid #333; padding-top:8px; margin-top:8px;">
                     <div class="compact-row" title="Check this in order to search multiple PWs. If not checked, it will only search the current PW">
                         <span class="label-orange">Search Over Multiple PWs</span>
@@ -704,6 +719,7 @@
 
         <span class="debug-toggle" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;" title="Show or hide options which you probably will not need to enable for normal use">Debug Options...</span>
         <div id="debug-options">
+            <label class="debug-opt" title="Display approximate wand sprite rarity in PoIs."><input type="checkbox" id="show-wand-sprite-rarity"> Show Wand Sprite Rarity</label>
             <label class="debug-opt" title="There is a single *unique* pixel scene in the game, which is the Shrine pixel scene in the Collapsed Mines. Being unique, once you visit/load it, it permanently alters the spawn probability of other pixel scenes in the Collapsed Mines on your run. Only the Collapsed Mines version of this scene is unique, the Mines version is not. If the pixel scenes predicted for the Collapsed Mines are incorrect, it's probably because you need to toggle this setting."><input type="checkbox" id="visited-coalmine-alt-shrine"> Visited Collapsed Mine Shrine</label>
             <label class="debug-opt" title="Exclude Taikasauva Spawns from the map. Taikasauvas are a source of wands and spells, but they can be somewhat inconsistent because they have a tendency to randomly unload."><input type="checkbox" id="exclude-taikasauva"> Exclude Natural Taikasauva Spawns</label>
             <label class="debug-opt" title="Whether to recolor wang colors to material colors. Colors are still incorrect for some materials because they use textures which have different colors than their wang/material colors."><input type="checkbox" id="recolor-materials" checked> Recolor Materials</label>

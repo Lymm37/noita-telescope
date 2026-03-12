@@ -6,6 +6,7 @@ import { app } from './app.js';
 import { CONTAINER_TYPES } from './utils.js';
 import { generateGreatChest } from './chest_generation.js';
 import { generateWand } from './wand_generation.js';
+import { SPRITE_RARITY } from './wand_config.js';
 
 const SEARCH_ENABLED = true; // Debug
 
@@ -71,7 +72,9 @@ function getSearchFilters() {
 		minSpeed: parseFloat(document.getElementById('speed-min-num').value),
 		maxSpeed: parseFloat(document.getElementById('speed-max-num').value),
 		minLen: parseInt(document.getElementById('len-min-num').value),
-		maxLen: parseInt(document.getElementById('len-max-num').value)
+		maxLen: parseInt(document.getElementById('len-max-num').value),
+		minSpriteRarity: parseFloat(document.getElementById('rarity-min-num').value),
+		maxSpriteRarity: parseFloat(document.getElementById('rarity-max-num').value)
 	};
 }
 
@@ -333,6 +336,24 @@ function checkWandMatch(w, f) {
 	if (length < f.minLen || length > f.maxLen) return false; // Length 0 was previously used for ones where I just hadn't filled it out, but now it should always be available
 	if (f.name && !isMatch(w.name, f.name)) return false;
 	if (f.sprite && w.sprite !== `wand_${f.sprite.toString().padStart(4, '0')}`) return false;
+	// Not really sure a max threshold would even be useful here
+	if (f.minSpriteRarity || f.maxSpriteRarity) {
+		if (document.getElementById('show-wand-sprite-rarity').checked && SPRITE_RARITY !== undefined) {
+			if (SPRITE_RARITY[w.sprite] !== undefined) {
+				if (SPRITE_RARITY[w.sprite] > 0) {
+					const wand_rarity = 1.0/SPRITE_RARITY[w.sprite];
+					if (wand_rarity < 1e9) { // Always show extremely rare sprites... Threshold tbd
+						if (wand_rarity < Math.pow(10, f.minSpriteRarity)) return false;
+						if (f.maxSpriteRarity && wand_rarity > Math.pow(10, f.maxSpriteRarity)) return false;
+					}
+				}
+				else {
+					console.warn(`Apparently impossible wand ${w.sprite}`);
+				}
+			}
+			else return false;
+		}
+	}
 
 	// Shuffle
 	if (f.shuffleMode === 'shuffle' && !w.shuffle_deck_when_empty) return false;

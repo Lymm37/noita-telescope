@@ -250,6 +250,7 @@ export const app = {
 			this.saveSettings();
 			this.draw();
 		}
+		document.getElementById('show-wand-sprite-rarity').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-show-tile-bounds').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-show-path').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-hide-pois').onchange = () => {this.saveSettings(); this.draw();};
@@ -539,6 +540,9 @@ export const app = {
 		this.initDualSlider('speed', 0.5, 10, 0.1);
 		// Length (1 - 25 px)
 		this.initDualSlider('len', 1, 25, 1);
+		// Rarity (log 10, 1 - 9) (over 9 is always included)
+		// This is another that a single slider makes more sense
+		this.initDualSlider('rarity', 1.0, 9.0, 0.1);
 
 		// Search radius
 		this.initSingleSlider('search-radius', 1, 100, 1, 20);
@@ -1884,6 +1888,7 @@ export const app = {
 			greedCurse: document.getElementById('greed-curse').checked,
 			extraItemsInHolyMountain: document.getElementById('extra-shop-items').value,
 			skipCosmeticScenes: document.getElementById('skip-cosmetic-scenes').checked,
+			showWandSpriteRarity: document.getElementById('show-wand-sprite-rarity').checked,
 			visitedCoalmineAltShrine: document.getElementById('visited-coalmine-alt-shrine').checked,
 			excludeTaikasauva: document.getElementById('exclude-taikasauva').checked,
 			recolorMaterials: document.getElementById('recolor-materials').checked,
@@ -1929,6 +1934,7 @@ export const app = {
 				document.getElementById('greed-curse').checked = settings.greedCurse || false;
 				document.getElementById('extra-shop-items').value = settings.extraItemsInHolyMountain || 0;
 				document.getElementById('skip-cosmetic-scenes').checked = settings.skipCosmeticScenes || false;
+				document.getElementById('show-wand-sprite-rarity').checked = settings.showWandSpriteRarity || false; 
 				document.getElementById('visited-coalmine-alt-shrine').checked = settings.visitedCoalmineAltShrine || false;
 				document.getElementById('exclude-taikasauva').checked = settings.excludeTaikasauva || false;
 				document.getElementById('recolor-materials').checked = settings.recolorMaterials || false;
