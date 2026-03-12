@@ -9,7 +9,7 @@ import { MakeRandomSpell } from "./spell_generator.js";
 export function spawnChest(ws, ng, x, y, isTower=false, perks={}) {
     let prng = new NollaPrng(0);
 	//x = roundRNGPos(x); Testing with and without this, neither is really working correctly?
-    prng.SetRandomSeed(ws, x, y);
+    prng.SetRandomSeed(ws + ng, x, y);
     let greedCurse = perks['greedCurse'] ? perks['greedCurse'] : false;
     let great_chest_rate = 2000;
     if (greedCurse) great_chest_rate = 100;
@@ -29,7 +29,7 @@ export function generateGreatChest(ws, ng, x, y, perks={}) {
 	const prng = new NollaPrng(0);
 	const noMoreShuffle = perks['noMoreShuffle'] || false;
 	x = roundRNGPos(x);
-	prng.SetRandomSeed(ws, x, y);
+	prng.SetRandomSeed(ws + ng, x, y);
 	let items = [];
 	let count = 1;
 

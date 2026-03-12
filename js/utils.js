@@ -95,7 +95,9 @@ const WAND_KEYS = [
     'mana_charge_speed',
     'deck_capacity',
     'spread_degrees',
-    'speed_multiplier'
+    'speed_multiplier',
+    'shuffle_deck_when_empty',
+    'sprite'
 ]
 
 export function isDuplicateObject(currentObj, newObj) {

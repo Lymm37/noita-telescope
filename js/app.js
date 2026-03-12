@@ -1238,7 +1238,7 @@ export const app = {
 		this.surfaceOverlayPWAdditional = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_pw_addition.png');
 		this.skyOverlay = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay.png');
 		this.skyOverlayPW = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_pw.png');
-		//this.surfaceOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp.png');
+		this.surfaceOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp.png');
 		//this.surfaceOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp_pw.png');
 		//this.skyOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_ngp.png');
 		//this.skyOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_ngp_pw.png');
@@ -1557,6 +1557,7 @@ export const app = {
 			if (pwY === 0) {
 				this.biomeData.orbs.forEach(o => {
 					if (document.getElementById('custom-art').checked && this.surfaceOverlayScenes && this.surfaceOverlayScenes['orb_room']) {
+						if (o.y < 14) return; // Skip the sky altar and pyramid top orbs
 						// Technically always NGP the way I have this set up but whatever
 						const sceneName = pwX === 0 ? 'orb_room' : 'cursed_orb_room';
 						this.ctx.drawImage(this.surfaceOverlayScenes[sceneName], o.x * 512 + shiftX, o.y * 512 + shiftY, 512, 512);

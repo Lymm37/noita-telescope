@@ -639,7 +639,12 @@ async function findNextLocalMatch(mode) {
 		
 		// Turns out this is why local search was slow, woops.
 		// Yield to browser so the UI/Text updates can render
-		//await new Promise(r => setTimeout(r, 0));
+		// Still need to yield *sometimes* or it'll freeze (need to switch to web worker soon)
+		if (i % 10000 === 0) {
+			const percentage = (i / search.localSequence.length * 100).toFixed(1);
+			app.setLoading(true, `Searching... (${percentage}%)`);
+			await new Promise(r => setTimeout(r, 0));
+		}
 	}
 
 	app.setLoading(false);
