@@ -8,7 +8,7 @@ import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
 import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch } from './search.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y } from './constants.js';
-import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit } from './utils.js';
+import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
 import { BIOME_COLOR_LOOKUP, createTileOverlays, createTileOverlaysCheap, createTileOverlaysExpanded } from './image_processing.js';
@@ -1733,7 +1733,7 @@ export const app = {
 									if (p.item.includes('heart') || p.item === 'full_heal') {
 										poiColor = '#FF0000AA';
 									}
-									else if (p.item.includes('potion') || p.item.includes('pouch')) {
+									else if (MATERIAL_CONTAINER_TYPES.includes(p.item)) {
 										poiColor = '#0000FFAA';
 									}
 									else if (p.item === 'portal') {
