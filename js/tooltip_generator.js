@@ -1,4 +1,4 @@
-import { getWorldSize, CONTAINER_TYPES } from "./utils.js";
+import { getWorldSize, CONTAINER_TYPES, MATERIAL_CONTAINER_TYPES } from "./utils.js";
 import { getDisplayName } from "./translations.js";
 import { app } from "./app.js"; // Hacky workaround for orbs and PW display...
 import { POTION_COLORS } from "./potion_config.js";
@@ -57,11 +57,8 @@ function generateHeaderHtml(name, sprite, extra, material=null) {
 			wikiName = 'Wands';
 		}
 	}
-	if (name.toLowerCase().includes('potion')) {
-		wikiName = name.toLowerCase().replace(' potion', ''); // Remove "potion" from the end of the name to just link to the material
-	}
-	if (name.toLowerCase().includes('pouch')) {
-		wikiName = name.toLowerCase().replace(' pouch', ''); // Remove "pouch" from the end of the name to just link to the material
+	if (MATERIAL_CONTAINER_TYPES.some(type => name.toLowerCase().includes(type))) {
+		wikiName = getDisplayName(material); // Just link to the material
 	}
 	if (name.toLowerCase().includes('puzzle')) {
 		if (name.toLowerCase() === 'vault puzzle') {
@@ -244,7 +241,7 @@ function generateItemHtml(item) {
 
 	let extraInfo = '';
 	let material = null;
-	if (item.item === 'potion' || item.item === 'pouch') {
+	if (MATERIAL_CONTAINER_TYPES.includes(item.item)) {
 		extraInfo = `<div><b>Material:</b> <span class="material-text">${item.material}</span></div>`;
 		material = item.material;
 	}
@@ -392,7 +389,7 @@ export function updateTooltip(e, hit, tip) {
 					if (item.item === 'wand') {
 						box_wands.push(item);
 					}
-					else if (item.item === 'potion' || item.item === 'pouch') {
+					else if (MATERIAL_CONTAINER_TYPES.includes(item.item)) {
 						box_containers.push(item);
 					}
 					else if (item.item === 'spell') {

@@ -22,6 +22,12 @@ export const CONTAINER_TYPES = [
     'puzzle',
 ];
 
+export const MATERIAL_CONTAINER_TYPES = [
+    'potion',
+    'pouch',
+    'jar',
+];
+
 // This function is pretty messed up even though it's currently in a working state
 export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw = 0, pwVertical = 0, isNGP = false) {
     const world_chunk_center_x = isNGP ? WORLD_CHUNK_CENTER_X_NGP : WORLD_CHUNK_CENTER_X;
@@ -115,7 +121,7 @@ export function isDuplicateObject(currentObj, newObj) {
     else {
         if (currentObj.item) {
             if (currentObj.item === 'spell' && newObj.item === 'spell') return currentObj.spell === newObj.spell;
-            if (currentObj.item === 'potion' || currentObj.item === 'pouch') {
+            if (MATERIAL_CONTAINER_TYPES.includes(currentObj.item)) {
                 return currentObj.material === newObj.material && currentObj.item === newObj.item;
             }
             else {
