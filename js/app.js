@@ -524,7 +524,7 @@ export const app = {
 		};
 
 		// Spells/Cast (1 - 26)
-		 this.initDualSlider('spells', 1, 26, 1);
+		 this.initDualSlider('spells', 1, 27, 1);
 		// Cast Delay (-0.33s - 1.0s)
 		this.initDualSlider('delay', -20/60, 1.0, 1/60);
 		// Recharge Time (0.0s - 4.0s)

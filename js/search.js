@@ -14,6 +14,7 @@ const SEARCH_ENABLED = true; // Debug
 // Load quick search things
 const ORB_SEEDS = await fetch('./data/rng/orb_seeds.json').then(async res => new Set(await res.json()));
 const SAMPO_SEEDS = await fetch('./data/rng/sampo_seeds.json').then(async res => new Set(await res.json()));
+const HIGH_SC_SEEDS = [36402008, 37475567, 74727319, 262049561, 345207455, 377895106, 568379281, 644708457, 653552772, 698862238, 884960988, 1280537179, 1315281277, 1368348114, 1392682761, 1434236773, 1471283855, 1636302025, 1705128673, 1731966418, 1772474495, 2018351783, 2073660843, 2111754688];
 
 let searchActive = false;
 let search = {
@@ -335,6 +336,8 @@ function checkWandMatch(w, f) {
 	if (f.minCap === 27) f.maxCap = 100;
 	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
 	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
+	// Same thing for this
+	if (f.minActionsPerRound === 27) f.maxActionsPerRound = 100;
 	if (w.actions_per_round < f.minSpells || w.actions_per_round > f.maxSpells) return false;
 	if ((w.fire_rate_wait / 60) < f.minDelay || (w.fire_rate_wait / 60) > f.maxDelay) return false;
 	if (w.mana_charge_speed < f.minManaRech || w.mana_charge_speed > f.maxManaRech) return false;
@@ -561,6 +564,7 @@ async function findNextLocalMatch(mode) {
 	let quickSearch = null;
 	if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('true_orb', filters.queryList[0])) quickSearch = 'true_orb';
 	if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('sampo', filters.queryList[0])) quickSearch = 'sampo';
+	if (mode === 'tiny' && filters.minSpells === 27) quickSearch = 'highsc';
 	const prng = new NollaPrng(0); // To avoid reinstantiating it over and over
 
 	app.setLoading(true, "Searching local area...");
@@ -587,15 +591,32 @@ async function findNextLocalMatch(mode) {
 			item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', app.perks);
 		}
 		else if (mode === "tiny") {
-			item = {type: 'tiny',
-				items: [
-					// Not going to both with the hearts
-					generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
-					generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
-				],
-				x: currX,
-				y: currY
-			};
+			if (quickSearch === 'highsc') {
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX, currY);
+				if (HIGH_SC_SEEDS.includes(prng.Seed)) {
+					item = {type: 'tiny',
+						items: [
+							// Not going to both with the hearts
+							generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
+							generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
+						],
+						x: currX,
+						y: currY
+					};
+					console.log(item);
+				}
+			}
+			else {
+				item = {type: 'tiny',
+					items: [
+						// Not going to both with the hearts
+						generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
+						generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
+					],
+					x: currX,
+					y: currY
+				};
+			}
 		}
 		else if (mode === "eoe") {
 			if (quickSearch === 'true_orb') {
@@ -642,7 +663,9 @@ async function findNextLocalMatch(mode) {
 		// Turns out this is why local search was slow, woops.
 		// Yield to browser so the UI/Text updates can render
 		// Still need to yield *sometimes* or it'll freeze (need to switch to web worker soon)
-		if (i % 10000 === 0) {
+		// Hacky workaround until I get something better here
+		const yieldFrequency = quickSearch !== null ? 10000 : 1000;
+		if (i % yieldFrequency === 0) {
 			const percentage = (i / search.localSequence.length * 100).toFixed(1);
 			app.setLoading(true, `Searching... (${percentage}%)`);
 			await new Promise(r => setTimeout(r, 0));
