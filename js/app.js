@@ -645,18 +645,21 @@ export const app = {
 			div.appendChild(cb); div.appendChild(label);
 			list.appendChild(div);
 			cb.onchange = () => {
+				cancelSearch(); // Cancel any active search when changing unlocks since results may no longer be valid
 				this.unlocksChanged = true;
 				this.saveSettings();
 				this.generate(false, true);
 			};
 		});
 		document.getElementById('unlock-all').onclick = () => {
+			cancelSearch(); // Cancel any active search when changing unlocks since results may no longer be valid
 			this.unlocksChanged = true;
 			list.querySelectorAll('input').forEach(c => c.checked = true);
 			this.saveSettings();
 			this.generate(false, true);
 		};
 		document.getElementById('unlock-none').onclick = () => {
+			cancelSearch(); // Cancel any active search when changing unlocks since results may no longer be valid
 			this.unlocksChanged = true;
 			list.querySelectorAll('input').forEach(c => c.checked = false);
 			this.saveSettings();
@@ -1963,6 +1966,7 @@ export const app = {
 				// Region settings
 				for (const region of Object.keys(GENERATOR_CONFIG)) {
 					document.getElementById(`region-${region}`).checked = settings[`region_${region}`];
+					GENERATOR_CONFIG[region].enabled = settings[`region_${region}`];
 				}
 				this.unlocksChanged = true;
 				console.log("Settings loaded successfully.");

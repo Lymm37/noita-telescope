@@ -17,9 +17,26 @@ let SAMPO_SEEDS = null; //await fetch('./data/rng/sampo_seeds.json').then(async 
 // Just hardcoding these since they're pretty short lists
 const HIGH_SC_T10_SEEDS = [36402008, 37475567, 74727319, 345207455, 377895106, 568379281, 644708457, 653552772, 698862238, 884960988, 1280537179, 1315281277, 1368348114, 1392682761, 1434236773, 1471283855, 1636302025, 1705128673, 1731966418, 1772474495, 2018351783, 2073660843, 2111754688];
 const HIGH_SC_T6_SEEDS = [262049561, 884960988];
-let HIGH_CAP_T10NS_SEEDS = null; //await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(async res => new Set(await res.json()));
-let HIGH_CAP_T6NS_SEEDS = null; //await fetch('./data/rng/t6ns_high_capacity_seeds.json').then(async res => new Set(await res.json()));
-let HIGH_CAP_T3_SEEDS = null; //await fetch('./data/rng/t3_high_capacity_seeds.json').then(async res => new Set(await res.json()));
+// High capacity seed lists
+// I used these to validate the EoE spawns but not all are needed for this.
+// However, they might still be useful in the future for improving the normal search efficiency, at the cost of not generating all wands.
+//await fetch(`./data/rng/${tier}_high_capacity_seeds.json`).then(async res => new Set(await res.json()));
+//let HIGH_CAP_T1_SEEDS = null;
+//let HIGH_CAP_T1NS_SEEDS = null;
+//let HIGH_CAP_T2_SEEDS = null;
+//let HIGH_CAP_T2NS_SEEDS = null;
+let HIGH_CAP_T3_SEEDS = null;
+//let HIGH_CAP_T3NS_SEEDS = null;
+//let HIGH_CAP_T4_SEEDS = null;
+//let HIGH_CAP_T4NS_SEEDS = null;
+//let HIGH_CAP_T5_SEEDS = null;
+//let HIGH_CAP_T5NS_SEEDS = null;
+//let HIGH_CAP_T6_SEEDS = null;
+let HIGH_CAP_T6NS_SEEDS = null;
+//let HIGH_CAP_T10_SEEDS = null;
+let HIGH_CAP_T10NS_SEEDS = null; 
+let HIGH_CAP_EOE_SEEDS = null; //await fetch('./data/rng/eoe_high_capacity_seeds.json').then(async res => new Set(await res.json()));
+
 
 let searchActive = false;
 let search = {
@@ -337,8 +354,9 @@ function checkWandMatch(w, f) {
 	// Ignore nondeterministic wands. Luckily they all have mana max as a varying stat so this is a simple check
 	if (typeof w.mana_max !== 'number') return false;
 	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
-	// Oops, setting the dual limits broke 27+ search
-	if (f.minCap === 27 || f.minSpells === 27) {
+	// Will probably rework the sliders to allow entering wands up to 34 multicast and 66 capacity, even though most people wouldn't look for them...
+	// But maybe I underestimate how people will use the tool
+	if (f.minCap >= 27 || f.minSpells >= 27) {
 		f.maxCap = 100;
 		f.maxSpells = 100;
 	}
@@ -580,11 +598,18 @@ async function findNextLocalMatch(mode) {
 			SAMPO_SEEDS = new Set(await fetch('./data/rng/sampo_seeds.json').then(async res => await res.json()));
 		}
 	}
-	else if (mode === 'tiny' && filters.minSpells === 27) {
+	else if (mode === 'eoe' && filters.minCap >= 27) {
+		quickSearch = 'highcap';
+		if (HIGH_CAP_EOE_SEEDS === null) {
+			HIGH_CAP_EOE_SEEDS = new Set(await fetch('./data/rng/eoe_high_capacity_seeds.json').then(async res => await res.json()));
+		}
+		// No T10NS, instead Nolla duplicated T6 in the drop table because they hate us
+	}
+	else if (mode === 'tiny' && filters.minSpells >= 27) {
 		quickSearch = 'highsc';
 		// These lists were hardcoded so no need to load from a file
 	}
-	else if (mode === 'tiny' && filters.minCap === 27) {
+	else if (mode === 'tiny' && filters.minCap >= 27) {
 		quickSearch = 'highcap';
 		if (HIGH_CAP_T6NS_SEEDS === null) {
 			HIGH_CAP_T6NS_SEEDS = new Set(await fetch('./data/rng/t6ns_high_capacity_seeds.json').then(async res => await res.json()));
@@ -593,7 +618,7 @@ async function findNextLocalMatch(mode) {
 			HIGH_CAP_T10NS_SEEDS = new Set(await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(async res => await res.json()));
 		}
 	}
-	else if (mode === 'taikasauva' && filters.minCap === 27) {
+	else if (mode === 'taikasauva' && filters.minCap >= 27) {
 		quickSearch = 'highcap';
 		if (HIGH_CAP_T3_SEEDS === null) {
 			HIGH_CAP_T3_SEEDS = new Set(await fetch('./data/rng/t3_high_capacity_seeds.json').then(async res => await res.json()));
@@ -693,6 +718,13 @@ async function findNextLocalMatch(mode) {
 				if (SAMPO_SEEDS.has(prng.Seed)) {
 					found = true;
 					item = {type: 'item', item: 'sampo', x: currX, y: currY};
+				}
+			}
+			else if (quickSearch === 'highcap') {
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX, currY);
+				if (HIGH_CAP_EOE_SEEDS.has(prng.Seed)) {
+					found = true;
+					item = generateGreatChest(seed, ngPlusCount, currX, currY, app.perks);
 				}
 			}
 			else {

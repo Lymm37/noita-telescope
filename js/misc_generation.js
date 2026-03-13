@@ -266,7 +266,8 @@ export function generateEndShop(ws, ng, direction) {
         let x = basePosition.x + pos.x;
         let y = basePosition.y + pos.y;
         prng.SetRandomSeed(ws, ng, x, y);
-        spells.push({type: 'item', item: 'spell', spell: GetRandomAction(ws, 0, x, y, 10, 0), x: x, y: y});
+        // Note: NG is unused in the spell generation here, but it's not a bug
+        spells.push({type: 'item', item: 'spell', spell: GetRandomAction(ws, ng, x, y, 10, 0), x: x, y: y});
     }
     
     console.log(`Generated ${direction == 1 ? 'Hell' : 'Heaven'} Shop at (${basePosition.x}, ${basePosition.y}) with spells:`, spells);

@@ -338,6 +338,21 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
     const t1 = performance.now();
     console.log(`[Generator] Spawn function scanning completed in ${(t1 - t0).toFixed(2)} ms with ${generatedSpawns.length} generated spawns and ${finalPixelScenes.length} pixel scenes from ${scanCycles} scan cycles.`);
 
+    // Debug help with edge cases (slow but temporary)
+    // So far it seems like if hearts have an offset of -3, -2, or -1, they fail to spawn
+    /*
+    for (let spawn of generatedSpawns) {
+        let xoff = ((spawn.x % 512) + 512) % 512;
+        let yoff = ((spawn.y % 512) + 512) % 512;
+        if (spawn.item === 'heart' && (xoff > 506 || yoff > 506)) {
+            console.log(`Edge case spawn detected at (${spawn.x}, ${spawn.y}) in biome ${spawn.biome}:`, spawn);
+            if (xoff > 256) xoff -= 512;
+            if (yoff > 256) yoff -= 512;
+            console.log(`Offsets: (${xoff}, ${yoff})`);
+        }
+    }
+    */
+
     return {
         generatedSpawns,
         finalPixelScenes

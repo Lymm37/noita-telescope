@@ -396,3 +396,4 @@ export function generateChest(ws, ng, x, y, perks={}) {
 
 	return {type: 'chest', items: dedupedItems, x: x, y: y};
 }
+

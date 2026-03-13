@@ -6,6 +6,7 @@ import { unlockedSpells } from './unlocks.js';
 export function GetRandomActionWithType(x, y, level, type, worldSeed, offset = 0) {
     if (level > 10) level = 10;
     const prng = new NollaPrng(0);
+    // I thought I forgot to add it, but it's actually *incorrect* to add the NG+ count here! The game does not include the plus count here!
     prng.SetRandomSeed(worldSeed + offset, x, y);
     
     let sum = 0.0;
@@ -75,8 +76,10 @@ export function GetRandomAction(ws, ng, x, y, level, offset = 0) {
         else if (depthScale > 35) level = 7;
         else level = 0;
     }
+    if (level > 10) level = 10; // Probably not necessary?
 
     const prng = new NollaPrng(0);
+    // I thought I forgot to add it, but it's actually *incorrect* to add the NG+ count here! The game does not include the plus count here!
     prng.SetRandomSeed(ws + offset, x, y);
     
     let sum = 0.0;
