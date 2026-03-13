@@ -14,7 +14,8 @@ const SEARCH_ENABLED = true; // Debug
 // Load quick search things
 const ORB_SEEDS = await fetch('./data/rng/orb_seeds.json').then(async res => new Set(await res.json()));
 const SAMPO_SEEDS = await fetch('./data/rng/sampo_seeds.json').then(async res => new Set(await res.json()));
-const HIGH_SC_SEEDS = [36402008, 37475567, 74727319, 262049561, 345207455, 377895106, 568379281, 644708457, 653552772, 698862238, 884960988, 1280537179, 1315281277, 1368348114, 1392682761, 1434236773, 1471283855, 1636302025, 1705128673, 1731966418, 1772474495, 2018351783, 2073660843, 2111754688];
+const HIGH_SC_T10_SEEDS = [36402008, 37475567, 74727319, 345207455, 377895106, 568379281, 644708457, 653552772, 698862238, 884960988, 1280537179, 1315281277, 1368348114, 1392682761, 1434236773, 1471283855, 1636302025, 1705128673, 1731966418, 1772474495, 2018351783, 2073660843, 2111754688];
+const HIGH_SC_T6_SEEDS = [262049561, 884960988];
 
 let searchActive = false;
 let search = {
@@ -333,11 +334,12 @@ function checkWandMatch(w, f) {
 	if (typeof w.mana_max !== 'number') return false;
 	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
 	// Oops, setting the dual limits broke 27+ search
-	if (f.minCap === 27) f.maxCap = 100;
+	if (f.minCap === 27 || f.minSpells === 27) {
+		f.maxCap = 100;
+		f.maxSpells = 100;
+	}
 	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
 	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
-	// Same thing for this
-	if (f.minActionsPerRound === 27) f.maxActionsPerRound = 100;
 	if (w.actions_per_round < f.minSpells || w.actions_per_round > f.maxSpells) return false;
 	if ((w.fire_rate_wait / 60) < f.minDelay || (w.fire_rate_wait / 60) > f.maxDelay) return false;
 	if (w.mana_charge_speed < f.minManaRech || w.mana_charge_speed > f.maxManaRech) return false;
@@ -592,8 +594,11 @@ async function findNextLocalMatch(mode) {
 		}
 		else if (mode === "tiny") {
 			if (quickSearch === 'highsc') {
-				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX, currY);
-				if (HIGH_SC_SEEDS.includes(prng.Seed)) {
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX - 16, currY);
+				const t6seed = prng.Seed;
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX + 16, currY);
+				const t10seed = prng.Seed;
+				if (HIGH_SC_T6_SEEDS.includes(t6seed) || HIGH_SC_T10_SEEDS.includes(t10seed)) {
 					item = {type: 'tiny',
 						items: [
 							// Not going to both with the hearts
@@ -603,7 +608,8 @@ async function findNextLocalMatch(mode) {
 						x: currX,
 						y: currY
 					};
-					console.log(item);
+					console.log(t6seed, t10seed);
+					//console.log(item);
 				}
 			}
 			else {
