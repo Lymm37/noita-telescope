@@ -12,10 +12,14 @@ import { NollaPrng } from './nolla_prng.js';
 const SEARCH_ENABLED = true; // Debug
 
 // Load quick search things
-const ORB_SEEDS = await fetch('./data/rng/orb_seeds.json').then(async res => new Set(await res.json()));
-const SAMPO_SEEDS = await fetch('./data/rng/sampo_seeds.json').then(async res => new Set(await res.json()));
+let ORB_SEEDS = null; //await fetch('./data/rng/orb_seeds.json').then(async res => new Set(await res.json()));
+let SAMPO_SEEDS = null; //await fetch('./data/rng/sampo_seeds.json').then(async res => new Set(await res.json()));
+// Just hardcoding these since they're pretty short lists
 const HIGH_SC_T10_SEEDS = [36402008, 37475567, 74727319, 345207455, 377895106, 568379281, 644708457, 653552772, 698862238, 884960988, 1280537179, 1315281277, 1368348114, 1392682761, 1434236773, 1471283855, 1636302025, 1705128673, 1731966418, 1772474495, 2018351783, 2073660843, 2111754688];
 const HIGH_SC_T6_SEEDS = [262049561, 884960988];
+let HIGH_CAP_T10NS_SEEDS = null; //await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(async res => new Set(await res.json()));
+let HIGH_CAP_T6NS_SEEDS = null; //await fetch('./data/rng/t6ns_high_capacity_seeds.json').then(async res => new Set(await res.json()));
+let HIGH_CAP_T3_SEEDS = null; //await fetch('./data/rng/t3_high_capacity_seeds.json').then(async res => new Set(await res.json()));
 
 let searchActive = false;
 let search = {
@@ -564,9 +568,37 @@ async function findNextLocalMatch(mode) {
 
 	// Quick search modes to just find the seed and not do the full computation for no reason
 	let quickSearch = null;
-	if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('true_orb', filters.queryList[0])) quickSearch = 'true_orb';
-	if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('sampo', filters.queryList[0])) quickSearch = 'sampo';
-	if (mode === 'tiny' && filters.minSpells === 27) quickSearch = 'highsc';
+	if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('true_orb', filters.queryList[0])) {
+		quickSearch = 'true_orb';
+		if (ORB_SEEDS === null) {
+			ORB_SEEDS = new Set(await fetch('./data/rng/orb_seeds.json').then(async res => await res.json()));
+		}
+	}
+	else if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('sampo', filters.queryList[0])) {
+		quickSearch = 'sampo';
+		if (SAMPO_SEEDS === null) {
+			SAMPO_SEEDS = new Set(await fetch('./data/rng/sampo_seeds.json').then(async res => await res.json()));
+		}
+	}
+	else if (mode === 'tiny' && filters.minSpells === 27) {
+		quickSearch = 'highsc';
+		// These lists were hardcoded so no need to load from a file
+	}
+	else if (mode === 'tiny' && filters.minCap === 27) {
+		quickSearch = 'highcap';
+		if (HIGH_CAP_T6NS_SEEDS === null) {
+			HIGH_CAP_T6NS_SEEDS = new Set(await fetch('./data/rng/t6ns_high_capacity_seeds.json').then(async res => await res.json()));
+		}
+		if (HIGH_CAP_T10NS_SEEDS === null) {
+			HIGH_CAP_T10NS_SEEDS = new Set(await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(async res => await res.json()));
+		}
+	}
+	else if (mode === 'taikasauva' && filters.minCap === 27) {
+		quickSearch = 'highcap';
+		if (HIGH_CAP_T3_SEEDS === null) {
+			HIGH_CAP_T3_SEEDS = new Set(await fetch('./data/rng/t3_high_capacity_seeds.json').then(async res => await res.json()));
+		}
+	}
 	const prng = new NollaPrng(0); // To avoid reinstantiating it over and over
 
 	app.setLoading(true, "Searching local area...");
@@ -590,7 +622,15 @@ async function findNextLocalMatch(mode) {
 		let item;
 
 		if (mode === "taikasauva") {
-			item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', app.perks);
+			if (quickSearch === 'highcap') {
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX, currY);
+				if (HIGH_CAP_T3_SEEDS.has(prng.Seed)) {
+					item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', app.perks);
+				}
+			}
+			else {
+				item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', app.perks);
+			}
 		}
 		else if (mode === "tiny") {
 			if (quickSearch === 'highsc') {
@@ -610,6 +650,22 @@ async function findNextLocalMatch(mode) {
 					};
 					console.log(t6seed, t10seed);
 					//console.log(item);
+				}
+			}
+			else if (quickSearch === 'highcap') {
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX - 16, currY);
+				const t6seed = prng.Seed;
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX + 16, currY);
+				const t10seed = prng.Seed;
+				if (HIGH_CAP_T6NS_SEEDS.has(t6seed) || HIGH_CAP_T10NS_SEEDS.has(t10seed)) {
+					item = {type: 'tiny',
+						items: [
+							generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
+							generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
+						],
+						x: currX,
+						y: currY
+					};
 				}
 			}
 			else {
