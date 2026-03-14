@@ -4,10 +4,12 @@ import { addStaticPixelScenes } from './static_spawns.js';
 import { TIME_UNTIL_LOADING } from './constants.js';
 import { app } from './app.js';
 import { CONTAINER_TYPES } from './utils.js';
-import { generateGreatChest } from './chest_generation.js';
+import { generateGreatChest, generateGreatChestStandalone } from './chest_generation.js';
 import { generateWand } from './wand_generation.js';
 import { SPRITE_RARITY } from './wand_config.js';
 import { NollaPrng } from './nolla_prng.js';
+import { getDragonDrops, getTinyDrops } from './misc_generation.js';
+import { generateGunStandalone } from './gun_generation.js';
 
 const SEARCH_ENABLED = true; // Debug
 
@@ -356,10 +358,13 @@ function checkWandMatch(w, f) {
 	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
 	// Will probably rework the sliders to allow entering wands up to 34 multicast and 66 capacity, even though most people wouldn't look for them...
 	// But maybe I underestimate how people will use the tool
+	// No longer necessary with the slider expanded
+	/*
 	if (f.minCap >= 27 || f.minSpells >= 27) {
 		f.maxCap = 100;
 		f.maxSpells = 100;
 	}
+	*/
 	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
 	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
 	if (w.actions_per_round < f.minSpells || w.actions_per_round > f.maxSpells) return false;
@@ -618,6 +623,16 @@ async function findNextLocalMatch(mode) {
 			HIGH_CAP_T10NS_SEEDS = new Set(await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(async res => await res.json()));
 		}
 	}
+	else if (mode === 'dragon' && filters.minSpells >= 27) {
+		quickSearch = 'highsc';
+		// These lists were hardcoded so no need to load from a file
+	}
+	else if (mode === 'dragon' && filters.minCap >= 27) {
+		quickSearch = 'highcap';
+		if (HIGH_CAP_T6NS_SEEDS === null) {
+			HIGH_CAP_T6NS_SEEDS = new Set(await fetch('./data/rng/t6ns_high_capacity_seeds.json').then(async res => await res.json()));
+		}
+	}
 	else if (mode === 'taikasauva' && filters.minCap >= 27) {
 		quickSearch = 'highcap';
 		if (HIGH_CAP_T3_SEEDS === null) {
@@ -657,6 +672,7 @@ async function findNextLocalMatch(mode) {
 				item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', app.perks);
 			}
 		}
+		// Ignoring heart drops from bosses
 		else if (mode === "tiny") {
 			if (quickSearch === 'highsc') {
 				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX - 16, currY);
@@ -664,17 +680,8 @@ async function findNextLocalMatch(mode) {
 				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX + 16, currY);
 				const t10seed = prng.Seed;
 				if (HIGH_SC_T6_SEEDS.includes(t6seed) || HIGH_SC_T10_SEEDS.includes(t10seed)) {
-					item = {type: 'tiny',
-						items: [
-							// Not going to both with the hearts
-							generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
-							generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
-						],
-						x: currX,
-						y: currY
-					};
-					console.log(t6seed, t10seed);
-					//console.log(item);
+					item = getTinyDrops(seed, ngPlusCount, null, currX, currY, app.perks);
+					console.log('High S/C seed: (one of)', t6seed, t10seed);
 				}
 			}
 			else if (quickSearch === 'highcap') {
@@ -683,26 +690,29 @@ async function findNextLocalMatch(mode) {
 				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX + 16, currY);
 				const t10seed = prng.Seed;
 				if (HIGH_CAP_T6NS_SEEDS.has(t6seed) || HIGH_CAP_T10NS_SEEDS.has(t10seed)) {
-					item = {type: 'tiny',
-						items: [
-							generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
-							generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
-						],
-						x: currX,
-						y: currY
-					};
+					item = getTinyDrops(seed, ngPlusCount, null, currX, currY, app.perks);
 				}
 			}
 			else {
-				item = {type: 'tiny',
-					items: [
-						// Not going to both with the hearts
-						generateWand(seed, ngPlusCount, currX-16, currY, 'wand_unshuffle_06', app.perks),
-						generateWand(seed, ngPlusCount, currX+16, currY, 'wand_unshuffle_10', app.perks)
-					],
-					x: currX,
-					y: currY
-				};
+				item = getTinyDrops(seed, ngPlusCount, null, currX, currY, app.perks);
+			}
+		}
+		else if (mode === "dragon") {
+			if (quickSearch === 'highsc') {
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX+16, currY);
+				if (HIGH_SC_T6_SEEDS.includes(prng.Seed)) {
+					item = getDragonDrops(seed, ngPlusCount, null, currX, currY, app.perks);
+					console.log('High S/C seed:', prng.Seed);
+				}
+			}
+			else if (quickSearch === 'highcap') {
+				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX+16, currY);
+				if (HIGH_CAP_T6NS_SEEDS.has(prng.Seed)) {
+					item = getDragonDrops(seed, ngPlusCount, null, currX, currY, app.perks);
+				}
+			}
+			else {
+				item = getDragonDrops(seed, ngPlusCount, null, currX, currY, app.perks);
 			}
 		}
 		else if (mode === "eoe") {
@@ -723,7 +733,6 @@ async function findNextLocalMatch(mode) {
 			else if (quickSearch === 'highcap') {
 				prng.SetRandomSeed(app.seed + app.ngPlusCount, currX, currY);
 				if (HIGH_CAP_EOE_SEEDS.has(prng.Seed)) {
-					found = true;
 					item = generateGreatChest(seed, ngPlusCount, currX, currY, app.perks);
 				}
 			}
@@ -770,3 +779,66 @@ async function findNextLocalMatch(mode) {
 	cancelBtn.style.display = 'none';
 	return false;
 }
+
+
+// Test!
+// Get some limiting values for the distributions of certain tiers
+/*
+if (HIGH_CAP_T6NS_SEEDS === null) {
+	HIGH_CAP_T6NS_SEEDS = new Set(await fetch('./data/rng/t6ns_high_capacity_seeds.json').then(async res => await res.json()));
+}
+if (HIGH_CAP_T10NS_SEEDS === null) {
+	HIGH_CAP_T10NS_SEEDS = new Set(await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(async res => await res.json()));
+}
+if (HIGH_CAP_T3_SEEDS === null) {
+	HIGH_CAP_T3_SEEDS = new Set(await fetch('./data/rng/t3_high_capacity_seeds.json').then(async res => await res.json()));
+}
+if (HIGH_CAP_EOE_SEEDS === null) {
+	HIGH_CAP_EOE_SEEDS = new Set(await fetch('./data/rng/eoe_high_capacity_seeds.json').then(async res => await res.json()));
+}
+
+let max_cap = 27;
+for (let seed of HIGH_CAP_T6NS_SEEDS) {
+	const wand = generateGunStandalone(seed, 'wand_unshuffle_06');
+	if (wand.deck_capacity > max_cap) {
+		max_cap = wand.deck_capacity;
+	}
+}
+console.log(`Max capacity found for T6NS: ${max_cap}`);
+
+max_cap = 27;
+for (let seed of HIGH_CAP_T10NS_SEEDS) {
+	const wand = generateGunStandalone(seed, 'wand_unshuffle_10');
+	if (wand.deck_capacity > max_cap) {
+		max_cap = wand.deck_capacity;
+	}
+}
+console.log(`Max capacity found for T10NS: ${max_cap}`);
+
+max_cap = 27;
+for (let seed of HIGH_CAP_T3_SEEDS) {
+	const wand = generateGunStandalone(seed, 'wand_level_03');
+	if (wand.deck_capacity > max_cap) {
+		max_cap = wand.deck_capacity;
+	}
+}
+console.log(`Max capacity found for T3: ${max_cap}`);
+
+max_cap = 27;
+for (let seed of HIGH_CAP_EOE_SEEDS) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const wand = generateGunStandalone(seed, item.wandType);
+			if (wand.deck_capacity > max_cap) {
+				max_cap = wand.deck_capacity;
+				if (max_cap > 64) {
+					console.log(seed);
+					console.log(wand);
+				}
+			}
+		}
+	}
+}
+console.log(`Max capacity found for EOE: ${max_cap}`);
+*/

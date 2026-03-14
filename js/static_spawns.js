@@ -3,6 +3,7 @@ import { NollaPrng } from "./nolla_prng.js";
 import { loadPixelScene } from "./pixel_scene_generation.js";
 import { getWorldCenter, getWorldSize } from "./utils.js";
 import { app } from "./app.js";
+import { getTinyDrops } from "./misc_generation.js";
 
 const STATIC_PIXEL_SCENES = [
 	{name: "pyramid/boss_limbs", x: 9726, y: -1024, required: true},
@@ -414,9 +415,12 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 			{type: 'item', item: 'spell', spell: 'OCARINA_A2', biome: 'ocarina', x: -9915, y: -6466},
 			{type: 'item', item: 'spell', spell: 'OCARINA_A2', biome: 'ocarina', x: -9915, y: -6418},
 		]});
-		
 	}
-	
+
+	// Tiny
+	if (pwIndex === 0 && pwIndexVertical === 0) {
+		newPois.push(getTinyDrops(ws, ng, 'meat', 14941, 16454, app.perks));
+	}
 	// Orbs and other stuff: TODO: Doesn't seem that important compared to NG+ which already works
 
 

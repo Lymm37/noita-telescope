@@ -524,7 +524,7 @@ export const app = {
 		};
 
 		// Spells/Cast (1 - 26)
-		 this.initDualSlider('spells', 1, 27, 1);
+		 this.initDualSlider('spells', 1, 34, 1);
 		// Cast Delay (-0.33s - 1.0s)
 		this.initDualSlider('delay', -20/60, 1.0, 1/60);
 		// Recharge Time (0.0s - 4.0s)
@@ -534,7 +534,7 @@ export const app = {
 		// Mana Charge Speed (0 - 3000)
 		this.initDualSlider('manarech', 0, 3000, 10);
 		// Capacity (1 - 27+)
-		this.initDualSlider('cap', 1, 27, 1);
+		this.initDualSlider('cap', 1, 66, 1);
 		// Spread (-35 - 35 degrees)
 		this.initDualSlider('spread', -35, 35, 1);
 		// Speed multiplier (0.5x - 10x)

@@ -242,6 +242,14 @@ export function getDragonDrops(worldSeed, ngPlusCount, biomeName, x, y, perks={}
     return {type: 'dragon', items: drops, x: x, y: y, biome: biomeName};
 }
 
+export function getTinyDrops(worldSeed, ngPlusCount, biomeName, x, y, perks={}) {
+    return {type: 'tiny', items: [
+        // TODO: Add hearts I guess, who cares
+        generateWand(worldSeed, ngPlusCount, x-16, y, 'wand_unshuffle_06', perks),
+        generateWand(worldSeed, ngPlusCount, x+16, y, 'wand_unshuffle_10', perks)
+    ], x: x, y: y, biome: biomeName};
+}
+
 
 const baseEndShopPositionHeaven = {x: 0, y: -13954};
 const baseEndShopPositionHell = {x: 0, y: 24576};

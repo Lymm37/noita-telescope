@@ -413,9 +413,9 @@ export function updateTooltip(e, hit, tip) {
 				if (box_containers.length > 0) {
 					box_contents += box_containers.map(container => generateItemHtml(container)).join('');
 				}
-				// Add special disclaimer for dragon
-				if (hit.type === 'dragon') {
-					box_contents += `<br><small style="font-size: 13px; color: red;">Note: You must kill the dragon before it moves, or the wand will be different than what is shown here!</small><br>`;
+				// Add special disclaimer for dragon/tiny
+				if (hit.type === 'dragon' || hit.type === 'tiny') {
+					box_contents += `<br><small style="font-size: 13px; color: red;">Note: You must kill the boss before it moves, or the wand will be different than what is shown here!</small><br>`;
 				}
 				if (box_wands.length > 0) {
 					box_contents += box_wands.map(wand => generateWandHtml(wand)).join('');

@@ -148,6 +148,129 @@ export function generateGreatChest(ws, ng, x, y, perks={}) {
 	return {type: 'great_chest', items: dedupedItems, x: x, y: y};
 }
 
+export function generateGreatChestStandalone(seed) {
+	const prng = new NollaPrng(0);
+	prng.Seed = seed;
+	let items = [];
+	let count = 1;
+
+	// Very special
+	if (prng.Random(0, 100000) >= 100000) {
+		count = 0;
+		if (prng.Random(0, 1000) === 999) {
+			items.push({type: 'item', item: 'true_orb'});
+		}
+		else {
+			items.push({type: 'item', item: 'sampo'});
+		}
+	}
+
+	while (count > 0) {
+		count--;
+		let rnd = prng.Random(1, 100);
+		if (rnd <= 10) {
+			rnd = prng.Random(0, 100);
+			if (rnd <= 30) {
+				let dupPotion = {type: 'item', item: 'potion_normal'};
+				items.push(dupPotion);
+				items.push(dupPotion);
+				items.push({type: 'item', item: 'potion_secret'});
+			}
+			else {
+				let dupPotion = {type: 'item', item: 'potion_secret'};
+				items.push(dupPotion);
+				items.push(dupPotion);
+				items.push({type: 'item', item: 'potion_random'});
+			}
+		}
+		else if (rnd <= 15) {
+			items.push({type: 'item', item: 'gold', amount: 1000});
+		}
+		else if (rnd <= 18) {
+			rnd = prng.Random(1, 30);
+			if (rnd === 30) {
+				items.push({type: 'item', item: 'kakkakikkare'});
+			}
+			else {
+				items.push({type: 'item', item: 'vuoksikivi'});
+			}
+		}
+		else if (rnd <= 39) {
+			rnd = prng.Random(0, 100);
+			if (rnd <= 25) {
+				//T4 false
+				items.push({type: 'wand', wandType: 'wand_level_04'});
+			}
+			else if (rnd <= 50) {
+				//T4NS false
+				items.push({type: 'wand', wandType: 'wand_unshuffle_04'});
+			}
+			else if (rnd <= 75) {
+				//T5 false
+				items.push({type: 'wand', wandType: 'wand_level_05'});
+			}
+			else if (rnd <= 90) {
+				//T5NS false
+				items.push({type: 'wand', wandType: 'wand_unshuffle_05'});
+			}
+			else if (rnd <= 96) {
+				//T6 false
+				items.push({type: 'wand', wandType: 'wand_level_06'});
+			}
+			else if (rnd <= 98) {
+				//T6NS false
+				items.push({type: 'wand', wandType: 'wand_unshuffle_06'});
+			}
+			else if (rnd <= 99) {
+				//T6 false
+				items.push({type: 'wand', wandType: 'wand_level_06'});
+			}
+			else {
+				//T10 false
+				items.push({type: 'wand', wandType: 'wand_level_10'});
+			}
+		}
+		else if (rnd <= 60) {
+			rnd = prng.Random(0, 100);
+			if (rnd <= 89) {
+				items.push({type: 'item', item: 'heart'});
+			}
+			else if (rnd <= 99) {
+				items.push({type: 'item', item: 'heart_bigger'});
+			}
+			else {
+				items.push({type: 'item', item: 'full_heal'});
+			}
+		}
+		else if (rnd <= 98) {
+			count += 2;
+		}
+		else {
+			count += 3;
+		}
+	}
+
+	// Deduplicate items and add count property
+	/*
+	let dedupedItems = [];
+	for (let item of items) {
+		let found = false;
+		for (let deduped of dedupedItems) {
+			if (isDuplicateObject(deduped, item)) {
+				deduped.count = (deduped.count || 1) + 1;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			dedupedItems.push(item);
+		}
+	}
+	*/
+
+	return {type: 'great_chest', items: items};
+}
+
 
 export function generateChest(ws, ng, x, y, perks={}) {
 	const noMoreShuffle = perks['noMoreShuffle'] || false;
