@@ -566,7 +566,7 @@ export const app = {
 		this.initDualSlider('rarity', 1.0, 9.0, 0.1);
 
 		// Search radius
-		this.initSingleSlider('search-radius', 1, 1000, 1, 20);
+		//this.initSingleSlider('search-radius', 1, 1000, 1, 20);
 	},
 
 	setLoading(show, text = "Generating...") {

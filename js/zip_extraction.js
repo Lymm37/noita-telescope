@@ -1,8 +1,9 @@
 import * as zip from "https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8/index.min.js";
 
 const availableZipBundles = [
-	{ prefix: "data/pixel_scenes/", zipUrl: "data/pixel_scenes.zip" },
-	{ prefix: "data/wang_tiles/", zipUrl: "data/wang_tiles.zip" }
+	{ prefix: "../data/pixel_scenes/", zipUrl: "../data/pixel_scenes.zip" },
+	{ prefix: "../data/wang_tiles/", zipUrl: "../data/wang_tiles.zip" },
+	{ prefix: "../data/biome_maps/", zipUrl: "../data/biome_maps.zip" },
 ];
 
 const loadedZipBundles = {};
@@ -21,25 +22,20 @@ async function loadZipBundle(zipUrl) {
 }
 
 export async function getFromZipFirst(url) {
-	// Everything is loaded from js files so this should be fine with import meta url
-	if (url.startsWith("../")) {
-		//url = url.substring(3);
-	}
-	for (const bundle of availableZipBundles) {
-		if (url.startsWith(bundle.prefix)) {
-			const zipBundle = await loadZipBundle(bundle.zipUrl);
-			const relativePath = url.substring(bundle.prefix.length);
-			// console.log(`Looking for ${relativePath} in ${bundle.zipUrl}`);
-			const entry = zipBundle.find(e => {
-				// console.log(`Checking entry: ${e.filename}`);
-				return e.filename === relativePath;
-			});
-			if (entry) {
-				return entry.getData(new zip.BlobWriter());
-			}
-		}
-	}
-	//console.log(`Not found in zip bundles, fetching from network: ${url}`);
+    const targetUrl = new URL(url, import.meta.url).href;
+    for (const bundle of availableZipBundles) {
+        const bundlePrefixUrl = new URL(bundle.prefix, import.meta.url).href;
+        if (targetUrl.startsWith(bundlePrefixUrl)) {
+            const zipBundle = await loadZipBundle(bundle.zipUrl);
+            const relativePath = targetUrl.substring(bundlePrefixUrl.length);
+            const entry = zipBundle.find(e => e.filename === relativePath);
+            if (entry) {
+                return entry.getData(new zip.BlobWriter());
+            }
+        }
+    }
+
+    console.log(`Not found in zip bundles, fetching from network: ${url}`);
 	const dataUrl = new URL(url, import.meta.url);
 	return fetch(dataUrl).then(response => response.blob());
 }
