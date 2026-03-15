@@ -6,16 +6,19 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch } from './search.js';
-import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y } from './constants.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea } from './search_manager.js';
+import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
-import { BIOME_COLOR_LOOKUP, createTileOverlays, createTileOverlaysCheap, createTileOverlaysExpanded } from './image_processing.js';
+import { BIOME_COLOR_LOOKUP, createBiomeMapAlphaMask, createTileOverlays, createTileOverlaysCheap, createTileOverlaysExpanded } from './image_processing.js';
 import { COALMINE_ALT_SCENES } from './pixel_scene_config.js';
 import { debugBiomeEdgeNoise } from './edge_noise.js';
 import { getPixelSceneCanvas, loadPixelSceneData, reloadPixelSceneCache } from './pixel_scene_generation.js';
 import { addStaticPixelScenes } from './static_spawns.js';
+import { NollaPrng } from './nolla_prng.js';
+import { appSettings, updateSettings } from './settings.js';
+import { syncWorldWorkerData, getOrGenerateWorld, getOrGenerateOverlay } from './world_manager.js';
 
 export const app = {
 	// TODO: A lot of these are old and unused and could probably be cleaned up
@@ -41,6 +44,18 @@ export const app = {
 	surfaceOverlayNGPPWAddition: null,
 	skyOverlayNGP: null,
 	skyOverlayNGPPW: null,
+	surfaceOverlayNGP7: null,
+	surfaceOverlayNGP7PW: null,
+	skyOverlayNGP7: null,
+	skyOverlayNGP7PW: null,
+	surfaceOverlayNGP14: null,
+	surfaceOverlayNGP14PW: null,
+	skyOverlayNGP14: null,
+	skyOverlayNGP14PW: null,
+	surfaceOverlayNGP21: null,
+	surfaceOverlayNGP21PW: null,
+	skyOverlayNGP21: null,
+	skyOverlayNGP21PW: null,
 
 	ctxo: null, 
 	// Background maps, recolored by biome
@@ -285,6 +300,7 @@ export const app = {
 			this.draw();
 		};
 		document.getElementById('visited-coalmine-alt-shrine').onchange = () => {
+			// TODO: Need to sync this in search settings
 			const value = document.getElementById('visited-coalmine-alt-shrine').checked;
 			if (value) {
 				COALMINE_ALT_SCENES["g_pixel_scene_02"][0].prob = 0.0;
@@ -304,11 +320,13 @@ export const app = {
 		// Setup range value displays
 		document.getElementById('search-btn').onclick = () => {
 			cancelSearch();
+			this.draw(); // Clear highlights immediately on new search
 			performSearch(true, true);
 		};
 		document.getElementById('search-input').onkeydown = (e) => { 
 			if(e.key === "Enter") {
 				cancelSearch();
+				this.draw(); // Clear highlights immediately on new search
 				performSearch(true, true); 
 			}
 		};
@@ -317,7 +335,6 @@ export const app = {
 		const cancelBtn = document.getElementById('cancel-search');
 		cancelBtn.onclick = () => { 
 			cancelSearch();
-			cancelBtn.style.display = 'none';
 			this.setLoading(false); // Clear overlay immediately on cancel
 			this.draw();
 		};
@@ -337,18 +354,21 @@ export const app = {
 		document.getElementById('search-name').onkeydown = (e) => { 
 			if(e.key === "Enter") {
 				cancelSearch();
+				this.draw(); // Clear highlights immediately on new search
 				performSearch(true, true); 
 			}
 		};
 		document.getElementById('search-sprite').onkeydown = (e) => { 
 			if(e.key === "Enter") {
 				cancelSearch();
+				this.draw(); // Clear highlights immediately on new search
 				performSearch(true, true); 
 			}
 		};
 		document.getElementById('search-ac').onkeydown = (e) => { 
 			if(e.key === "Enter") {
 				cancelSearch();
+				this.draw(); // Clear highlights immediately on new search
 				performSearch(true, true); 
 			}
 		};
@@ -454,7 +474,7 @@ export const app = {
 			let wx = (mouseX - this.canvas.width/2)/this.cam.z + this.cam.x;
 			let wy = (mouseY - this.canvas.height/2)/this.cam.z + this.cam.y;
 			this.cam.z *= (e.deltaY > 0 ? 0.9 : 1.1);
-			if (this.cam.z < 0.02) this.cam.z = 0.02;
+			if (this.cam.z < MIN_CAM_Z) this.cam.z = MIN_CAM_Z;
 			this.cam.x = wx - (mouseX - this.canvas.width/2)/this.cam.z;
 			this.cam.y = wy - (mouseY - this.canvas.height/2)/this.cam.z;
 			this.checkBounds();
@@ -530,9 +550,9 @@ export const app = {
 		// Recharge Time (0.0s - 4.0s)
 		this.initDualSlider('rech', 0.0, 4.0, 1/60);
 		// Mana Max (0 - 3000)
-		this.initDualSlider('mana', 0, 3000, 10);
+		this.initDualSlider('mana', 0, 5000, 10);
 		// Mana Charge Speed (0 - 3000)
-		this.initDualSlider('manarech', 0, 3000, 10);
+		this.initDualSlider('manarech', 0, 5000, 10);
 		// Capacity (1 - 27+)
 		this.initDualSlider('cap', 1, 66, 1);
 		// Spread (-35 - 35 degrees)
@@ -929,8 +949,8 @@ export const app = {
 		this.loadSettings();
 		await loadTranslations();
 		try {
-			this.baseBiomeMapNG0 = await loadPNG('./data/biome_maps/biome_map.png');
-			this.baseBiomeMapNGP = await loadPNG('./data/biome_maps/biome_map_newgame_plus.png');
+			this.baseBiomeMapNG0 = await loadPNG('../data/biome_maps/biome_map.png');
+			this.baseBiomeMapNGP = await loadPNG('../data/biome_maps/biome_map_newgame_plus.png');
 		} catch(e) { console.error("Base assets failed to load."); console.error(e); }
 		console.log("Loading pixel scene data...");
 		// Preload pixel scenes
@@ -940,15 +960,39 @@ export const app = {
 		if (document.getElementById('custom-art').checked) {
 			await this.getSurfaceOverlays();
 		}
-		this.worldsInView = new Set();
-		this.worldsInView.add(`0,0`);
+		// Queue up the main few worlds for loading
+		this.worldsInView = new Set(['0,0']);
+		//this.worldsInView = new Set(['0,0', '-1,0', '1,0', '0,-1', '0,1', '-1,-1', '-1,1', '1,-1', '1,1']);
 		this.setLoading(false);
 	},
 
 	// Could probably default rescan to true if tiles is true
 	async generate(tiles, rescan) {
 		this.setLoading(true, tiles ?  "Generating Tiles..." : "Scanning Parallel World..." );
+
+		const seedVal = parseInt(document.getElementById('seed').value);
+		this.seed = seedVal;
+		const ngVal = parseInt(document.getElementById('ng').value);
+		this.ngPlusCount = ngVal;
+		this.pw = parseInt(document.getElementById('pw').value) || 0;
+		this.pwVertical = parseInt(document.getElementById('pw-vertical').value) || 0;
+		this.isNGP = ngVal > 0;
+
 		if (tiles) {
+			// Reset existing tile and spawn data since we're doing a full generation, and we don't want old data hanging around
+			this.tileLayers = null;
+			this.pixelScenesByPW = {};
+			this.poisByPW = {};
+			this.tileOverlaysByPW = {};
+			this.worldsInView = new Set(['0,0']);
+			// If generating tiles for the first time, reset the position so that the overlays are actually generated properly!
+			this.pw = 0;
+			this.pwVertical = 0;
+			document.getElementById('pw').value = 0;
+			document.getElementById('pw-vertical').value = 0;
+			this.cam.x = CHUNK_SIZE*getWorldCenter(this.isNGP);
+			this.cam.y = CHUNK_SIZE*24;
+			this.cam.z = 0.0625;
 			// Adding a small extra delay causes it to actually appear
 			await new Promise(resolve => setTimeout(resolve, TIME_UNTIL_LOADING + 25));
 		}
@@ -958,14 +1002,6 @@ export const app = {
 		btn.innerText = tiles ? "Generating Tiles..." : "Scanning Parallel World...";
 
 		const t0 = performance.now();
-
-		const seedVal = parseInt(document.getElementById('seed').value);
-		this.seed = seedVal;
-		const ngVal = parseInt(document.getElementById('ng').value);
-		this.ngPlusCount = ngVal;
-		this.pw = parseInt(document.getElementById('pw').value) || 0;
-		this.pwVertical = parseInt(document.getElementById('pw-vertical').value) || 0;
-		this.isNGP = ngVal > 0;
 
 		// Set limits on PWs
 		document.getElementById('search-pw-limit').max = getPWLimit(this.isNGP);
@@ -1036,9 +1072,15 @@ export const app = {
 				layer.pixelScenesByPW = {};
 			}
 
+			// Initialize fixed random spawns...
+			// Like hiisi hourglass position, to avoid needing to mess with them elsewhere
+			const prng = new NollaPrng(seedVal); // Not in NG+ so don't worry about it
+			const is_right = prng.ProceduralRandom(seedVal, 0, 0) > 0.5;
+			this.hiisiHourglassPosition = is_right ? 'right' : 'left';
+
 			// Create recolored background (TODO: does this need to be done here?)
 			this.renderRecolorMap();
-			//this.biomeMapOverlay = createBiomeMapOverlay(this.biomeData, getWorldSize(this.isNGP), 48, this.recolorOffscreen);
+			this.biomeMapAlphaMask = createBiomeMapAlphaMask(this.biomeData, getWorldSize(this.isNGP), 48);
 
 			// Prescan spawn functions for generated tiles, only needs to be done once per seed/NG+ combination, not every time PW or perks change
 			this.tileSpawns = prescanSpawnFunctions(this.tileLayers, this.isNGP);
@@ -1046,6 +1088,27 @@ export const app = {
 			this.pixelScenesByPW = {};
 			this.poisByPW = {};
 			this.tileOverlaysByPW = {};
+
+			console.log("Synching data to workers...");
+			syncSearchWorkerData();
+			syncWorldWorkerData();
+			console.log("Synced data to workers.");
+
+			// Do initial overlay generation just for the main world since we need it for the initial render.
+			// Other worlds can be handled by workers asynchronously
+			const biomeOverlayMode = document.getElementById('debug-biome-overlay-mode').value;
+			if (!this.tileOverlaysByPW[`0,0`]) {
+				let recolorMapUsed = this.recolorOffscreenBuffer;
+				if (biomeOverlayMode === 'expanded') {
+					this.tileOverlaysByPW[`0,0`] = createTileOverlaysExpanded(this.biomeData, recolorMapUsed, this.tileLayers, 0, 0, this.isNGP);
+				}
+				else if (biomeOverlayMode === 'normal') {
+					this.tileOverlaysByPW[`0,0`] = createTileOverlays(this.biomeData, recolorMapUsed, this.tileLayers, 0, 0, this.isNGP);
+				}
+				else {
+					this.tileOverlaysByPW[`0,0`] = createTileOverlaysCheap(this.biomeData, this.tileLayers, 0, 0, this.isNGP);
+				}
+			}
 		}
 
 		if (rescan) cancelSearch(); // Cancel any active search when changing perks (might need to adjust this later)
@@ -1060,7 +1123,7 @@ export const app = {
 		
 			// Static pixel scenes (stupid)
 			if (document.getElementById('enable-static-pixel-scenes').value !== 'off') {
-				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, this.skipCosmeticScenes);
+				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, this.skipCosmeticScenes, this.perks);
 				this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = this.pixelScenesByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pixelScenes);
 				this.poisByPW[`${this.pw},${this.pwVertical}`] = this.poisByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pois);
 			}
@@ -1076,7 +1139,8 @@ export const app = {
 
 		const t1 = performance.now();
 		console.log(`Generation completed in ${(t1 - t0) / 1000} seconds.`);
-
+		
+		this.checkBounds();
 		this.draw();
 		btn.disabled = false;
 		btn.innerText = "Generate World";
@@ -1086,7 +1150,17 @@ export const app = {
 
 	loadWorld(pwX, pwY) {
 		// Scan a single world, assuming tiles are already generated. Pixel scenes and PoIs should be cleared if a world needs to be regenerated (if perks or unlocks changed, for example)
-		// TODO: Need to run this in a separate thread
+		// Run this in a separate thread
+		// First check if things are ready
+		if (!this.tileLayers || this.tileLayers.length === 0) {
+			console.warn("Tried to load world before tiles were generated.");
+			return;
+		}
+		getOrGenerateWorld(pwX, pwY);
+		getOrGenerateOverlay(pwX, pwY);
+		
+		// Blocking version
+		/*
 		if (!this.pixelScenesByPW[`${pwX},${pwY}`] || !this.poisByPW[`${pwX},${pwY}`]) {
 			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, pwX, pwY, this.skipCosmeticScenes, this.perks);
 			this.pixelScenesByPW[`${pwX},${pwY}`] = scanResults.finalPixelScenes;
@@ -1095,11 +1169,12 @@ export const app = {
 		
 			// Static pixel scenes (stupid)
 			if (document.getElementById('enable-static-pixel-scenes').value !== 'off') {
-				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, pwX, pwY, this.biomeData, this.skipCosmeticScenes);
+				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, pwX, pwY, this.biomeData, this.skipCosmeticScenes, this.perks);
 				this.pixelScenesByPW[`${pwX},${pwY}`] = this.pixelScenesByPW[`${pwX},${pwY}`].concat(staticPixelScenesResults.pixelScenes);
 				this.poisByPW[`${pwX},${pwY}`] = this.poisByPW[`${pwX},${pwY}`].concat(staticPixelScenesResults.pois);
 			}
 		}
+		*/
 	},
 
 	renderOffscreen() {
@@ -1235,37 +1310,52 @@ export const app = {
 	},
 
 	async getSurfaceOverlays() {
+		// TODO: Instead of loading these all at once, we could load them only if that type of world was used
 		// These are low res so hopefully won't cause too much slowdown, if not we can look into streaming them in or something
 		// TODO: Add variants for PWs/NG+
 		// Going to use this mode when I don't need to modify the image data
-		this.surfaceOverlay = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay.png');
-		this.surfaceOverlayPW = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_pw.png');
-		this.surfaceOverlayPWAdditional = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_pw_addition.png');
-		this.skyOverlay = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay.png');
-		this.skyOverlayPW = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_pw.png');
-		this.surfaceOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp.png');
-		//this.surfaceOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/custom/surface_overlay_ngp_pw.png');
-		//this.skyOverlayNGP = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_ngp.png');
-		//this.skyOverlayNGPPW = await loadPNGBitmap('./data/biome_maps/custom/sky_overlay_ngp_pw.png');
+		this.surfaceOverlay = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay.png');
+		this.surfaceOverlayPW = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_pw.png');
+		this.surfaceOverlayPWAdditional = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_pw_addition.png');
+		this.skyOverlay = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay.png');
+		this.skyOverlayPW = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_pw.png');
+		this.surfaceOverlayNGP = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp.png');
+		this.surfaceOverlayNGPPW = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp_pw.png');
+		this.skyOverlayNGP = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp.png');
+		this.skyOverlayNGPPW = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp_pw.png');
+		this.surfaceOverlayNGP7 = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp7.png');
+		this.surfaceOverlayNGP7PW = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp7_pw.png');
+		this.skyOverlayNGP7 = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp7.png');
+		this.skyOverlayNGP7PW = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp7_pw.png');
+		this.surfaceOverlayNGP14 = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp14.png');
+		this.surfaceOverlayNGP14PW = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp14_pw.png');
+		this.skyOverlayNGP14 = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp14.png');
+		this.skyOverlayNGP14PW = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp14_pw.png');
+		this.surfaceOverlayNGP21 = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp21.png');
+		this.surfaceOverlayNGP21PW = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp21_pw.png');
+		this.skyOverlayNGP21 = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp21.png');
+		this.skyOverlayNGP21PW = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp21_pw.png');
+
 		
 		this.surfaceOverlayScenes = {
-			"hiisi_hourglass_left": await loadPNGBitmap('./data/biome_maps/custom/hiisi_hourglass_left.png'),
-			"hiisi_hourglass_right": await loadPNGBitmap('./data/biome_maps/custom/hiisi_hourglass_right.png'),
-			"orb_room": await loadPNGBitmap('./data/biome_maps/custom/orb_room.png'),
-			"cursed_orb_room": await loadPNGBitmap('./data/biome_maps/custom/cursed_orb_room.png'),
-			"echoing_spire": await loadPNGBitmap('./data/biome_maps/custom/echoing_spire.png'),
+			"hiisi_hourglass_left": await loadPNGBitmap('../data/biome_maps/custom/hiisi_hourglass_left.png'),
+			"hiisi_hourglass_right": await loadPNGBitmap('../data/biome_maps/custom/hiisi_hourglass_right.png'),
+			"orb_room": await loadPNGBitmap('../data/biome_maps/custom/orb_room.png'),
+			"cursed_orb_room": await loadPNGBitmap('../data/biome_maps/custom/cursed_orb_room.png'),
+			"echoing_spire": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire.png'),
 		};
 		
 		
 	},
 
 	getViewArea() {
+		const zoomMultiplier = 0.75; // Makes the view area considered slightly larger than the screen so that loading can happen before reaching the edge
 		const worldShiftX = this.pw * 512 * getWorldSize(this.isNGP);
 		const worldShiftY = this.pwVertical * 24576; // 512 * 48
-		const left = worldShiftX + this.cam.x - (this.canvas.width / 2) / this.cam.z;
-		const right = worldShiftX + this.cam.x + (this.canvas.width / 2) / this.cam.z;
-		const top = worldShiftY + this.cam.y - (this.canvas.height / 2) / this.cam.z;
-		const bottom = worldShiftY + this.cam.y + (this.canvas.height / 2) / this.cam.z;
+		const left = worldShiftX + this.cam.x - (this.canvas.width / 2) / (this.cam.z * zoomMultiplier);
+		const right = worldShiftX + this.cam.x + (this.canvas.width / 2) / (this.cam.z * zoomMultiplier);
+		const top = worldShiftY + this.cam.y - (this.canvas.height / 2) / (this.cam.z * zoomMultiplier);
+		const bottom = worldShiftY + this.cam.y + (this.canvas.height / 2) / (this.cam.z * zoomMultiplier);
 		return { left, right, top, bottom };
 	},
 
@@ -1378,14 +1468,52 @@ export const app = {
 					}
 				}
 				else {
-					if (pwX === 0) {
-						if (this.surfaceOverlayNGP) {
-							this.ctx.drawImage(this.surfaceOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512);
+					if (this.ngPlusCount === 7 || this.ngPlusCount === 28) {
+						if (pwX === 0) {
+							if (this.surfaceOverlayNGP7) {
+								this.ctx.drawImage(this.surfaceOverlayNGP7, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
+						}
+						else {
+							if (this.surfaceOverlayNGP7PW) {
+								this.ctx.drawImage(this.surfaceOverlayNGP7PW, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
+						}
+					}
+					else if (this.ngPlusCount === 14) {
+						if (pwX === 0) {
+							if (this.surfaceOverlayNGP14) {
+								this.ctx.drawImage(this.surfaceOverlayNGP14, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
+						}
+						else {
+							if (this.surfaceOverlayNGP14PW) {
+								this.ctx.drawImage(this.surfaceOverlayNGP14PW, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
+						}
+					}
+					else if (this.ngPlusCount === 21) {
+						if (pwX === 0) {
+							if (this.surfaceOverlayNGP21) {
+								this.ctx.drawImage(this.surfaceOverlayNGP21, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
+						}
+						else {
+							if (this.surfaceOverlayNGP21PW) {
+								this.ctx.drawImage(this.surfaceOverlayNGP21PW, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
 						}
 					}
 					else {
-						if (this.surfaceOverlayNGPPW) {
-							this.ctx.drawImage(this.surfaceOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512);
+						if (pwX === 0) {
+							if (this.surfaceOverlayNGP) {
+								this.ctx.drawImage(this.surfaceOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
+						}
+						else {
+							if (this.surfaceOverlayNGPPW) {
+								this.ctx.drawImage(this.surfaceOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512);
+							}
 						}
 					}
 				}
@@ -1394,24 +1522,62 @@ export const app = {
 				if (this.ngPlusCount === 0) {
 					if (pwX === 0) {
 						if (this.skyOverlay) {
-							this.ctx.drawImage(this.skyOverlay, shiftX, shiftY, this.w * 512, this.h * 512);
+							this.ctx.drawImage(this.skyOverlay, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 						}
 					}
 					else {
 						if (this.skyOverlayPW) {
-							this.ctx.drawImage(this.skyOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512);
+							this.ctx.drawImage(this.skyOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 						}
 					}
 				}
 				else {
-					if (pwX === 0) {
-						if (this.skyOverlayNGP) {
-							this.ctx.drawImage(this.skyOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512);
+					if (this.ngPlusCount === 7 || this.ngPlusCount === 28) {
+						if (pwX === 0) {
+							if (this.skyOverlayNGP7) {
+								this.ctx.drawImage(this.skyOverlayNGP7, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
+						}
+						else {
+							if (this.skyOverlayNGP7PW) {
+								this.ctx.drawImage(this.skyOverlayNGP7PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
+						}
+					}
+					else if (this.ngPlusCount === 14) {
+						if (pwX === 0) {
+							if (this.skyOverlayNGP14) {
+								this.ctx.drawImage(this.skyOverlayNGP14, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
+						}
+						else {
+							if (this.skyOverlayNGP14PW) {
+								this.ctx.drawImage(this.skyOverlayNGP14PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
+						}
+					}
+					else if (this.ngPlusCount === 21) {
+						if (pwX === 0) {
+							if (this.skyOverlayNGP21) {
+								this.ctx.drawImage(this.skyOverlayNGP21, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
+						}
+						else {
+							if (this.skyOverlayNGP21PW) {
+								this.ctx.drawImage(this.skyOverlayNGP21PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
 						}
 					}
 					else {
-						if (this.skyOverlayNGPPW) {
-							this.ctx.drawImage(this.skyOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512);
+						if (pwX === 0) {
+							if (this.skyOverlayNGP) {
+								this.ctx.drawImage(this.skyOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
+						}
+						else {
+							if (this.skyOverlayNGPPW) {
+								this.ctx.drawImage(this.skyOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+							}
 						}
 					}
 				}
@@ -1442,15 +1608,16 @@ export const app = {
 
 		// TODO: Layer 3
 		// Tile background, needs to overwrite custom art in some places in NG+ based on a mask
-
-		// Biome map overlay (static chunks)
-		// This is drawn before the main overlay, and covers up shifted parts of the tiles...
-		// This was a hacky workaround to deal with the way the NG+ map shifted into regions without tiles and got partially deleted, but the overlay replaces it
-		/*
-		if (this.biomeMapOverlay) {
-			this.ctx.drawImage(this.biomeMapOverlay, 0, 0, this.w, this.h, 0, 0, this.w * 512, this.h * 512);
+		
+		// TODO: Might need special mask for vertical PWs but for now I'll just not draw it there
+		for (let worldKey of this.worldsInView) {
+			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+			if (pwY === 0) {
+				if (this.biomeMapAlphaMask) {
+					this.ctx.drawImage(this.biomeMapAlphaMask, shiftX, shiftY, this.w * 512, this.h * 512);
+				}
+			}
 		}
-		*/
 
 		// Layer 4
 		// Tile data
@@ -1466,6 +1633,8 @@ export const app = {
 			let pwOffsetVertical = -pwY * 6;
 
 			// Draw original tile data
+			// Note: Need to remove canvas from the layers data because web workers cannot access it
+			/*
 			if (biomeOverlayMode === 'none') {
 				for (const layer of this.tileLayers) {
 					if (layer.canvas) {
@@ -1473,6 +1642,7 @@ export const app = {
 					}
 				}
 			}
+			*/
 			
 			// TODO: Might need to overwrite outside the region of the map for NG+ shifts of way too much
 			// This might also just fix itself when cross-world panning is implemented
@@ -1481,6 +1651,8 @@ export const app = {
 			// Tile overlay (recolor white to biome foreground average color)
 
 			if (biomeOverlayMode !== 'none') {
+				// Generation of overlays was moved to the worker thread (hopefully working...)
+				/*
 				if (!this.tileOverlaysByPW[`${pwX},${pwY}`]) {
 					// Major timesave in NG, we can reuse the same overlay...
 					if (!this.isNGP) {
@@ -1509,6 +1681,7 @@ export const app = {
 						}
 					}
 				}
+				*/
 				if (this.tileOverlaysByPW[`${pwX},${pwY}`]) {
 					for (let i = 0; i < this.tileLayers.length; i++) {
 						const layer = this.tileLayers[i];
@@ -1541,19 +1714,22 @@ export const app = {
 
 		// Layer 5
 		// Pixel scenes
-
 		for (let worldKey of this.worldsInView) {
 			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 
-			// Render pixel scenes (after overlays)
-			if (this.pixelScenesByPW && this.pixelScenesByPW[`${pwX},${pwY}`]) {
-				for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
-					if (!scene || !scene.imgElement) return;
-					// Note positions of these *do not* use the tile offset
-					this.ctx.drawImage(getPixelSceneCanvas(scene), 
-						scene.x + getWorldCenter(this.isNGP)*512 - pwX*getWorldSize(this.isNGP)*512 + shiftX, 
-						scene.y + 14*512 - pwY*24576 + shiftY
-					);
+			// Skip rendering pixel scenes when really zoomed out since they just make the interface laggy
+
+			if (this.cam.z >= 0.0625) {
+				// Render pixel scenes (after overlays)
+				if (this.pixelScenesByPW && this.pixelScenesByPW[`${pwX},${pwY}`]) {
+					for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
+						if (!scene || !scene.imgElement) return;
+						// Note positions of these *do not* use the tile offset
+						this.ctx.drawImage(getPixelSceneCanvas(scene), 
+							scene.x + getWorldCenter(this.isNGP)*512 - pwX*getWorldSize(this.isNGP)*512 + shiftX, 
+							scene.y + 14*512 - pwY*24576 + shiftY
+						);
+					}
 				}
 			}
 
@@ -1679,12 +1855,8 @@ export const app = {
 			}
 			*/
 			// For now I'll leave these as is because it is kind of accurate to the game that the eyes just pop in when you enter the PW
-			if (this.pw === 1) {
-				renderEyeMessages(this.ctx, this.eyes.east);
-			} 
-			else if (this.pw === -1) {
-				renderEyeMessages(this.ctx, this.eyes.west);
-			}
+			// Technically it's drawing two copies but it doesn't matter too much
+			renderEyeMessages(this.ctx, this.eyes.east, this.pw, this.isNGP);
 		}
 
 		// Layer 8
@@ -1708,6 +1880,26 @@ export const app = {
 		}
 		*/
 
+		// Local search progress display
+		if (activeLocalSearchArea) {
+			const { x, y, r } = activeLocalSearchArea;
+			//console.log(`Rendering local search area at (${x}, ${y}) with radius ${r}`);
+			
+			// The total width and height of the searched square
+			const size = r * 2;
+			const topLeftX = getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + x - r;
+			const topLeftY = 14 * 512 - this.pwVertical * 48 * 512 + y - r;
+
+			// Draw a semi-transparent fill
+			this.ctx.fillStyle = 'rgba(0, 255, 255, 0.15)'; // Light cyan
+			this.ctx.fillRect(topLeftX, topLeftY, size, size);
+
+			// Draw a solid border 
+			this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+			this.ctx.lineWidth = 2; // Adjust based on your zoom level if necessary
+			this.ctx.strokeRect(topLeftX, topLeftY, size, size);
+		}
+
 		// TODO: Check this with panning
 		if (document.getElementById('debug-edge-noise').checked && this.debugCanvas) {
 			this.ctx.drawImage(this.debugCanvas, this.debugX - this.debugCanvas.width/2 + getWorldCenter(this.isNGP)*512, this.debugY - this.debugCanvas.height/2 + 14*512);
@@ -1719,6 +1911,8 @@ export const app = {
 		// Render PoIs
 		if (!document.getElementById('debug-hide-pois').checked) {
 			for (let worldKey of this.worldsInView) {
+				// Skip rendering PoIs when too zoomed out (helps with lag)
+				if (this.cam.z < 0.0625) continue;
 				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				const currentPois = this.poisByPW[`${pwX},${pwY}`];
 				if (currentPois) {
@@ -1851,7 +2045,7 @@ export const app = {
 		tip.classList.add('pinned');
 		tip.style.left = '60%';
 		tip.style.top = '40%';
-		tip.style.transform = 'translate(-10%, -50%)';
+		tip.style.transform = 'translate(-10%, -40%)';
 		
 		updateTooltip(null, poi, tip); 
 		toggleTooltipPinned(tip, true);
@@ -1922,6 +2116,7 @@ export const app = {
 		for (const region of Object.keys(GENERATOR_CONFIG)) {
 			settings[`region_${region}`] = document.getElementById(`region-${region}`).checked;
 		}
+		updateSettings(settings);
 		localStorage.setItem('noitaTelescopeSettings', JSON.stringify(settings));
 		console.log("Settings saved.");
 		//console.log(settings);
@@ -1968,6 +2163,7 @@ export const app = {
 					document.getElementById(`region-${region}`).checked = settings[`region_${region}`];
 					GENERATOR_CONFIG[region].enabled = settings[`region_${region}`];
 				}
+				updateSettings(settings);
 				this.unlocksChanged = true;
 				console.log("Settings loaded successfully.");
 			}

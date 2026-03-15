@@ -1,3 +1,4 @@
+// @deprecated. Search manager and search worker are used now
 import { isMatch, getDisplayName } from './translations.js';
 import { scanSpawnFunctions, getSpecialPoIs } from './poi_scanner.js';
 import { addStaticPixelScenes } from './static_spawns.js';
@@ -545,7 +546,7 @@ async function findNextPWMatches(isIterative = true) {
 		if (!app.poisByPW[`${targetPW},${targetPWVertical}`] || !app.pixelScenesByPW[`${targetPW},${targetPWVertical}`]) {
 			const scanResults = scanSpawnFunctions(app.biomeData, app.tileSpawns, seed, ngPlusCount, targetPW, targetPWVertical, app.skipCosmeticScenes, app.perks);
 			const specialPoIs = getSpecialPoIs(app.biomeData, seed, ngPlusCount, targetPW, targetPWVertical, app.perks);
-			const staticSpawnResults = addStaticPixelScenes(seed, ngPlusCount, targetPW, targetPWVertical, app.biomeData, app.skipCosmeticScenes);
+			const staticSpawnResults = addStaticPixelScenes(seed, ngPlusCount, targetPW, targetPWVertical, app.biomeData, app.skipCosmeticScenes, app.perks);
 			specialPoIs.push(...staticSpawnResults.pois);
 			app.pixelScenesByPW[`${targetPW},${targetPWVertical}`] = scanResults.finalPixelScenes.concat(staticSpawnResults.pixelScenes);
 			app.poisByPW[`${targetPW},${targetPWVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);

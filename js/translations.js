@@ -143,11 +143,16 @@ const EXTRA_TRANSLATIONS = {
 	'biome_boss_sky': 'Kivi Temple',
 }
 
-let TRANSLATIONS = {};
+export let TRANSLATIONS = {};
+
+export function injectTranslations(cachedData) {
+	TRANSLATIONS = cachedData;
+}
 
 export async function loadTranslations() {
 	try {
-		const response = await fetch('./data/translations.csv');
+		const dataUrl = new URL('../data/translations.csv', import.meta.url);
+		const response = await fetch(dataUrl);
 		const text = await response.text();
 		const lines = text.split('\n');
 

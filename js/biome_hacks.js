@@ -31,7 +31,7 @@ export function applyMainBiomeHack(chunkX, pixels, width, height, biomeName, isN
 
 // Coalmine hack
 const BiomeOverlays = {
-	'coalmine': { path: './data/wang_tiles/extra_layers/coalmine.png', image: null },
+	'coalmine': { path: '../data/wang_tiles/extra_layers/coalmine.png', image: null },
 };
 
 async function preloadOverlays() {

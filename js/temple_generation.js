@@ -23,7 +23,7 @@ export function generateHolyMountainShops(ws, ng, pwIndex, perks = {}) {
     // Pacifist chest
     let templeLoot = [];
     // Note: No pacifist chest in last holy mountain!
-    for (let hmIndex = 0; hmIndex < 6 - (isNGPlus ? 1 : 0); hmIndex++) {
+    for (let hmIndex = 0; hmIndex < 6 - (isNGPlus ? 2 : 0); hmIndex++) {
         // TODO: Change to 64 for NG+
         let x = (isNGPlus ? templeXNGPlus : templeX)[hmIndex] - 46 + pwIndex * 512 * worldSize;
         let y = (isNGPlus ? templeYNGPlus : templeY)[hmIndex] - 39;

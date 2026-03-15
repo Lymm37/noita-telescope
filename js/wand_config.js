@@ -1,5 +1,6 @@
 // TODO: Load this asynchronously
-export const SPRITE_RARITY = await fetch('./data/sprite_distributions/wand_sprite_rates.json').then(res => res.json());
+const spriteRarityDataUrl = new URL('../data/sprite_distributions/wand_sprite_rates.json', import.meta.url);
+export const SPRITE_RARITY = await fetch(spriteRarityDataUrl).then(res => res.json());
 
 export const GUN_NAMES = [
   'Deadly','Rusty','Old','New','Shiny','Lethal','Dangerous','Large','Enormous','Tiny','Small','Big','Pretty','Terrifying','Confusing',

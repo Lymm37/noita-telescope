@@ -480,7 +480,7 @@ export function updateTooltip(e, hit, tip) {
 		// Search "Goto" position remains centered
 		tip.style.left = '60%';
 		tip.style.top = '40%';
-		tip.style.transform = 'translate(-10%, -50%)';
+		tip.style.transform = 'translate(-10%, -40%)';
 	}
 }
 

@@ -2,6 +2,7 @@ import { NollaPrng } from "./nolla_prng.js";
 import { ALTAR_SPAWN_DATA } from "./spawn_config.js";
 import { unlockedSpells } from "./unlocks.js";
 import { POTION_MATERIALS_MAGIC, POTION_MATERIALS_STANDARD, POTION_MATERIALS_SECRET, POTION_LIQUIDS, POTION_SANDS, POWDER_MATERIALS_MAGIC, POWDER_MATERIALS_STANDARD } from "./potion_config.js";
+import { appSettings } from "./settings.js";
 
 // Just checks whether it should spawn, without spawning the potion/item on it, to refactor for pixel scenes
 export function checkPotionAltar(ws, ng, x, y, biome) {
@@ -74,7 +75,8 @@ export function spawnPotionAltar(ws, ng, x, y, biome) {
     }
     item['x'] = itemX;
     item['y'] = itemY;
-	if (document.getElementById('debug-rng-info').checked) {
+	//if (document.getElementById('debug-rng-info').checked) {
+	if (appSettings.rngInfo) {
 		item['r'] = r;
 	}
     item['type'] = 'item';

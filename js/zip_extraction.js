@@ -11,7 +11,8 @@ async function loadZipBundle(zipUrl) {
 	if (loadedZipBundles[zipUrl]) {
 		return loadedZipBundles[zipUrl];
 	}
-	const response = await fetch(zipUrl);
+	const dataUrl = new URL(zipUrl, import.meta.url);
+	const response = await fetch(dataUrl);
 	const blob = await response.blob();
 	const reader = new zip.ZipReader(new zip.BlobReader(blob));
 	const zipBundle = (await reader.getEntries()).filter(entry => !entry.directory);
@@ -20,8 +21,9 @@ async function loadZipBundle(zipUrl) {
 }
 
 export async function getFromZipFirst(url) {
-	if (url.startsWith("./")) {
-		url = url.substring(2);
+	// Everything is loaded from js files so this should be fine with import meta url
+	if (url.startsWith("../")) {
+		//url = url.substring(3);
 	}
 	for (const bundle of availableZipBundles) {
 		if (url.startsWith(bundle.prefix)) {
@@ -37,6 +39,7 @@ export async function getFromZipFirst(url) {
 			}
 		}
 	}
-	// console.log(`Not found in zip bundles, fetching from network: ${url}`);
-	return fetch(url).then(response => response.blob());
+	//console.log(`Not found in zip bundles, fetching from network: ${url}`);
+	const dataUrl = new URL(url, import.meta.url);
+	return fetch(dataUrl).then(response => response.blob());
 }

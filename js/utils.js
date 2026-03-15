@@ -3,6 +3,7 @@ import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES, BIOMES_WITHOUT_WAVY_EDGE 
 import { GetBiomeOffset } from './edge_noise.js';
 import { MATERIAL_COLOR_LOOKUP } from './potion_config.js';
 import { PIXEL_SCENE_DATA } from './pixel_scene_generation.js';
+import { appSettings } from './settings.js';
 
 export const CONTAINER_TYPES = [
     'utility_box',
@@ -179,7 +180,8 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail);
 
     // Test without edge noise
-    if (!document.getElementById('debug-enable-edge-noise').checked) {
+    //if (!document.getElementById('debug-enable-edge-noise').checked) {
+    if (!appSettings.enableEdgeNoise) {
         edgeOffset.x = 0;
         edgeOffset.y = 0;
     }
@@ -201,7 +203,8 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     if (!BIOME_COLORS_WITH_TILES.has(colorInt)) biomeName = null; // Only return biomes with tiles, otherwise it's just noise that causes false positives
     
     // This is actually annoyingly expensive for such a minor fix.
-    if (document.getElementById('debug-fix-holy-mountain-edge-noise').checked) {
+    //if (document.getElementById('debug-fix-holy-mountain-edge-noise').checked) {
+    if (appSettings.fixHolyMountainEdgeNoise) {
         const origIdx = originalY * mapWidth + originalX;
         const origColorInt = biomeMap[origIdx] & 0xffffff;
         const origBiomeName = BIOME_COLOR_TO_NAME[origColorInt];
@@ -279,6 +282,7 @@ export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, w
             } else {
                 imgData = PIXEL_SCENE_DATA[scene.key].imgElement;
             }
+            if (!imgData) continue; // Hasn't been generated yet?
             const pixelIdx = (localY * scene.width + localX) * 4; // RGBA in one array
             const r = imgData[pixelIdx];
             const g = imgData[pixelIdx + 1];
@@ -312,4 +316,18 @@ export function roundHalfOfEven(n) {
         return (floor % 2 === 0) ? floor : floor + 1;
     }
     return Math.round(n);
+}
+
+export function* generateSpiral(startX, startY) {
+    yield { x: startX, y: startY };
+    let x = startX, y = startY, step = 1;
+
+    while (true) {
+        for (let i = 0; i < step; i++) yield { x: ++x, y }; // Right
+        for (let i = 0; i < step; i++) yield { x, y: ++y }; // Down
+        step++;
+        for (let i = 0; i < step; i++) yield { x: --x, y }; // Left
+        for (let i = 0; i < step; i++) yield { x, y: --y }; // Up
+        step++;
+    }
 }

@@ -17,12 +17,14 @@ import {
     generateRobotEgg,
     generateDragonBossDrops
 } from './misc_generation.js';
+import { appSettings } from "./settings.js";
 
 // Prevent infinite loops with nested pixel scenes (which hopefully shouldn't happen...)
 const MAX_SCAN_CYCLES = 10;
 
 export function prescanPixelScene(imgData, sourceBiome) {
-    const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
+    //const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
+    const clearSpawnPixels = appSettings.clearSpawnPixels;
     const detectedSpawns = [];
     if (!imgData) return detectedSpawns;
 

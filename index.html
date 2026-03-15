@@ -386,6 +386,11 @@
 
             <div id="search-results"></div>
 
+            <div id="search-status-container" style="display: none; align-items: center; justify-content: space-between; margin-top: 8px; background: #1a1a1a; padding: 5px; border: 1px solid #333;">
+                <span id="search-status" style="font-size: 11px; color: #dca44b;"></span>
+            </div>
+
+
             <span class="adv-toggle" title="Show or hide advanced filters for more specific search criteria">Advanced Filters...</span>
             
             <div id="advanced-ui">
@@ -595,6 +600,11 @@
                         </div>
                     </div>
 
+                    <div class="compact-row" title="Continue search in the background">
+                        <span>Continue Search in Background</span>
+                        <input type="checkbox" id="search-background">
+                    </div>
+
                     <small class="help-text">Only tier 10 spells spawn in vertical PWs, don't use it for wand/item searches or it will be slow for no reason</small>
                 </div>
 
@@ -602,8 +612,8 @@
                 <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                     <span style="font-weight:bold; font-size:14px;" title="Experimental search modes that may give inaccurate results, use with caution">Local Search Modes</span>
                     <div class="options-row">
-                        <label class="debug-opt" title="WIP">
-                            Local Search Mode (Experimental, slow)
+                        <label class="debug-opt" title="Select an option then click somewhere to start a search centered at that pixel. Used to find orbs, high capacity wands, etc.">
+                            Local Search Mode
                             <select id="local-search-mode">
                                 <option value="off" selected>Off</option>
                                 <option value="taikasauva">Taikasauva</option>
@@ -613,6 +623,7 @@
                             </select>
                         </label>
                     </div>
+                    <!-- Didn't end up needing this
                     <div class="options-row">
                         <label class="debug-opt" title="WIP">
                             Search Radius
@@ -625,6 +636,7 @@
                             </div>
                         </div>
                     </div>
+                    -->
                 </div>
             </div>
 

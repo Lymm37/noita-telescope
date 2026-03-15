@@ -3,6 +3,7 @@ import { WAND_TYPES, PREMADE_WANDS } from "./wand_config.js";
 import { WAND_SPAWN_DATA, ALTAR_SPAWN_DATA } from "./spawn_config.js"
 import { generateUtilityBox } from "./utility_box_generation.js";
 import { generateGun } from "./gun_generation.js";
+import { appSettings } from "./settings.js";
 
 export function createWand(ws, ng, x, y, wandType, addOffset, noMoreShuffle = false) {
     let wandX = Math.floor(x);
@@ -139,7 +140,8 @@ export function spawnWandAltar(ws, ng, x, y, biome, perks={}) {
 	let wandX = Math.floor(x + ALTAR_SPAWN_DATA[biome].x);
 	let wandY = Math.floor(y + ALTAR_SPAWN_DATA[biome].y) + 5;
 	let wand = generateWand(ws, ng, wandX, wandY, wandTypeName, perks);
-    if (document.getElementById('debug-rng-info').checked) {
+    //if (document.getElementById('debug-rng-info').checked) {
+    if (appSettings.debugRngInfo) {
         wand['r'] = r;
         wand['r0'] = r0;
     }

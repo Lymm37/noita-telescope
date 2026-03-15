@@ -18,3 +18,7 @@ export const TILE_OFFSET_Y = -13;
 
 export const VISUAL_TILE_OFFSET_X = -5;
 export const VISUAL_TILE_OFFSET_Y = -5;
+
+export const MIN_CAM_Z = 0.025;
+
+export const SKY_EXTRA_HEIGHT = 5; // Just to remove the gap in between the worlds

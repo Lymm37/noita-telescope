@@ -1,16 +1,20 @@
 import { NollaPrng } from './nolla_prng.js';
 import { BLOCKED_COLORS, GENERAL_SCENES, PIXEL_SCENE_BIOME_MAP } from './pixel_scene_config.js';
 import { MATERIAL_COLOR_CONVERSION, MATERIAL_WANG_COLORS } from './potion_config.js';
-import { getBiomeAtWorldCoordinates, getWorldSize } from './utils.js';
+import { getBiomeAtWorldCoordinates } from './utils.js';
 import { loadPNG } from './png_sanitizer.js';
 import { prescanPixelScene } from './poi_scanner.js';
 import { BIOME_BACKGROUND_COLORS, TILE_OVERLAY_COLORS, makeBlackTransparent } from './image_processing.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
-import { app } from './app.js'; // Hacky but I don't feel like figuring out how to pass this data right now
+import { appSettings } from './settings.js';
 
 // This was originally constant but it sometimes needs to be cleared to regenerate the cache...
 export let PIXEL_SCENE_DATA = {};
 const PIXEL_SCENE_CANVAS_CACHE = {};
+
+export function injectPixelSceneData(cachedData) {
+    PIXEL_SCENE_DATA = cachedData;
+}
 
 const SCENES_TO_NOT_RECOLOR = ["wand_altar", "wand_altar_vault", "potion_altar", "potion_altar_vault"]; // It would be a waste to recolor these for every biome
 const PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS = {
@@ -101,7 +105,7 @@ export async function loadPixelSceneData() {
 				if (scene.name === "") continue; // Skip the "no scene" option
 				const key = getPixelSceneKey(biome, scene.name);
 				if (!PIXEL_SCENE_DATA[key]) {
-					const url = `./data/pixel_scenes/${getBiomeAlias(biome)}/${scene.name}.png`;
+					const url = `../data/pixel_scenes/${getBiomeAlias(biome)}/${scene.name}.png`;
 					const imgData = await loadPNG(url);
 					makeBlackTransparent(imgData.data);
 					// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
@@ -247,7 +251,7 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		if (SCENES_TO_NOT_RECOLOR.includes(sceneName)) {
 			biomeName = "general";
 		} else {
-			biomeName = getBiomeAtWorldCoordinates(app.biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, app.ngPlusCount > 0)?.biome || "general";
+			biomeName = getBiomeAtWorldCoordinates(biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, ng > 0)?.biome || "general";
 		}
 	}
 	const variantKey = `biome=${biomeName}`;
@@ -380,8 +384,9 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 }
 
 function recolorPixelSceneForBiome(sceneName, sourceData, width, height, targetBiome, x, y) {
-	const recolorMaterials = document.getElementById('recolor-materials').checked;
-	
+	//const recolorMaterials = document.getElementById('recolor-materials').checked;
+	const recolorMaterials = appSettings.recolorMaterials;
+
 	const outData = new Uint8Array(sourceData.length);
 	outData.set(sourceData);
 

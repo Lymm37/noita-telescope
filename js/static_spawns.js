@@ -2,8 +2,8 @@ import { BIOMES_WITHOUT_WAVY_EDGE } from "./generator_config.js";
 import { NollaPrng } from "./nolla_prng.js";
 import { loadPixelScene } from "./pixel_scene_generation.js";
 import { getWorldCenter, getWorldSize } from "./utils.js";
-import { app } from "./app.js";
 import { getTinyDrops } from "./misc_generation.js";
+import { appSettings } from "./settings.js";
 
 const STATIC_PIXEL_SCENES = [
 	{name: "pyramid/boss_limbs", x: 9726, y: -1024, required: true},
@@ -126,10 +126,11 @@ const PIXEL_SCENE_BIOMES = {
 
 // I really don't care about this but whatever
 // TODO: Skip cosmetic not used here but removes most things
-export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData, skipCosmeticPixelScenes=false) {
+export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData, skipCosmeticPixelScenes=false, perks={}) {
 	const t0 = performance.now();
 
-	const pixelSceneOption = document.getElementById('enable-static-pixel-scenes').value;
+	//const pixelSceneOption = document.getElementById('enable-static-pixel-scenes').value;
+	const pixelSceneOption = appSettings.enableStaticPixelScenes;
 	// TODO: Currently this makes the static PoIs also get skipped, which I don't really want...
 	//if (pixelSceneOption === 'off') return [];
 	let newPixelScenes = [];
@@ -182,13 +183,15 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	// Something small: Scale based on unlocks?
 	// Meh not too important, I'll just use the fully unlocked version
 
+	let hiisiHourglassPosition = null;
+
 	// Special biomes (randomized)
 	const prng = new NollaPrng(0);
 	if (ng === 0 && pwIndexVertical === 0) {
 		// Hiisi hourglass shop
 		const is_right = prng.ProceduralRandom(ws, 0, 0) > 0.5;
 		if (is_right) {
-			app.hiisiHourglassPosition = 'right';
+			hiisiHourglassPosition = 'right';
 			if (pixelSceneOption === 'all') {
 				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_right", ws, ng, 3*512 - 50, 10*512, skipCosmeticPixelScenes, false);
 				if (pixelScene) {
@@ -197,7 +200,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 			}
 		}
 		else {
-			app.hiisiHourglassPosition = 'left';
+			hiisiHourglassPosition = 'left';
 			if (pixelSceneOption === 'all') {
 				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_left", ws, ng, -5*512 + 50, 10*512, skipCosmeticPixelScenes, false);
 				if (pixelScene) {
@@ -419,7 +422,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	// Tiny
 	if (pwIndex === 0 && pwIndexVertical === 0) {
-		newPois.push(getTinyDrops(ws, ng, 'meat', 14941, 16454, app.perks));
+		newPois.push(getTinyDrops(ws, ng, 'meat', 14941, 16454, perks));
 	}
 	// Orbs and other stuff: TODO: Doesn't seem that important compared to NG+ which already works
 
@@ -431,7 +434,8 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	}
 	return {
 		pixelScenes: newPixelScenes,
-		pois: newPois
+		pois: newPois,
+		hiisiHourglassPosition
 	};
 }
 

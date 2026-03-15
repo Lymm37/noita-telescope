@@ -1,13 +1,14 @@
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from "./generator_config.js";
 import { loadPNG } from "./png_sanitizer.js";
 import { MATERIAL_COLOR_CONVERSION } from "./potion_config.js";
+import { appSettings } from "./settings.js";
 import { getBiomeAtWorldCoordinates, getWorldSize, tileToWorldCoordinates } from "./utils.js";
 
 // Used for setting background color...
 
 export async function createBiomeColorLookup(mapPath) {
 	const [img1, img2] = await Promise.all([
-		loadPNG('./data/biome_maps/biome_map.png'),
+		loadPNG('../data/biome_maps/biome_map.png'),
 		loadPNG(mapPath)
 	]);
 
@@ -34,12 +35,12 @@ export async function createBiomeColorLookup(mapPath) {
 }
 
 // TODO: Rename these to something less confusing
-export const [BIOME_BACKGROUND_COLORS, BIOME_COLOR_LOOKUP] = await createBiomeColorLookup('./data/biome_maps/biome_map_background.png');
-export const [TILE_OVERLAY_COLORS, TILE_FOREGROUND_COLORS] = await createBiomeColorLookup('./data/biome_maps/biome_map_foreground.png');
+export const [BIOME_BACKGROUND_COLORS, BIOME_COLOR_LOOKUP] = await createBiomeColorLookup('../data/biome_maps/biome_map_background.png');
+export const [TILE_OVERLAY_COLORS, TILE_FOREGROUND_COLORS] = await createBiomeColorLookup('../data/biome_maps/biome_map_foreground.png');
 
 export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP) {
-    const recolorMaterials = document.getElementById('recolor-materials').checked;
-    const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
+    const recolorMaterials = appSettings.recolorMaterials; //document.getElementById('recolor-materials').checked;
+    const clearSpawnPixels = appSettings.clearSpawnPixels; //document.getElementById('clear-spawn-pixels').checked;
 	const mapWidth = getWorldSize(isNGP);
     const mapHeight = 48;
 	const t0 = performance.now();
@@ -142,7 +143,8 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
 }
 
 export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP) {
-	if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
 	
     let biomeMap = biomeData.pixels;
     if (pwIndexVertical < 0) {
@@ -152,8 +154,8 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
         biomeMap = biomeData.hellPixels;
     }
 
-    const recolorMaterials = document.getElementById('recolor-materials').checked;
-    const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
+    const recolorMaterials = appSettings.recolorMaterials; //document.getElementById('recolor-materials').checked;
+    const clearSpawnPixels = appSettings.clearSpawnPixels; //document.getElementById('clear-spawn-pixels').checked;
     const referenceData = recolorOffscreen;
     
     const mapWidth = getWorldSize(isNGP);
@@ -256,7 +258,8 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
 
 // TODO: This is both currently broken and very slow, but the idea is that it covers some outer edges of the biome in order to fill in the wavy chunk edges
 export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP) {
-	if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
     
     let biomeMap = biomeData.pixels;
     if (pwIndexVertical < 0) {
@@ -266,8 +269,8 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
         biomeMap = biomeData.hellPixels;
     }
 
-    const recolorMaterials = document.getElementById('recolor-materials').checked;
-    const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
+    const recolorMaterials = appSettings.recolorMaterials; //document.getElementById('recolor-materials').checked;
+    const clearSpawnPixels = appSettings.clearSpawnPixels; //document.getElementById('clear-spawn-pixels').checked;
     const mapWidth = getWorldSize(isNGP);
     const t0 = performance.now();
     const overlays = [];
@@ -429,4 +432,41 @@ export function makeBlackTransparent(data) {
             data[i + 3] = 0; // Set Alpha to 0 (Transparent)
         }
     }
+}
+
+// Static tile areas have their own background images, so they need to be excluded or it will look bad
+// Also adding sky biomes
+const alphaMaskExceptions = new Set([
+    0xb70000, // watchtower
+    0xff00fb, // temples
+    0xff00fc,
+    0xff00fd,
+    0xff00fe,
+    0x36d5c9, // cloudscape
+    0xD3E6F0, // heaven
+]);
+
+export function createBiomeMapAlphaMask(biomeData, width, height) {
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(width, height);
+    const data = imageData.data;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const biomeColor = biomeData.pixels[y * width + x] & 0xffffff;
+            if (BIOME_COLORS_WITH_TILES.has(biomeColor) && !alphaMaskExceptions.has(biomeColor)) {
+                const overlayColor = BIOME_COLOR_LOOKUP[biomeColor] || 0xff00ff;
+                data[idx] = (overlayColor >> 16) & 0xff;
+                data[idx + 1] = (overlayColor >> 8) & 0xff;
+                data[idx + 2] = overlayColor & 0xff;
+                data[idx + 3] = 255; // Fully opaque
+            }
+            else {
+                data[idx + 3] = 0; // Fully transparent
+            }
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
 }

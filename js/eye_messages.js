@@ -1,5 +1,4 @@
 import { getWorldCenter, getWorldSize } from "./utils.js";
-import { app } from "./app.js"; // For isNGP check
 
 const HAS_BACKGROUND = {0xff36d517: false, 0xff3d3e40: false, 0xff2dc010: true, 0xff33e311: true, 0xff48e311: false, 0xffad8111: false, 0xff7be311: false, 0xff008040: true, 0xffd57917: false, 0xffd56517: false, 0xff124445: false, 0xff24888a: false, 0xff1775d5: false, 0xff18a0d6: false, 0xffe861f0: false, 0xffa861ff: false, 0xff008000: false, 0xff0080a8: false, 0xffc00020: true, 0xff50eed7: true, 0xff14eed7: true, 0xff0da899: true, 0xff14e1d7: false, 0xff786c42: false, 0xff006c42: false, 0xff0046ff: false, 0xff775ddb: true, 0xff18d6d6: false, 0xffffa717: false, 0xff0000ff: false, 0xffffff00: false, 0xff808000: false, 0xffa08400: false, 0xff3d3d3d: true, 0xff684c4c: true, 0xffb8a928: true, 0xff3f3d3e: true, 0xff3d3e37: false, 0xff3d3e38: false, 0xff3d3e39: false, 0xff3d3e3a: false, 0xff3d3e3b: false, 0xff3d3e3c: false, 0xff3d3e3d: false, 0xff3d3e3e: false, 0xff3d3e3f: false, 0xff3d3e41: false, 0xff42244d: true, 0xff3c0f0a: false, 0xffd3e6f0: false, 0xff9c6c42: false, 0xffc02020: false, 0xffe1cd32: false, 0xff008080: true, 0xff018080: true, 0xff028080: true, 0xff208080: true, 0xff608080: false, 0xff204060: false, 0xff224060: true, 0xff214060: true, 0xff234060: true, 0xff408080: true, 0xff418080: true, 0xff428080: true, 0xff438080: true, 0xffe08080: false, 0xffc08080: true, 0xffc08082: true, 0xffff8080: true, 0xffff00ff: false, 0xff3d5a3d: false, 0xff3d5a4f: false, 0xff4118d6: false, 0xff3d5ab2: true, 0xff93cb5c: true, 0xff3d5a5b: true, 0xffff6a02: false, 0xff6dcba2: true, 0xff6dcb28: true, 0xff93cb4c: true, 0xff93cb4d: true, 0xff93cb4e: true, 0xff93cb4f: true, 0xff93cb5a: true, 0xff99cb4c: true, 0xff99cb4d: true, 0xff99cb4e: true, 0xff99cb4f: true, 0xff99cb5a: true, 0xff3d5a52: true, 0xff3d5a51: true, 0xff3d5a50: true, 0xfff0d517: true, 0xff5a9628: true, 0xff5a9629: false, 0xffcc9944: false, 0xfff7cf8d: true, 0xfff6cfad: false, 0xff968f5f: false, 0xff968f96: false, 0xffc88f5f: false, 0xff967f5f: false, 0xff167f5f: false, 0xff967f11: false, 0xffd6d8e3: false, 0xff77a5bd: false, 0xff1133f1: true, 0xff1158f1: true, 0xff1133f3: true, 0xff11a3fc: true, 0xff006b1e: true, 0xff3046c1: false, 0xff6ba04b: false, 0xff89a04b: false, 0xff726186: false, 0xff804169: false, 0xffffd100: false, 0xffffd101: false, 0xffffd102: false, 0xffffd103: false, 0xffffd104: false, 0xffffd105: false, 0xffffd106: false, 0xffffd107: false, 0xffffd108: false, 0xffffd109: false, 0xffffd110: false, 0xffffd111: false, 0xffbaa345: false, 0xff364d24: true, 0xff9e4302: false, 0xff085b77: true, 0xff39401a: true, 0xff39401b: true, 0xff39401c: true, 0xff39401d: true, 0xff157cb0: false, 0xff157cb5: false, 0xff157cb6: false, 0xff157cb7: false, 0xff157cb8: false, 0xff57cace: false, 0xff57dace: false, 0xff1f3b62: false, 0xff1f3b64: false, 0xff36d5c9: true, 0xff3f55d1: false, 0xff2e99d1: false, 0xff567cb0: false, 0xff9d99d1: false, 0xff375c00: false, 0xff4e5267: false, 0xff0a95a4: false, 0xff326655: false, 0xffe17e32: false, 0xff39a760: false, 0xff9d893d: false, 0xff796620: false, 0xffeba500: false, 0xff6db55a: true, 0xff6db55b: true, 0xff6db55c: true, 0xff6db55d: true, 0xff6db55e: true, 0xff6db55f: true, 0xff5f8fab: true, 0xff572828: false, 0xfffe0000: false, 0xffb70000: false, 0xffff00fe: false, 0xffff00fd: false, 0xffff00fc: false, 0xffff00fb: false};
 
@@ -98,12 +97,13 @@ export function findEyeMessages(biomeMap, ws, ngp) {
 	return {east: positionsEast, west: positionsWest};
 }
 
-export function renderEyeMessages(ctx, messages) {
+export function renderEyeMessages(ctx, messages, pw, isNGP) {
+	if (pw !== 1 && pw !== -1) return;
 	for (const message of messages) {
 		if (!message.imgElement || message.imgElement.naturalWidth === 0) continue; // Image not loaded yet
 		// Draw white background to make it more readable
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-		let xPos = message.x + getWorldCenter(app.isNGP)*512 - app.pw * 512 * getWorldSize(app.isNGP);
+		let xPos = message.x + getWorldCenter(isNGP)*512 - pw * 512 * getWorldSize(isNGP);
 		// Looks more natural without the background
 		//ctx.fillRect(xPos - 10, message.y + 14*512 - 10, message.imgElement.width + 20, message.imgElement.height + 20);
 		ctx.drawImage(message.imgElement, xPos, message.y + 14*512, message.imgElement.width, message.imgElement.height);

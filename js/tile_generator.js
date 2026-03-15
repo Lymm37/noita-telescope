@@ -268,7 +268,7 @@ function generateStaticTile(biomeName, config, bbox) {
         correctedY,
         w: wangData.width * TILE_SIZE, 
         h: wangData.height * TILE_SIZE,
-        canvas: canvas,
+        //canvas: canvas, // Note: Need to remove canvas from the layers data because web workers cannot access it
         path: null,
         // Storage for independent PW scanning
         buffer: buffer, 
@@ -409,7 +409,7 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
                     correctedY,
                     w: mapW * TILE_SIZE, 
                     h: renderH * TILE_SIZE,
-                    canvas: canvas,
+                    //canvas: canvas, // Note: Need to remove canvas from the layers data because web workers cannot access it
                     path: finalPath ? finalPath.map(p => ({ x: p.x, y: p.y - offsetY })) : null,
                     // Storage for independent PW scanning
                     buffer: rawResult.buffer, 
