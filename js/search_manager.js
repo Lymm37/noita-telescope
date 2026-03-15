@@ -287,7 +287,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
     });
 }
 
-export async function performLocalSearch(mode, radius, startX, startY) {
+export async function performLocalSearch(mode, startX, startY) {
     if (!SEARCH_ENABLED) return;
     if (searchActive) cancelSearch(); 
 

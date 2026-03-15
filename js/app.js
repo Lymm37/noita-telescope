@@ -456,12 +456,12 @@ export const app = {
 
 				if (!pinchange && document.getElementById('local-search-mode').value !== 'off') {
 					const localSearchMode = document.getElementById('local-search-mode').value;
-					const localSearchRadius = parseInt(document.getElementById('search-radius-num').value) || 20;
+					//const localSearchRadius = parseInt(document.getElementById('search-radius-num').value) || 20;
 					const rect = document.getElementById('view').getBoundingClientRect();
 					const x = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x) + this.pw * 512 * getWorldSize(this.isNGP) - getWorldCenter(this.isNGP) * 512;
 					const y = Math.floor((e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y) + this.pwVertical * 512 * 48 - 14 * 512;
-					console.log(`Performing local search at world coordinates: (${x}, ${y}) with radius ${localSearchRadius} and mode ${localSearchMode}`);
-					performLocalSearch(localSearchMode, localSearchRadius, x, y);
+					console.log(`Performing local search at world coordinates: (${x}, ${y}) with mode ${localSearchMode}`);
+					performLocalSearch(localSearchMode, x, y);
 				}
 			}
 		};
