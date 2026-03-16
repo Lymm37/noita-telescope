@@ -2194,6 +2194,11 @@ export const app = {
 					document.getElementById(`region-${region}`).checked = settings[`region_${region}`];
 					GENERATOR_CONFIG[region].enabled = settings[`region_${region}`];
 				}
+				this.perks = {
+					noMoreShuffle: settings.noMoreShuffle || false,
+					greedCurse: settings.greedCurse || false,
+					extraShopItems: settings.extraItemsInHolyMountain || 0,
+				}
 				updateSettings(settings);
 				syncSettingsToSearchWorker();
 				syncSettingsToWorldWorker();
