@@ -54,6 +54,10 @@ export function getPixelSceneCanvas(pixelScene) {
 	const key = `${pixelSceneKey}/${variantKey}`;
 	if (PIXEL_SCENE_CANVAS_CACHE[key]) return PIXEL_SCENE_CANVAS_CACHE[key];
 	const pixelSceneData = PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey];
+	if (!pixelSceneData) {
+		//console.warn(`Pixel scene data not found for key ${pixelSceneKey} with variant ${variantKey}.`);
+		return null;
+	}
 	const width = PIXEL_SCENE_DATA[pixelSceneKey].width;
 	const height = PIXEL_SCENE_DATA[pixelSceneKey].height;
 	const canvas = new OffscreenCanvas(width, height);
@@ -212,6 +216,10 @@ const PIXEL_SCENE_BOUNDS_OFFSET = {
 	"trailer_altar": {x: -67, y: 0},
 }
 
+// TODO: Refactoring pixel scenes to not do the image manipulation here at all
+// Instead do it in the overlay worker when generating for display
+// Minimize the amount of information returned to keep the worker messages lightweight
+
 export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, skipCosmeticScenes = true, checkBounds = true) {
 	const pixelSceneKey = getPixelSceneKey(biomeName, sceneName);
 	if (!PIXEL_SCENE_DATA[pixelSceneKey]) {
@@ -261,17 +269,29 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 			biomeName = getBiomeAtWorldCoordinates(biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, ng > 0)?.biome || "general";
 		}
 	}
+	// Alternative?
+	/*
+	if (SCENES_TO_NOT_RECOLOR.includes(sceneName)) {
+		biomeName = "general";
+	}
+	else if (!biomeName || biomeName === "general") {
+		biomeName = getBiomeAtWorldCoordinates(biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, ng > 0)?.biome || "general";
+	}
+	*/
 	const variantKey = `biome=${biomeName}`;
+	/*
 	if (!PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey]) {
 		PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey] = recolorPixelSceneForBiome(sceneName, getPixelSceneVariant(pixelSceneKey, ''), PIXEL_SCENE_DATA[pixelSceneKey].width, PIXEL_SCENE_DATA[pixelSceneKey].height, biomeName, x, y);
 		//console.log(`Created biome variant of pixel scene ${pixelSceneKey} with key ${variantKey}`);
 	}
-	const pixelSceneImage = PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey];
+	*/
+	//const pixelSceneImage = PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey];
+	//console.log(`Loaded pixel scene ${sceneName} for biome ${biomeName} at (${x}, ${y}) with keys ${pixelSceneKey} / ${variantKey}`);
 	return {
 		key: pixelSceneKey,
 		variantKey: variantKey,
 		name: sceneName,
-		imgElement: pixelSceneImage,
+		//imgElement: pixelSceneImage,
 		width: pixelSceneData.width,
 		height: pixelSceneData.height,
 		x: x,
@@ -307,7 +327,7 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 			let outputScene = {
 				key: pixelSceneKey,
 				name: scene.name, 
-				imgElement: pixelSceneData.imgElement,
+				//imgElement: pixelSceneData.imgElement,
 				width: pixelSceneData.width,
 				height: pixelSceneData.height,
 				x: x, 
@@ -325,19 +345,19 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				if (!targetBiomeTopLeft || targetBiomeTopLeft !== biomeName) {
 					return null;
 				}
-				const topRightCoords = {x: x + outputScene.width, y: y};
+				const topRightCoords = {x: x + pixelSceneData.width, y: y};
 				const targetTopRight = getBiomeAtWorldCoordinates(biomeData, topRightCoords.x, topRightCoords.y, ng > 0);
 				const targetBiomeTopRight = targetTopRight ? targetTopRight.biome : null;
 				if (!targetBiomeTopRight || targetBiomeTopRight !== biomeName) {
 					return null;
 				}
-				const bottomLeftCoords = {x: x, y: y + outputScene.height};
+				const bottomLeftCoords = {x: x, y: y + pixelSceneData.height};
 				const targetBottomLeft = getBiomeAtWorldCoordinates(biomeData, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0);
 				const targetBiomeBottomLeft = targetBottomLeft ? targetBottomLeft.biome : null;
 				if (!targetBiomeBottomLeft || targetBiomeBottomLeft !== biomeName) {
 					return null;
 				}
-				const bottomRightCoords = {x: x + outputScene.width, y: y + outputScene.height};
+				const bottomRightCoords = {x: x + pixelSceneData.width, y: y + pixelSceneData.height};
 				const targetBottomRight = getBiomeAtWorldCoordinates(biomeData, bottomRightCoords.x, bottomRightCoords.y, ng > 0);
 				const targetBiomeBottomRight = targetBottomRight ? targetBottomRight.biome : null;
 				if (!targetBiomeBottomRight || targetBiomeBottomRight !== biomeName) {
@@ -351,7 +371,7 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				const sortedColors = Object.keys(scene.color_material).sort((a, b) => parseInt(a, 16) - parseInt(b, 16));
 				for (const color of sortedColors) {
 					// Start with the recolored variant
-					let pixelSceneImage = getPixelSceneVariant(pixelSceneKey, variantKey);
+					//let pixelSceneImage = getPixelSceneVariant(pixelSceneKey, variantKey);
 					const materials = scene.color_material[color];
 					prng.SetRandomSeed(ws + ng, x + 11, y - 21); //?
 					let r = prng.ProceduralRandom(ws + ng, x + 11, y - 21); // Note ProceduralRandom returns a value in (0, 1] so this is actually fine
@@ -361,7 +381,10 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 					outputScene.material = targetMaterial;
 					let materialColor = MATERIAL_WANG_COLORS[materials[mr]];
 					// See if the recolored pixel scene is already cached
-					variantKey += (variantKey !== '' ? '&' : '') + `${color}=${targetMaterial}`;
+					//variantKey += (variantKey !== '' ? '&' : '') + `${color}=${targetMaterial}`;
+					// Use material color instead to avoid an extra lookup
+					variantKey += (variantKey !== '' ? '&' : '') + `${color}=${materialColor}`;
+					/*
 					if (!PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey]) {
 						PIXEL_SCENE_DATA[pixelSceneKey].variants[variantKey] = recolorPixelScene(
 							pixelSceneImage, 
@@ -370,16 +393,19 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 						);
 						//console.log(`Created variant of pixel scene ${pixelSceneKey} with key ${variantKey}`);
 					}
+					*/
 				}
 			}
 			// Recolor the pixel scene for the biome if needed
 			const finalVariantKey = variantKey + (variantKey !== '' ? '&' : '') + `biome=${biomeName}`;
+			/*
 			if (!PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey]) {
 				PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey] = recolorPixelSceneForBiome(scene.name, getPixelSceneVariant(pixelSceneKey, variantKey), biomeName);
 				//console.log(`Created biome variant of pixel scene ${pixelSceneKey} with key ${finalVariantKey}`);
 			}
+			*/
 			outputScene.variantKey = finalVariantKey;
-			outputScene.imgElement = PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey];
+			//outputScene.imgElement = PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey];
 
 			//console.log(`Loaded pixel scene ${scene.name} at (${x}, ${y}) in biome ${biomeName}.`);
 			return outputScene;

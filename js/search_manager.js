@@ -5,6 +5,7 @@ import { appSettings, updateSettings, updateSettingsFromUI } from './settings.js
 import { PIXEL_SCENE_DATA, PIXEL_SCENE_SPAWN_DATA } from './pixel_scene_generation.js';
 import { TRANSLATIONS } from './translations.js';
 import { unlockedSpells } from './unlocks.js';
+import { getOrGenerateWorld } from './world_manager.js';
 
 const SEARCH_ENABLED = true;
 let searchActive = false; // Whether to display the search results
@@ -15,6 +16,9 @@ export let activeLocalSearchArea = null;
 
 let lastUpdateDrawTime = 0;
 const UPDATE_DRAW_INTERVAL = 16; // ms
+
+// Sync PoIs by PW with the worker so it can do filtering without needing to send all data back and forth
+let syncedKeys = new Set();
 
 export function syncSearchWorkerData() {
     searchWorker.postMessage({
@@ -97,6 +101,10 @@ searchWorker.onmessage = async (e) => {
         document.getElementById('search-status-container').style.display = 'flex';
         document.getElementById('search-status').innerText = msg.msg;
     }
+    else if (msg.type === 'REQUEST_PW_DATA') {
+        getOrGenerateWorld(msg.pw, msg.pwVertical);
+    }
+    // Deprecated
     else if (msg.type === 'PWS_GENERATED') {
         // Cache the PW data sent back from the worker so the map can draw it
         //const pwKey = `${msg.pw},${msg.pwVertical}`;
@@ -182,6 +190,7 @@ searchWorker.onmessage = async (e) => {
         document.getElementById('search-status-container').style.display = 'none';
         searchContinuing = false;
         pendingAutoNavigate = false;
+        updateUIForMatches();
     }
     else if (msg.type === 'PROGRESS') {
         // Update the area state
@@ -306,11 +315,11 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
         backgroundMode: isBackgroundSearchEnabled(),
         filters: filters,
         pwSequence: search.pwSequence,
-        seed: app.seed,
-        ngPlusCount: app.ngPlusCount,
-        perks: app.perks,
-        skipCosmeticScenes: app.skipCosmeticScenes,
-        poisByPW: app.poisByPW // expensive
+        //seed: app.seed,
+        //ngPlusCount: app.ngPlusCount,
+        //perks: app.perks,
+        //skipCosmeticScenes: app.skipCosmeticScenes,
+        //poisByPW: app.poisByPW // expensive
     });
 }
 
@@ -467,5 +476,21 @@ function processPWMatches(matches) {
 // TODO: Refactor to not repeat the world generation here
 export function continueSearchSequence(pw, pwVertical) {
     // Called by the world worker after generating a world
+    const key = `${pw},${pwVertical}`;
+    if (app.poisByPW[key] && !syncedKeys.has(key)) {
+        syncedKeys.add(key);
+        searchWorker.postMessage({
+            cmd: 'SYNC_DATA',
+            pw,
+            pwVertical,
+            pois: app.poisByPW[key]
+        });
+    }
 
+    // Is this right?
+    if (searchActive) {
+        searchWorker.postMessage({
+            cmd: 'FIND_NEXT'
+        });
+    }
 }

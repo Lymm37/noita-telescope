@@ -72,7 +72,7 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
     let newPixelScenes = [];
     let generatedSpawns = [];
 
-    if (!pixelScene.imgElement) return { detectedSpawns, newPixelScenes, generatedSpawns };
+    //if (!pixelScene.imgElement) return { detectedSpawns, newPixelScenes, generatedSpawns };
     const spawnFunctions = BIOME_SPAWN_FUNCTION_MAP[biomeName] || [];
     if (spawnFunctions.length === 0) return { detectedSpawns, newPixelScenes, generatedSpawns };
     
@@ -85,10 +85,6 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
     let potionList = [];
 
     const spawnPoints = PIXEL_SCENE_SPAWN_DATA[pixelScene.key];
-
-    if (!spawnPoints) {
-        console.warn(`No spawn data found for pixel scene ${pixelScene.name} in biome ${biomeName}.`);
-    }
 
     for (const spawnPoint of spawnPoints) {
         const spawnX = pixelScene.x + spawnPoint.x;

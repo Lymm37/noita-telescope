@@ -16,10 +16,10 @@ let searchState = null;
 let spiralIterator = null;
 let pwIndex = 0;
 const prng = new NollaPrng(0);
-let workerBiomeData = null;
-let workerTileSpawns = null;
-let currentPoisByPW = null;
-let currentPixelScenesByPW = null;
+//let workerBiomeData = null;
+//let workerTileSpawns = null;
+let currentPoisByPW = {}; // Cache of generated PoIs for each PW so we can filter them without regenerating
+//let currentPixelScenesByPW = null;
 
 // Quick Search Seed Caches
 let ORB_SEEDS = null;
@@ -180,18 +180,22 @@ self.onmessage = async function(e) {
     const data = e.data;
 
     if (data.cmd === 'SYNC_METADATA') {
-        injectPixelSceneData(data.pixelSceneCache);
-        injectPixelSceneSpawnData(data.pixelSceneSpawnDataCache);
+        //injectPixelSceneData(data.pixelSceneCache);
+        //injectPixelSceneSpawnData(data.pixelSceneSpawnDataCache);
         injectTranslations(data.translationsCache);
-        injectUnlocksData(data.unlockedSpellsCache);
-        workerBiomeData = data.biomeData;
-        workerTileSpawns = data.tileSpawns;
+        //injectUnlocksData(data.unlockedSpellsCache);
+        //workerBiomeData = data.biomeData;
+        //workerTileSpawns = data.tileSpawns;
         return;
     }
     else if (data.cmd === 'SYNC_SETTINGS') {
         updateSettings(data.settings);
-        injectUnlocksData(data.unlockedSpellsCache);
+        //injectUnlocksData(data.unlockedSpellsCache);
         return; 
+    }
+    else if (data.cmd === 'SYNC_DATA') {
+        const key = `${data.pw},${data.pwVertical}`;
+        currentPoisByPW[key] = data.pois;
     }
     else if (data.cmd === 'START_LOCAL_SEARCH') {
         activeSearch = true;
@@ -205,8 +209,8 @@ self.onmessage = async function(e) {
         activeSearch = true;
         searchState = data;
         pwIndex = 0;
-        currentPoisByPW = data.poisByPW; // Avoid accessing this through searchState for performance
-        currentPixelScenesByPW = {};
+        //currentPoisByPW = data.poisByPW; // Avoid accessing this through searchState for performance
+        //currentPixelScenesByPW = {};
         findNextPWWorker();
     }
     else if (data.cmd === 'FIND_NEXT') {
@@ -224,6 +228,7 @@ self.onmessage = async function(e) {
 function findNextPWWorker() {
     if (!activeSearch || !searchState) {
         // Return any partial results if we were in the middle of generating a PW when cancelled
+        /*
         self.postMessage({
             type: 'PWS_GENERATED',
             pois: currentPoisByPW,
@@ -231,10 +236,12 @@ function findNextPWWorker() {
             matches: [],
             done: true
         });
+        */
         self.postMessage({type: 'DONE'});
         return;
     }
     if (pwIndex >= searchState.pwSequence.length) {
+        /*
         self.postMessage({
             type: 'PWS_GENERATED',
             pois: currentPoisByPW,
@@ -242,17 +249,26 @@ function findNextPWWorker() {
             matches: [],
             done: true
         });
+        */
         self.postMessage({ type: 'DONE' });
         activeSearch = false;
         return;
     }
 
-    const { filters, seed, ngPlusCount, skipCosmeticScenes, perks, backgroundMode } = searchState;
+    const { filters, backgroundMode } = searchState;
     const [targetPW, targetPWVertical] = searchState.pwSequence[pwIndex].split(',').map(Number);
     
     self.postMessage({ type: 'STATUS', msg: `Searching PW ${targetPW >= 0 ? '+' : ''}${targetPW}, ${targetPWVertical}...` });
 
     if (!currentPoisByPW[`${targetPW},${targetPWVertical}`]) {
+        console.log(`Generating data for PW ${targetPW >= 0 ? '+' : ''}${targetPW}, ${targetPWVertical}...`);
+        self.postMessage({
+            type: 'REQUEST_PW_DATA',
+            pw: targetPW,
+            pwVertical: targetPWVertical
+        });
+        return; // Wait for main thread to respond with PW data before trying to filter it
+        /*
         const scanResults = scanSpawnFunctions(workerBiomeData, workerTileSpawns, seed, ngPlusCount, targetPW, targetPWVertical, skipCosmeticScenes, perks);
         const specialPoIs = getSpecialPoIs(workerBiomeData, seed, ngPlusCount, targetPW, targetPWVertical, perks);
         const staticSpawnResults = addStaticPixelScenes(seed, ngPlusCount, targetPW, targetPWVertical, workerBiomeData, skipCosmeticScenes, perks);
@@ -261,6 +277,7 @@ function findNextPWWorker() {
         const finalPixelScenes = scanResults.finalPixelScenes.concat(staticSpawnResults.pixelScenes);
         currentPoisByPW[`${targetPW},${targetPWVertical}`] = scanResults.generatedSpawns.concat(specialPoIs); // Cache for future searches
         currentPixelScenesByPW[`${targetPW},${targetPWVertical}`] = finalPixelScenes; // Cache for future searches
+        */
     }
     let matches = [];
     for (let i = 0; i < currentPoisByPW[`${targetPW},${targetPWVertical}`].length; i++) {
@@ -274,20 +291,25 @@ function findNextPWWorker() {
     pwIndex++;
 
     if (matches.length > 0) {
+        self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical });
         if (!backgroundMode) {
+            /*
             self.postMessage({
                 type: 'PWS_GENERATED',
                 pois: currentPoisByPW,
                 pixelScenes: currentPixelScenesByPW,
                 matches: matches
             });
-            //self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical });
+            */
+            
             return; // Pause execution, wait for FIND_NEXT from main thread
         }
+        /*
         else {
             // Just send matches immediately without the full PW data to avoid memory issues
             self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical });
         }
+        */
     }
 
     // Yield to let the worker process messages (like CANCEL) before the next PW

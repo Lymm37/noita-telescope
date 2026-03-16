@@ -6,7 +6,7 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker } from './search_manager.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
@@ -19,7 +19,7 @@ import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings } from './settings.js';
 import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
-import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker } from './overlay_manager.js';
+import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes } from './overlay_manager.js';
 
 export const app = {
 	// TODO: A lot of these are old and unused and could probably be cleaned up
@@ -144,7 +144,14 @@ export const app = {
 					url.searchParams.set('seed', this.seed);
 					url.searchParams.set('ng', 0);
 					window.history.replaceState({}, '', url.toString());
+					// Set all unlocks
+					const list = document.getElementById('unlocks-list');
+					list.querySelectorAll('input').forEach(c => c.checked = true);
+					this.saveSettings();
+					this.unlocksChanged = true;
 					this.generate(true, true);
+					// TODO: Add some kind of warning about the daily run unlocking everything temporarily
+					alert("Note that the daily run temporarily unlocks all spells, remember to sync your unlocks afterwards.");
 				}
 			});
 		};
@@ -1141,6 +1148,11 @@ export const app = {
 				this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = this.pixelScenesByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pixelScenes);
 				this.poisByPW[`${this.pw},${this.pwVertical}`] = this.poisByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pois);
 			}
+
+			// Make sure the search worker is synced with this update
+			continueSearchSequence(this.pw, this.pwVertical)
+			// Synchronously recolor pixel scenes in this world
+			recolorPixelScenes(this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]);
 		}
 
 		// Debug: Show example JSON output
@@ -1737,9 +1749,11 @@ export const app = {
 				// Render pixel scenes (after overlays)
 				if (this.pixelScenesByPW && this.pixelScenesByPW[`${pwX},${pwY}`]) {
 					for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
-						if (!scene || !scene.imgElement) return;
+						//if (!scene || !scene.imgElement) continue;
 						// Note positions of these *do not* use the tile offset
-						this.ctx.drawImage(getPixelSceneCanvas(scene), 
+						const pixelSceneCanvas = getPixelSceneCanvas(scene);
+						if (!pixelSceneCanvas) continue;
+						this.ctx.drawImage(pixelSceneCanvas, 
 							scene.x + getWorldCenter(this.isNGP)*512 - pwX*getWorldSize(this.isNGP)*512 + shiftX, 
 							scene.y + 14*512 - pwY*24576 + shiftY
 						);

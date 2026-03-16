@@ -30,7 +30,7 @@ self.onmessage = async function(e) {
 function generatePixelSceneImagesWorker(pixelSceneKeys, variantKeys) {
 	let outputPixelSceneKeys = [];
 	let outputVariantKeys = [];
-	let canvases = [];
+	let arraybuffers = [];
 
 	for (let i = 0; i < pixelSceneKeys.length; i++) {
 		const pixelSceneKey = pixelSceneKeys[i];
@@ -53,21 +53,16 @@ function generatePixelSceneImagesWorker(pixelSceneKeys, variantKeys) {
 			currentVariantKey += (currentVariantKey !== '' ? '&' : '') + part;
 			outputPixelSceneKeys.push(pixelSceneKey);
 			outputVariantKeys.push(currentVariantKey);
-			canvases.push(recoloredPixelScene);
+			arraybuffers.push(recoloredPixelScene);
 		}
-	}
-
-	const bitmaps = [];
-	if (canvases && canvases.length > 0) {
-		bitmaps.push(...canvases.map(canvas => canvas.transferToImageBitmap()));
 	}
 
 	self.postMessage({
 		type: 'PIXEL_SCENES_GENERATED',
 		pixelSceneKeys: outputPixelSceneKeys,
 		variantKeys: outputVariantKeys,
-		pixelSceneImages: bitmaps
-	}, bitmaps);
+		pixelSceneImages: arraybuffers
+	});
 }
 
 function generateOverlayWorker(seed, ngPlusCount, pw, pwVertical) {

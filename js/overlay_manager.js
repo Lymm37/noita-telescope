@@ -27,7 +27,7 @@ overlayWorker.onmessage = async (e) => {
 			}
 			PIXEL_SCENE_DATA[key].variants[variantKey] = imgElement;
 		}
-
+		app.draw();
 	}
 	else if (msg.type === 'OVERLAY_GENERATED') {
 		const pwKey = `${msg.pw},${msg.pwVertical}`;
@@ -85,13 +85,15 @@ export function recolorPixelScenes(pixelSceneList) {
 			combinedKeys.push(combinedKey);
 		}
 	}
-	console.log(`Requesting recolors for ${pixelSceneKeys.length} pixel scenes`);
-	const payload = {
-		cmd: 'GENERATE_PIXEL_SCENES',
-		pixelSceneKeys,
-		variantKeys
-	};
-	overlayWorker.postMessage(payload);
+	if (pixelSceneKeys.length > 0) {
+		console.log(`Requesting recolors for ${pixelSceneKeys.length} pixel scenes`);
+		const payload = {
+			cmd: 'GENERATE_PIXEL_SCENES',
+			pixelSceneKeys,
+			variantKeys
+		};
+		overlayWorker.postMessage(payload);
+	}
 }
 
 export function getOrGenerateOverlay(pw, pwVertical) {

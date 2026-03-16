@@ -46,7 +46,10 @@ worldWorker.onmessage = async (e) => {
 		//recolorPixelScenes(msg.pixelScenes);
 
         // Tell the search manager that new data is ready to be filtered
-        //continueSearchSequence(msg.pw, msg.pwVertical);
+        continueSearchSequence(msg.pw, msg.pwVertical);
+
+		// Recolor pixel scenes from this PW
+		recolorPixelScenes(msg.pixelScenes);
     }
 };
 

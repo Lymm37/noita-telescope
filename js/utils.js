@@ -331,3 +331,25 @@ export function* generateSpiral(startX, startY) {
         step++;
     }
 }
+
+export function getPayloadSize(obj) {
+    let bufferBytes = 0;
+
+    // We use a custom replacer to catch binary buffers before they get stringified
+    const jsonStr = JSON.stringify(obj, (key, value) => {
+        // Intercept Uint8ClampedArray, Uint8Array, or any ArrayBuffer view
+        if (value && value.buffer instanceof ArrayBuffer) {
+            bufferBytes += value.byteLength;
+            return '[Binary Buffer]'; // Swap it out so JSON doesn't bloat
+        }
+        return value;
+    });
+
+    // Get the exact byte size of the standard JSON text
+    const jsonBytes = new Blob([jsonStr]).size; 
+    
+    // Add the binary buffer sizes back in
+    const totalBytes = jsonBytes + bufferBytes;
+    
+    return (totalBytes / 1024 / 1024).toFixed(3) + ' MB';
+}

@@ -5,6 +5,7 @@ import { addStaticPixelScenes } from './static_spawns.js';
 import { injectTranslations } from './translations.js';
 import { appSettings, updateSettings } from './settings.js';
 import { injectUnlocksData } from './unlocks.js';
+import { getPayloadSize } from './utils.js';
 
 let worldState = null;
 let workerBiomeData = null;
@@ -46,6 +47,15 @@ function generatePWWorker() {
 	specialPoIs.push(...staticSpawnResults.pois);
 	const finalPixelScenes = scanResults.finalPixelScenes.concat(staticSpawnResults.pixelScenes);
 	const generatedSpawns = scanResults.generatedSpawns.concat(specialPoIs);
+
+	// Unsurprisingly, the pixel scenes take up way too much space to be sending them back and forth like this. It's like 68 MB per world
+	/*
+	console.log(`--- PW ${pw >= 0 ? '+' : ''}${pw}, ${pwVertical} Generated ---`);
+    console.log(`PoIs Payload Size: ${getPayloadSize(generatedSpawns)}`);
+    console.log(`Pixel Scenes Payload Size: ${getPayloadSize(finalPixelScenes)}`);
+    console.log(`----------------------------------`);
+	*/
+	// Stripped out the images and let the overlay worker process them separately, this reduces the payload size to around 0.5 MB
 
 	self.postMessage({
 		type: 'PW_GENERATED',
