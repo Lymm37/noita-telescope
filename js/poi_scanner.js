@@ -18,6 +18,7 @@ import {
     generateDragonBossDrops
 } from './misc_generation.js';
 import { appSettings } from "./settings.js";
+import { PIXEL_SCENE_SPAWN_DATA } from "./pixel_scene_generation.js";
 
 // Prevent infinite loops with nested pixel scenes (which hopefully shouldn't happen...)
 const MAX_SCAN_CYCLES = 10;
@@ -82,8 +83,14 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
     // Also handle shop here by detecting spell spawns and grouping them together based on proximity
     let spellList = [];
     let potionList = [];
-    
-    for (const spawnPoint of pixelScene.spawnPoints) {
+
+    const spawnPoints = PIXEL_SCENE_SPAWN_DATA[pixelScene.key];
+
+    if (!spawnPoints) {
+        console.warn(`No spawn data found for pixel scene ${pixelScene.name} in biome ${biomeName}.`);
+    }
+
+    for (const spawnPoint of spawnPoints) {
         const spawnX = pixelScene.x + spawnPoint.x;
         const spawnY = pixelScene.y + spawnPoint.y;
         const index = spawnPoint.spawnFunctionIndex;

@@ -10,7 +10,12 @@ import { appSettings } from './settings.js';
 
 // This was originally constant but it sometimes needs to be cleared to regenerate the cache...
 export let PIXEL_SCENE_DATA = {};
+export let PIXEL_SCENE_SPAWN_DATA = {}; // Populated during the prescan of pixel scenes, keyed by biome and scene name, used for looking up spawn points during generation without needing to access the image data again
 const PIXEL_SCENE_CANVAS_CACHE = {};
+
+export function injectPixelSceneSpawnData(cachedData) {
+	PIXEL_SCENE_SPAWN_DATA = cachedData;
+}
 
 export function injectPixelSceneData(cachedData) {
     PIXEL_SCENE_DATA = cachedData;
@@ -110,6 +115,8 @@ export async function loadPixelSceneData() {
 					makeBlackTransparent(imgData.data);
 					// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
 					const spawnPoints = prescanPixelScene(imgData, biome);
+					PIXEL_SCENE_SPAWN_DATA[key] = spawnPoints;
+					//console.log(`Loaded pixel scene ${key} with ${spawnPoints.length} spawn points.`);
 					PIXEL_SCENE_DATA[key] = {
 						key: key,
 						biome: biome,
@@ -117,7 +124,7 @@ export async function loadPixelSceneData() {
 						imgElement: imgData.data, // Store the image data directly since we need to manipulate it for recoloring
 						width: imgData.width,
 						height: imgData.height,
-						spawnPoints: spawnPoints,
+						//spawnPoints: spawnPoints,
 						isCosmetic: spawnPoints.length === 0, // If there are no spawn points, we can consider it purely cosmetic and can optionally skip some checks during generation
 						variants: {}, // Used for color material changes, keyed as `${color}=${material}`
 					};
@@ -269,7 +276,7 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		height: pixelSceneData.height,
 		x: x,
 		y: y,
-		spawnPoints: pixelSceneData.spawnPoints,
+		//spawnPoints: pixelSceneData.spawnPoints,
 		material: null,
 		type: 'pixel_scene'
 	};
@@ -306,7 +313,7 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				x: x, 
 				y: y, 
 				material: null,
-				spawnPoints: pixelSceneData.spawnPoints,
+				//spawnPoints: pixelSceneData.spawnPoints,
 				type: 'pixel_scene'
 			};
 			// Check whether it is actually in the right biome completely
@@ -368,7 +375,7 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 			// Recolor the pixel scene for the biome if needed
 			const finalVariantKey = variantKey + (variantKey !== '' ? '&' : '') + `biome=${biomeName}`;
 			if (!PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey]) {
-				PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey] = recolorPixelSceneForBiome(scene.name, getPixelSceneVariant(pixelSceneKey, variantKey), PIXEL_SCENE_DATA[pixelSceneKey].width, PIXEL_SCENE_DATA[pixelSceneKey].height, biomeName, x, y);
+				PIXEL_SCENE_DATA[pixelSceneKey].variants[finalVariantKey] = recolorPixelSceneForBiome(scene.name, getPixelSceneVariant(pixelSceneKey, variantKey), biomeName);
 				//console.log(`Created biome variant of pixel scene ${pixelSceneKey} with key ${finalVariantKey}`);
 			}
 			outputScene.variantKey = finalVariantKey;
@@ -383,7 +390,7 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 	return null;
 }
 
-function recolorPixelSceneForBiome(sceneName, sourceData, width, height, targetBiome, x, y) {
+export function recolorPixelSceneForBiome(sceneName, sourceData, targetBiome) {
 	//const recolorMaterials = document.getElementById('recolor-materials').checked;
 	const recolorMaterials = appSettings.recolorMaterials;
 
@@ -471,7 +478,7 @@ function recolorPixelSceneForBiome(sceneName, sourceData, width, height, targetB
 }
 
 // Width and height are not actually needed here
-function recolorPixelScene(sourceData, sourceColor, targetColor) {
+export function recolorPixelScene(sourceData, sourceColor, targetColor) {
     const outData = new Uint8Array(sourceData.length);
 	outData.set(sourceData);
 

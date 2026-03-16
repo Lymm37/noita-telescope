@@ -18,7 +18,8 @@ import { getPixelSceneCanvas, loadPixelSceneData, reloadPixelSceneCache } from '
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings } from './settings.js';
-import { syncWorldWorkerData, getOrGenerateWorld, getOrGenerateOverlay } from './world_manager.js';
+import { syncWorldWorkerData, getOrGenerateWorld } from './world_manager.js';
+import { syncOverlayWorkerData, getOrGenerateOverlay } from './overlay_manager.js';
 
 export const app = {
 	// TODO: A lot of these are old and unused and could probably be cleaned up
@@ -154,17 +155,19 @@ export const app = {
 		pwInput.onchange = () => {
 			this.pw = parseInt(pwInput.value) || 0;
 			// Regenerate/Scan for wands/items in the new PW
-			cancelSearch(); // Cancel any active search when changing PW
-			cancelBtn.style.display = 'none';
+			// TODO: Don't want to cancel search but not sure what to do differently
+			//cancelSearch(); // Cancel any active search when changing PW
+			//cancelBtn.style.display = 'none';
 			this.checkBounds();
 			this.generate(false, false).then(() => {
 				// Rerun the search after scanning is complete to find new matches
 				//cancelSearch(); // No need to cancel it here, new PW means new results anyway
+				/*
 				if (isSearchActive()) {
 					performSearch(false, false);
 					this.draw();
 				}
-				
+				*/
 			});
 		};
 		document.getElementById('pw-inc').onclick = () => {
@@ -180,17 +183,19 @@ export const app = {
 		pwInputVertical.onchange = () => {
 			this.pwVertical = parseInt(pwInputVertical.value) || 0;
 			// Regenerate/Scan for wands/items in the new PW
-			cancelSearch(); // Cancel any active search when changing PW
-			cancelBtn.style.display = 'none';
+			// TODO: Don't want to cancel search but not sure what to do differently
+			//cancelSearch(); // Cancel any active search when changing PW
+			//cancelBtn.style.display = 'none';
 			this.checkBounds();
 			this.generate(false, false).then(() => {
 				// Rerun the search after scanning is complete to find new matches
 				//cancelSearch(); // No need to cancel it here, new PW means new results anyway
+				/*
 				if (isSearchActive()) {
 					performSearch(false, false);
 					this.draw();
 				}
-				
+				*/
 			});
 		};
 		document.getElementById('pw-inc-vertical').onclick = () => {
@@ -507,9 +512,12 @@ export const app = {
 				}
 				if (pwChange.x !== 0 || pwChange.y !== 0) {
 					// Clear highlighted PoIs *before* changing PW...
+					// TODO: Don't want to cancel search but not sure what to do differently
+					/*
 					if (isSearchActive()) {
 						clearHighlights(); // Clear without canceling
 					}
+					*/
 					this.pw += pwChange.x;
 					this.pwVertical += pwChange.y;
 					// Can I do this without triggering the change events?
@@ -517,9 +525,11 @@ export const app = {
 					document.getElementById('pw-vertical').value = this.pwVertical;
 					this.generate(false, false);
 					// Attempt to re-search in new PW
+					/*
 					if (isSearchActive()) {
 						performSearch(false, false);
 					}
+					*/
 				}
 				this.checkBounds();
 				this.draw();
@@ -1092,6 +1102,7 @@ export const app = {
 			console.log("Synching data to workers...");
 			syncSearchWorkerData();
 			syncWorldWorkerData();
+			syncOverlayWorkerData();
 			console.log("Synced data to workers.");
 
 			// Do initial overlay generation just for the main world since we need it for the initial render.
@@ -1912,7 +1923,7 @@ export const app = {
 		if (!document.getElementById('debug-hide-pois').checked) {
 			for (let worldKey of this.worldsInView) {
 				// Skip rendering PoIs when too zoomed out (helps with lag)
-				if (this.cam.z < 0.0625) continue;
+				if (this.cam.z < 0.03) continue;
 				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				const currentPois = this.poisByPW[`${pwX},${pwY}`];
 				if (currentPois) {

@@ -8,7 +8,7 @@ import { NollaPrng } from './nolla_prng.js';
 import { getDragonDrops, getTinyDrops } from './misc_generation.js';
 import { generateSpiral, CONTAINER_TYPES } from './utils.js'; 
 import { updateSettings } from './settings.js';
-import { injectPixelSceneData } from './pixel_scene_generation.js';
+import { injectPixelSceneData, injectPixelSceneSpawnData } from './pixel_scene_generation.js';
 
 let activeSearch = false;
 let searchState = null; 
@@ -180,6 +180,7 @@ self.onmessage = async function(e) {
 
     if (data.cmd === 'SYNC_METADATA') {
         injectPixelSceneData(data.pixelSceneCache);
+        injectPixelSceneSpawnData(data.pixelSceneSpawnDataCache);
         injectTranslations(data.translationsCache);
         workerBiomeData = data.biomeData;
         workerTileSpawns = data.tileSpawns;
@@ -227,6 +228,7 @@ function findNextPWWorker() {
             matches: [],
             done: true
         });
+        self.postMessage({type: 'DONE'});
         return;
     }
     if (pwIndex >= searchState.pwSequence.length) {
@@ -237,7 +239,7 @@ function findNextPWWorker() {
             matches: [],
             done: true
         });
-        //self.postMessage({ type: 'DONE' });
+        self.postMessage({ type: 'DONE' });
         activeSearch = false;
         return;
     }
@@ -247,7 +249,6 @@ function findNextPWWorker() {
     
     self.postMessage({ type: 'STATUS', msg: `Searching PW ${targetPW >= 0 ? '+' : ''}${targetPW}, ${targetPWVertical}...` });
 
-    //let isNew = false;
     if (!currentPoisByPW[`${targetPW},${targetPWVertical}`]) {
         const scanResults = scanSpawnFunctions(workerBiomeData, workerTileSpawns, seed, ngPlusCount, targetPW, targetPWVertical, skipCosmeticScenes, perks);
         const specialPoIs = getSpecialPoIs(workerBiomeData, seed, ngPlusCount, targetPW, targetPWVertical, perks);
@@ -256,7 +257,6 @@ function findNextPWWorker() {
         specialPoIs.push(...staticSpawnResults.pois);
         const finalPixelScenes = scanResults.finalPixelScenes.concat(staticSpawnResults.pixelScenes);
         currentPoisByPW[`${targetPW},${targetPWVertical}`] = scanResults.generatedSpawns.concat(specialPoIs); // Cache for future searches
-        //isNew = true;
         currentPixelScenesByPW[`${targetPW},${targetPWVertical}`] = finalPixelScenes; // Cache for future searches
     }
     let matches = [];
@@ -268,35 +268,17 @@ function findNextPWWorker() {
         }
     }
 
-    // Sending this message causes a message pileup that ends up running out of memory
-    /*
-    if (isNew) {
-        self.postMessage({
-            type: 'PW_GENERATED',
-            pw: targetPW,
-            pwVertical: targetPWVertical,
-            pois: currentPoisByPW[`${targetPW},${targetPWVertical}`],
-            pixelScenes: finalPixelScenes,
-            matches: matches
-        });
-    }
-    */
-
     pwIndex++;
 
     if (matches.length > 0) {
         if (!backgroundMode) {
-            /*
-            if (!isNew) {
-                self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical });
-            }
-            */
             self.postMessage({
                 type: 'PWS_GENERATED',
                 pois: currentPoisByPW,
                 pixelScenes: currentPixelScenesByPW,
                 matches: matches
             });
+            //self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical });
             return; // Pause execution, wait for FIND_NEXT from main thread
         }
         else {
@@ -318,6 +300,10 @@ function findNextLocalWorker() {
 
     while (activeSearch) {
         const { value: { x: currX, y: currY } } = spiralIterator.next();
+        let lastRadius = null;
+        if (iterations === 0) {
+            lastRadius = Math.max(Math.abs(currX - searchState.startX), Math.abs(currY - searchState.startY));
+        }
         let item = null;
 
         // Your generation logic from the original findNextLocalMatch
@@ -386,8 +372,6 @@ function findNextLocalWorker() {
             }
         }
 
-        const currentRadius = Math.max(Math.abs(currX - searchState.startX), Math.abs(currY - searchState.startY));
-
         iterations++;
 
         // Throttle to keep the thread responsive (unsure what the update period should be, might need to vary it by search objective)
@@ -400,13 +384,16 @@ function findNextLocalWorker() {
                 self.postMessage({ type: 'LOCAL_MATCHES_FOUND', matches });
                 //matches = []; // Cleared by recursion
             }
-            self.postMessage({ 
-                type: 'PROGRESS', 
-                checked: iterations, 
-                radius: currentRadius,
-                startX: searchState.startX,
-                startY: searchState.startY
-            });
+            const currentRadius = Math.max(Math.abs(currX - searchState.startX), Math.abs(currY - searchState.startY));
+            if (currentRadius !== lastRadius) {
+                self.postMessage({ 
+                    type: 'PROGRESS', 
+                    checked: iterations, 
+                    radius: currentRadius,
+                    startX: searchState.startX,
+                    startY: searchState.startY
+                });
+            }
             if (activeSearch) {
                 setTimeout(findNextLocalWorker, 0);
             }

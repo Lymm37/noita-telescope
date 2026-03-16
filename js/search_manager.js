@@ -2,19 +2,24 @@ import { app } from './app.js';
 import { TIME_UNTIL_LOADING } from './constants.js';
 import { isMatch } from './translations.js';
 import { appSettings, updateSettings, updateSettingsFromUI } from './settings.js';
-import { PIXEL_SCENE_DATA } from './pixel_scene_generation.js';
+import { PIXEL_SCENE_DATA, PIXEL_SCENE_SPAWN_DATA } from './pixel_scene_generation.js';
 import { TRANSLATIONS } from './translations.js';
 
 const SEARCH_ENABLED = true;
-let searchActive = false;
-let searchingInBackground = false;
+let searchActive = false; // Whether to display the search results
+let searchContinuing = false; // Whether the search is still ongoing
+let pendingAutoNavigate = false; // Whether to go to the next match when found
 let search = { results: [], index: -1 };
 export let activeLocalSearchArea = null;
+
+let lastUpdateDrawTime = 0;
+const UPDATE_DRAW_INTERVAL = 16; // ms
 
 export function syncSearchWorkerData() {
     searchWorker.postMessage({
         cmd: 'SYNC_METADATA',
         pixelSceneCache: PIXEL_SCENE_DATA,
+        pixelSceneSpawnDataCache: PIXEL_SCENE_SPAWN_DATA,
         translationsCache: TRANSLATIONS,
         biomeData: app.biomeData,
         tileSpawns: app.tileSpawns
@@ -27,7 +32,12 @@ const isBackgroundSearchEnabled = () => document.getElementById('search-backgrou
 // Soft cancel, without really canceling, but clearing highlights and resetting
 export function clearHighlights() {
     for (let result of search.results) {
-        result.poi.highlight = false;
+        // Clear the highlight from the REAL PoI
+        // Doesn't apply to local search though
+        if (result.pw !== undefined && result.pwVertical !== undefined && result.index !== undefined) {
+            app.poisByPW[`${result.pw},${result.pwVertical}`][result.index].highlight = false;
+        }
+        //result.poi.highlight = false;
     }
 	search.results = [];
 	search.index = -1;
@@ -124,11 +134,22 @@ searchWorker.onmessage = async (e) => {
         }
         const isDone = msg.done || false;
         if (isDone) {
-            searchingInBackground = false;
+            app.setLoading(false);
+            searchContinuing = false;
             document.getElementById('search-status').innerText = '';
             document.getElementById('search-status-container').style.display = 'none';
         }
+        //const lastIndex = search.index;
         updateUIForMatches();
+        if (!isBackgroundSearchEnabled()) {
+            app.setLoading(false); // Prevent blocking popup
+            /*
+            if (lastIndex != -1) {
+                navigateSearch(1); // Navigate to the first result after the worker finds it
+            }
+            */
+        }
+        
     }
     else if (msg.type === 'MATCH_FOUND') {
         const { item, x, y } = msg;
@@ -157,7 +178,8 @@ searchWorker.onmessage = async (e) => {
         }
         document.getElementById('search-status').innerText = '';
         document.getElementById('search-status-container').style.display = 'none';
-        searchingInBackground = false;
+        searchContinuing = false;
+        pendingAutoNavigate = false;
     }
     else if (msg.type === 'PROGRESS') {
         // Update the area state
@@ -167,9 +189,11 @@ searchWorker.onmessage = async (e) => {
             r: msg.radius
         };
         
-        // Trigger a redraw of your map so the overlay animates
-        if (typeof app.draw === 'function') {
+        // Redraw but not too frequently to avoid performance issues
+        const now = performance.now();
+        if (now - lastUpdateDrawTime > UPDATE_DRAW_INTERVAL) {
             app.draw();
+            lastUpdateDrawTime = now;
         }
     }
 };
@@ -180,7 +204,7 @@ async function updateUIForMatches() {
     
     const cancelBtn = document.getElementById('cancel-search');
     cancelBtn.style.display = 'block';
-    cancelBtn.innerText = searchingInBackground ? "Stop Search" : "Clear Results";
+    cancelBtn.innerText = searchContinuing ? "Stop Search" : "Clear Results";
 
     if (search.results.length === 0) {
         document.getElementById('search-results').innerHTML = '<div style="padding:5px; color:#888;">No results found.</div>';
@@ -193,17 +217,18 @@ async function updateUIForMatches() {
             result.highlight = true;
         });
         // If we just found the first item, navigate to it automatically
-        if (search.index === -1) {
+        if (search.index === -1 || pendingAutoNavigate) {
             //console.log("Navigating to first match...");
+            pendingAutoNavigate = false;
             await navigateSearch(1);
         } else {
             // Just update the total count without navigating
-            const suffix = searchingInBackground ? "..." : "";
+            const suffix = searchContinuing ? "..." : "";
             document.getElementById('search-count').innerText = `${search.index + 1} / ${search.results.length}${suffix}`;
         }
     }
 
-    if (!searchingInBackground) app.setLoading(false);
+    if (!searchContinuing) app.setLoading(false);
 }
 
 export async function performSearch(allowIterative = true, autoNavigate = true) {
@@ -270,7 +295,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
 
     const filters = getSearchFilters();
 
-    searchingInBackground = isBackgroundSearchEnabled();
+    searchContinuing = isBackgroundSearchEnabled() || searchAllPW; // If searching all PW, we consider it a long-running search even if not in background mode
 
     // Send the payload to the worker
     searchWorker.postMessage({
@@ -318,7 +343,7 @@ export async function performLocalSearch(mode, startX, startY) {
     else if (filters.minCap >= 27) quickSearch = 'highcap';
     else if (filters.minSpells >= 27) quickSearch = 'highsc';
 
-    searchingInBackground = isBackgroundSearchEnabled();
+    searchContinuing = true; //isBackgroundSearchEnabled();
     
     searchWorker.postMessage({
         cmd: 'START_LOCAL_SEARCH',
@@ -340,10 +365,11 @@ export async function navigateSearch(dir) {
     const bgMode = isBackgroundSearchEnabled();
     
     // If we are at the end of results, and NOT in background mode, ask the worker for the next one
-    if (dir === 1 && search.index === search.results.length - 1 && !bgMode) {
+    if (dir === 1 && search.index === search.results.length - 1 && !bgMode && searchContinuing) {
         app.setLoading(true, "Searching...");
+        pendingAutoNavigate = true;
         searchWorker.postMessage({ cmd: 'FIND_NEXT' });
-        return; 
+        return;
     }
 
     search.index += dir;
@@ -360,7 +386,7 @@ export async function navigateSearch(dir) {
         document.getElementById('pw-vertical').value = app.pwVertical;
     }
 
-    const suffix = searchingInBackground ? " ..." : "";
+    const suffix = searchContinuing ? " ..." : "";
     document.getElementById('search-count').innerText = `${search.index + 1} / ${search.results.length}${suffix}`;
     
     app.gotoPOI(current.poi);
@@ -369,17 +395,18 @@ export async function navigateSearch(dir) {
 export function cancelSearch() {
     searchActive = false;
     activeLocalSearchArea = null;
+    pendingAutoNavigate = false;
     document.getElementById('search-status').innerText = '';
     document.getElementById('search-status-container').style.display = 'none';
     searchWorker.postMessage({ cmd: 'CANCEL' }); 
     // Not clearing highlights here
     const cancelBtn = document.getElementById('cancel-search');
     // TODO: Doing this based on the text is not ideal
-    if (searchingInBackground) {
+    if (searchContinuing) {
         //console.log("Stopping search but keeping results...");
         cancelBtn.innerText = 'Clear Results';
         cancelBtn.style.display = 'block';
-        searchingInBackground = false;
+        searchContinuing = false;
         document.getElementById('search-count').innerText = `${search.index + 1} / ${search.results.length}`;
     }
     else {
@@ -431,4 +458,10 @@ function processPWMatches(matches) {
     // Now safely add them to the search results
     search.results.push(...matches);
     updateUIForMatches();
+}
+
+// TODO: Refactor to not repeat the world generation here
+export function continueSearchSequence(pw, pwVertical) {
+    // Called by the world worker after generating a world
+
 }
