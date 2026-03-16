@@ -6,7 +6,7 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea } from './search_manager.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker } from './search_manager.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
@@ -18,8 +18,8 @@ import { getPixelSceneCanvas, loadPixelSceneData, reloadPixelSceneCache } from '
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings } from './settings.js';
-import { syncWorldWorkerData, getOrGenerateWorld } from './world_manager.js';
-import { syncOverlayWorkerData, getOrGenerateOverlay } from './overlay_manager.js';
+import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
+import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker } from './overlay_manager.js';
 
 export const app = {
 	// TODO: A lot of these are old and unused and could probably be cleaned up
@@ -978,6 +978,7 @@ export const app = {
 
 	// Could probably default rescan to true if tiles is true
 	async generate(tiles, rescan) {
+		if (this.unlocksChanged) tiles = true; // Just regenerate everything ugh
 		this.setLoading(true, tiles ?  "Generating Tiles..." : "Scanning Parallel World..." );
 
 		const seedVal = parseInt(document.getElementById('seed').value);
@@ -1003,6 +1004,8 @@ export const app = {
 			this.cam.x = CHUNK_SIZE*getWorldCenter(this.isNGP);
 			this.cam.y = CHUNK_SIZE*24;
 			this.cam.z = 0.0625;
+
+			
 			// Adding a small extra delay causes it to actually appear
 			await new Promise(resolve => setTimeout(resolve, TIME_UNTIL_LOADING + 25));
 		}
@@ -1041,8 +1044,8 @@ export const app = {
 			const checkedUnlocks = [];
 			document.querySelectorAll('#unlocks-list input:checked').forEach(c => checkedUnlocks.push(c.value));
 			setUnlocks(checkedUnlocks);
-			this.unlocksChanged = false;
 			rescan = true; // If unlocks changed, we need to rescan spawn functions even if tiles didn't change, since some spawns are gated behind unlocks
+			this.unlocksChanged = false; // Reset flag
 		}
 
 		// 1. FULL GENERATION (Only if seed/NG changed)
@@ -2128,6 +2131,9 @@ export const app = {
 			settings[`region_${region}`] = document.getElementById(`region-${region}`).checked;
 		}
 		updateSettings(settings);
+		syncSettingsToSearchWorker();
+		syncSettingsToWorldWorker();
+		syncSettingsToOverlayWorker();
 		localStorage.setItem('noitaTelescopeSettings', JSON.stringify(settings));
 		console.log("Settings saved.");
 		//console.log(settings);
@@ -2175,6 +2181,9 @@ export const app = {
 					GENERATOR_CONFIG[region].enabled = settings[`region_${region}`];
 				}
 				updateSettings(settings);
+				syncSettingsToSearchWorker();
+				syncSettingsToWorldWorker();
+				syncSettingsToOverlayWorker();
 				this.unlocksChanged = true;
 				console.log("Settings loaded successfully.");
 			}

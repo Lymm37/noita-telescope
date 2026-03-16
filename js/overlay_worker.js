@@ -16,6 +16,7 @@ self.onmessage = async function(e) {
 	}
 	else if (data.cmd === 'SYNC_SETTINGS') {
 		updateSettings(data.settings);
+		// Unlocks not needed here, hopefully
 		return; 
 	}
 	else if (data.cmd === 'GENERATE_PIXEL_SCENES') {

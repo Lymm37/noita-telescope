@@ -4,6 +4,7 @@ import { isMatch } from './translations.js';
 import { appSettings, updateSettings, updateSettingsFromUI } from './settings.js';
 import { PIXEL_SCENE_DATA, PIXEL_SCENE_SPAWN_DATA } from './pixel_scene_generation.js';
 import { TRANSLATIONS } from './translations.js';
+import { unlockedSpells } from './unlocks.js';
 
 const SEARCH_ENABLED = true;
 let searchActive = false; // Whether to display the search results
@@ -21,6 +22,7 @@ export function syncSearchWorkerData() {
         pixelSceneCache: PIXEL_SCENE_DATA,
         pixelSceneSpawnDataCache: PIXEL_SCENE_SPAWN_DATA,
         translationsCache: TRANSLATIONS,
+        unlockedSpellsCache: unlockedSpells,
         biomeData: app.biomeData,
         tileSpawns: app.tileSpawns
     });
@@ -429,12 +431,14 @@ export function isSearchActive() {
 }
 
 // TODO: Sync...
-function syncSettingsToWorker() {
+export function syncSettingsToSearchWorker() {
     updateSettingsFromUI();
     searchWorker.postMessage({
         cmd: 'SYNC_SETTINGS',
-        settings: appSettings
+        settings: appSettings,
+        unlockedSpellsCache: unlockedSpells
     });
+    //console.log(appSettings);
 }
 
 function processPWMatches(matches) {

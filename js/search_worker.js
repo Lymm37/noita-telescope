@@ -9,6 +9,7 @@ import { getDragonDrops, getTinyDrops } from './misc_generation.js';
 import { generateSpiral, CONTAINER_TYPES } from './utils.js'; 
 import { updateSettings } from './settings.js';
 import { injectPixelSceneData, injectPixelSceneSpawnData } from './pixel_scene_generation.js';
+import { injectUnlocksData } from './unlocks.js';
 
 let activeSearch = false;
 let searchState = null; 
@@ -182,12 +183,14 @@ self.onmessage = async function(e) {
         injectPixelSceneData(data.pixelSceneCache);
         injectPixelSceneSpawnData(data.pixelSceneSpawnDataCache);
         injectTranslations(data.translationsCache);
+        injectUnlocksData(data.unlockedSpellsCache);
         workerBiomeData = data.biomeData;
         workerTileSpawns = data.tileSpawns;
         return;
     }
     else if (data.cmd === 'SYNC_SETTINGS') {
         updateSettings(data.settings);
+        injectUnlocksData(data.unlockedSpellsCache);
         return; 
     }
     else if (data.cmd === 'START_LOCAL_SEARCH') {

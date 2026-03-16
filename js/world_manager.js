@@ -3,7 +3,9 @@ import { app } from './app.js';
 import { recolorPixelScenes } from './overlay_manager.js';
 import { PIXEL_SCENE_DATA, PIXEL_SCENE_SPAWN_DATA } from './pixel_scene_generation.js';
 import { continueSearchSequence } from './search_manager.js';
+import { appSettings, updateSettingsFromUI } from './settings.js';
 import { TRANSLATIONS } from './translations.js';
+import { unlockedSpells } from './unlocks.js';
 
 export const worldWorker = new Worker(new URL('./world_worker.js', import.meta.url), { type: 'module' });
 
@@ -54,10 +56,21 @@ export function syncWorldWorkerData() {
         pixelSceneCache: PIXEL_SCENE_DATA,
 		pixelSceneSpawnDataCache: PIXEL_SCENE_SPAWN_DATA,
         translationsCache: TRANSLATIONS,
+		unlockedSpellsCache: unlockedSpells,
 		biomeData: app.biomeData,
 		tileSpawns: app.tileSpawns
     });
 	pendingGenerateRequests.clear();
+}
+
+export function syncSettingsToWorldWorker() {
+	updateSettingsFromUI();
+	worldWorker.postMessage({
+		cmd: 'SYNC_SETTINGS',
+		settings: appSettings,
+		unlockedSpellsCache: unlockedSpells
+	});
+	//console.log(appSettings);
 }
 
 export function getOrGenerateWorld(pw, pwVertical) {

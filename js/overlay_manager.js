@@ -1,6 +1,7 @@
 // world_manager.js
 import { app } from './app.js';
 import { PIXEL_SCENE_DATA } from './pixel_scene_generation.js';
+import { appSettings, updateSettingsFromUI } from './settings.js';
 
 export const overlayWorker = new Worker(new URL('./overlay_worker.js', import.meta.url), { type: 'module' });
 
@@ -55,6 +56,15 @@ export function syncOverlayWorkerData() {
 		tileLayers: app.tileLayers
 	});
 	pendingOverlayRequests.clear();
+}
+
+export function syncSettingsToOverlayWorker() {
+	updateSettingsFromUI();
+	overlayWorker.postMessage({
+		cmd: 'SYNC_SETTINGS',
+		settings: appSettings
+	});
+	//console.log(appSettings);
 }
 
 export function recolorPixelScenes(pixelSceneList) {

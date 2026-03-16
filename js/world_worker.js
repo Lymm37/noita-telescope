@@ -4,6 +4,7 @@ import { getSpecialPoIs, scanSpawnFunctions } from './poi_scanner.js';
 import { addStaticPixelScenes } from './static_spawns.js';
 import { injectTranslations } from './translations.js';
 import { appSettings, updateSettings } from './settings.js';
+import { injectUnlocksData } from './unlocks.js';
 
 let worldState = null;
 let workerBiomeData = null;
@@ -16,11 +17,13 @@ self.onmessage = async function(e) {
         injectPixelSceneData(data.pixelSceneCache);
 		injectPixelSceneSpawnData(data.pixelSceneSpawnDataCache);
         injectTranslations(data.translationsCache);
+		injectUnlocksData(data.unlockedSpellsCache);
 		workerBiomeData = data.biomeData;
         workerTileSpawns = data.tileSpawns;
     }
 	else if (data.cmd === 'SYNC_SETTINGS') {
 		updateSettings(data.settings);
+		injectUnlocksData(data.unlockedSpellsCache);
 		return; 
 	}
 	else if (data.cmd === 'GENERATE_PW') {

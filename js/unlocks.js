@@ -65,6 +65,10 @@ export let unlockedSpells = new Array(ALL_SPELLS.length).fill(true);
 // Global to keep track of it... (not used?)
 let unlock_list = [];
 
+export function injectUnlocksData(cachedData) {
+    unlockedSpells = cachedData;
+}
+
 export function setUnlocks(new_unlock_list) {
     unlock_list = new_unlock_list;
     // Reset to base state (all true initially)
