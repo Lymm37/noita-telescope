@@ -34,7 +34,7 @@ export function clearHighlights() {
     for (let result of search.results) {
         // Clear the highlight from the REAL PoI
         // Doesn't apply to local search though
-        if (result.pw !== undefined && result.pwVertical !== undefined && result.index !== undefined) {
+        if (result.pw !== undefined && result.pwVertical !== undefined && result.index !== undefined && app.poisByPW[`${result.pw},${result.pwVertical}`] && app.poisByPW[`${result.pw},${result.pwVertical}`][result.index]) {
             app.poisByPW[`${result.pw},${result.pwVertical}`][result.index].highlight = false;
         }
         //result.poi.highlight = false;
