@@ -186,11 +186,15 @@ self.onmessage = async function(e) {
         //injectUnlocksData(data.unlockedSpellsCache);
         //workerBiomeData = data.biomeData;
         //workerTileSpawns = data.tileSpawns;
+        // Reset cache to ensure no weirdness with desyncs
+        currentPoisByPW = {};
         return;
     }
     else if (data.cmd === 'SYNC_SETTINGS') {
         updateSettings(data.settings);
         //injectUnlocksData(data.unlockedSpellsCache);
+        // Reset cache to ensure no weirdness with desyncs
+        currentPoisByPW = {};
         return; 
     }
     else if (data.cmd === 'SYNC_DATA') {

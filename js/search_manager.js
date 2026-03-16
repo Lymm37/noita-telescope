@@ -11,7 +11,7 @@ const SEARCH_ENABLED = true;
 let searchActive = false; // Whether to display the search results
 let searchContinuing = false; // Whether the search is still ongoing
 let pendingAutoNavigate = false; // Whether to go to the next match when found
-let search = { results: [], index: -1 };
+let search = { results: [], index: -1, mode: null };
 export let activeLocalSearchArea = null;
 
 let lastUpdateDrawTime = 0;
@@ -30,6 +30,8 @@ export function syncSearchWorkerData() {
         biomeData: app.biomeData,
         tileSpawns: app.tileSpawns
     });
+    // Reset cache to ensure no weirdness with desyncs
+    syncedKeys = new Set();
 }
 
 // Ensure you have an element id='search-background' in your HTML for this toggle
@@ -47,6 +49,7 @@ export function clearHighlights() {
     }
 	search.results = [];
 	search.index = -1;
+    search.mode = null;
     document.getElementById('search-nav').style.display = 'none';
     activeLocalSearchArea = null;
     // Might not be necessary?
@@ -183,8 +186,18 @@ searchWorker.onmessage = async (e) => {
     else if (msg.type === 'DONE') {
         app.setLoading(false);
         if (search.results.length === 0) {
-            document.getElementById('search-results').innerHTML = '<div style="padding:5px; color:#888;">No results found.</div>';
+            // Already done in update ui for matches
+            /*
+            let noResultsDisplay = 'No results found.';
+            if (search.mode === 'pw' && search.pwSequence.length > 1) {
+                noResultsDisplay = `No results found in this range of PWs.`;
+            }
+            else if (search.mode === 'pw') {
+                noResultsDisplay = `No results found in this PW.`;
+            }
+            document.getElementById('search-results').innerHTML = `<div style="padding:5px; color:#888;">${noResultsDisplay}</div>`;
             cancelSearch();
+            */
         }
         document.getElementById('search-status').innerText = '';
         document.getElementById('search-status-container').style.display = 'none';
@@ -218,9 +231,17 @@ async function updateUIForMatches() {
     cancelBtn.innerText = searchContinuing ? "Stop Search" : "Clear Results";
 
     if (search.results.length === 0) {
-        document.getElementById('search-results').innerHTML = '<div style="padding:5px; color:#888;">No results found.</div>';
+        let noResultsDisplay = 'No results found.';
+        if (search.mode === 'pw' && search.pwSequence.length > 1) {
+            noResultsDisplay = `No results found in this range of PWs.`;
+        }
+        else if (search.mode === 'pw') {
+            noResultsDisplay = `No results found in this PW.`;
+        }
+        document.getElementById('search-results').innerHTML = `<div style="padding:5px; color:#888;">${noResultsDisplay}</div>`;
         cancelBtn.style.display = 'none';
         document.getElementById('search-nav').style.display = 'none';
+        // Cancel search?
     }
     else {
         // Highlight PoIs
@@ -259,6 +280,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
     searchActive = true;
     search.results = [];
     search.index = -1;
+    search.mode = 'pw';
     
     let currentSequence = [];
 
@@ -334,6 +356,7 @@ export async function performLocalSearch(mode, startX, startY) {
     searchActive = true;
     search.results = [];
     search.index = -1;
+    search.mode = 'local';
 
     const cancelBtn = document.getElementById('cancel-search');
     cancelBtn.style.display = 'block';
@@ -376,8 +399,12 @@ export async function navigateSearch(dir) {
     const bgMode = isBackgroundSearchEnabled();
     
     // If we are at the end of results, and NOT in background mode, ask the worker for the next one
+    // If searchContinuing is false, but this was triggered, it means the search was re-enabled...
     if (dir === 1 && search.index === search.results.length - 1 && !bgMode && searchContinuing) {
-        app.setLoading(true, "Searching...");
+        // Check if it's a local search, if so don't display the loading
+        if (search.mode !== 'local') {
+            app.setLoading(true, "Searching...");
+        }
         pendingAutoNavigate = true;
         searchWorker.postMessage({ cmd: 'FIND_NEXT' });
         return;
@@ -448,6 +475,8 @@ export function syncSettingsToSearchWorker() {
         unlockedSpellsCache: unlockedSpells
     });
     //console.log(appSettings);
+    // Reset cache to ensure no weirdness with desyncs
+    syncedKeys = new Set();
 }
 
 function processPWMatches(matches) {

@@ -241,10 +241,22 @@ export const app = {
 		document.getElementById('gen-btn').onclick = () => this.generate(true, true);
 
 		// Perk Controls
-		
-		document.getElementById('no-more-shuffle').onchange = () => {this.perks['noMoreShuffle'] = document.getElementById('no-more-shuffle').checked; this.saveSettings(); this.generate(false, true)};
-		document.getElementById('greed-curse').onchange = () => {this.perks['greedCurse'] = document.getElementById('greed-curse').checked; this.saveSettings(); this.generate(false, true)};
-		document.getElementById('extra-shop-items').onchange = () => {this.perks['extraShopItems'] = parseInt(document.getElementById('extra-shop-items').value); this.saveSettings(); this.generate(false, true)};
+		// TODO: For now I'm just going to do a full regen because syncing the worker threads is a pain
+		document.getElementById('no-more-shuffle').onchange = () => {
+			this.perks['noMoreShuffle'] = document.getElementById('no-more-shuffle').checked; 
+			this.saveSettings(); 
+			this.generate(true, true)
+		};
+		document.getElementById('greed-curse').onchange = () => {
+			this.perks['greedCurse'] = document.getElementById('greed-curse').checked;
+			this.saveSettings();
+			this.generate(true, true);
+		};
+		document.getElementById('extra-shop-items').onchange = () => {
+			this.perks['extraShopItems'] = parseInt(document.getElementById('extra-shop-items').value);
+			this.saveSettings();
+			this.generate(true, true);
+		};
 		
 		// Debug Controls
 		
@@ -261,7 +273,8 @@ export const app = {
 		document.getElementById('debug-enable-edge-noise').onchange = () => {
 			this.tileOverlaysByPW = {}; // Clear cached overlays so they will be regenerated with the new mode
 			this.saveSettings();
-			this.generate(false, true);
+			// Do full regen to sync worker threads
+			this.generate(true, true);
 		};
 		document.getElementById('custom-art').onchange = async () => {
 			if (!document.getElementById('custom-art').checked) {
@@ -306,7 +319,8 @@ export const app = {
 		document.getElementById('exclude-edge-cases').onchange = () => {
 			this.excludeEdgeCases = document.getElementById('exclude-edge-cases').checked;
 			this.saveSettings();
-			this.generate(false, true);
+			// Do full regen to sync worker threads and remove edge cases from spawns/POIs
+			this.generate(true, true);
 		};
 		document.getElementById('debug-edge-noise').onchange = () => {
 			this.draw();
@@ -321,7 +335,8 @@ export const app = {
 				COALMINE_ALT_SCENES["g_pixel_scene_02"][0].prob = 0.5;
 			}
 			this.saveSettings();
-			this.generate(false, true);
+			// Do full regen just in case?
+			this.generate(true, true);
 		};
 		document.getElementById('enable-static-pixel-scenes').onchange = () => {
 			this.saveSettings();
@@ -559,6 +574,21 @@ export const app = {
 				document.getElementById('search-ac').value = '';
 			}
 		};
+		document.getElementById('local-search-mode').onchange = () => {
+			const mode = document.getElementById('local-search-mode').value;
+			const searchButton = document.getElementById('search-btn');
+			if (mode === 'off') {
+				searchButton.innerText = 'Find';
+				searchButton.disabled = false;
+			}
+			else {
+				searchButton.innerText = 'Click Map';
+				searchButton.disabled = true;
+			}
+			cancelSearch();
+			document.getElementById('search-input').focus();
+			this.draw(); // Clear highlights immediately on mode change
+		}
 
 		// Spells/Cast (1 - 26)
 		 this.initDualSlider('spells', 1, 34, 1);

@@ -38,7 +38,7 @@
         input[type="number"], input[type="text"] { background: #333; color: white; border: 1px solid #555; width: 100%; padding: 5px; box-sizing: border-box; }
         
         button { background: #dca44b; color: #111; border: none; padding: 10px; font-weight: bold; cursor: pointer; border-radius: 3px; }
-        button:disabled { background: #555; cursor: wait; }
+        button:disabled { background: #555; }
         
         .options-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; text-align: left;}
         .search-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
@@ -373,7 +373,7 @@
         <div id="search-container" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
             <span style="font-weight:bold; font-size:14px;">Search World</span>
             <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <input type="text" id="search-input" placeholder="Spells, items..." style="flex: 1;" autocomplete="off" title="Enter the name of a spell, item, potion/pouch material, or other point of interest (e.g. puzzle, dragon). Leave blank to just search for wands meeting the filter criteria.">
+                <input type="text" id="search-input" placeholder="Spells, items, 34th orb..." style="flex: 1;" autocomplete="off" title="Enter the name of a spell, item, potion/pouch material, or other point of interest (e.g. puzzle, dragon). Leave blank to just search for wands meeting the filter criteria.">
                 <button id="search-btn" style="flex: 0.4;" title="Start Search">Find</button>
             </div>
 
@@ -610,10 +610,11 @@
 
                 <!-- Testing new search modes -->
                 <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
-                    <span style="font-weight:bold; font-size:14px;" title="Experimental search modes that may give inaccurate results, use with caution">Local Search Modes</span>
+                    <span style="font-weight:bold; font-size:14px;" title="Search in a local area around where you click on the map, used for End of Everything (EoE), boss wand drops, and Summon Taikasauva spawns.">Local Search</span>
+                    <small class="help-text">Click any point on the map after selecting the local search mode to query.</small>
                     <div class="options-row">
                         <label class="debug-opt" title="Select an option then click somewhere to start a search centered at that pixel. Used to find orbs, high capacity wands, etc.">
-                            Local Search Mode
+                            Mode
                             <select id="local-search-mode">
                                 <option value="off" selected>Off</option>
                                 <option value="taikasauva">Taikasauva</option>
