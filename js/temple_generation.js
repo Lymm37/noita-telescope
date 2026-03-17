@@ -36,7 +36,7 @@ export function generateHolyMountainShops(ws, ng, pwIndex, perks = {}) {
     // Shop
     let prng = new NollaPrng(0);
     let width = 132;
-    let itemCount = 5 + extraShopItems;
+    let itemCount = extraShopItems + 5; // Note: 5 + extraShopItems would give 5 + "0" = 50... Wtf JavsScript. It shouldn't be a string anyway
     let stepSize = width / itemCount;
     for (let hmIndex = 0; hmIndex < (pwIndex == 0 ? 7 : 6) - (isNGPlus ? 2 : 0); hmIndex++) {
         let x = (isNGPlus ? templeXNGPlus : templeX)[hmIndex] - 299 + pwIndex * 512 * worldSize;
@@ -64,6 +64,7 @@ export function generateHolyMountainShops(ws, ng, pwIndex, perks = {}) {
             templeLoot.push({type: 'holy_mountain_shop', items: spellList, x: x, y: y, biome: 'temple_altar'});
         }
     }
+    console.log(`Generated holy mountain shops with ${templeLoot.map(shop => shop.items.length)} items.`);
     return templeLoot;
 }
 

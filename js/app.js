@@ -588,7 +588,33 @@ export const app = {
 			cancelSearch();
 			document.getElementById('search-input').focus();
 			this.draw(); // Clear highlights immediately on mode change
-		}
+		};
+
+		const copyBtn = document.getElementById('copy-path-btn');
+
+		copyBtn.addEventListener('click', async () => {
+			try {
+				// Write to the system clipboard
+				await navigator.clipboard.writeText("%USERPROFILE%\\AppData\\LocalLow\\Nolla_Games_Noita\\save00\\persistent\\flags");
+				
+				// UX Feedback: Change button text temporarily
+				const originalText = copyBtn.innerText;
+				copyBtn.innerText = 'Copied!';
+				copyBtn.style.backgroundColor = '#4CAF50'; // Optional: make it green
+				copyBtn.style.color = 'white';
+
+				// Reset after 2 seconds
+				setTimeout(() => {
+					copyBtn.innerText = originalText;
+					copyBtn.style.backgroundColor = '';
+					copyBtn.style.color = '';
+				}, 2000);
+
+			} catch (err) {
+				console.error('Failed to copy path: ', err);
+				copyBtn.innerText = 'Error';
+			}
+		});
 
 		// Spells/Cast (1 - 26)
 		 this.initDualSlider('spells', 1, 34, 1);
@@ -2144,7 +2170,7 @@ export const app = {
 			//pwVertical: document.getElementById('pw-vertical').value,
 			noMoreShuffle: document.getElementById('no-more-shuffle').checked,
 			greedCurse: document.getElementById('greed-curse').checked,
-			extraItemsInHolyMountain: document.getElementById('extra-shop-items').value,
+			extraItemsInHolyMountain: parseInt(document.getElementById('extra-shop-items').value),
 			skipCosmeticScenes: document.getElementById('skip-cosmetic-scenes').checked,
 			showWandSpriteRarity: document.getElementById('show-wand-sprite-rarity').checked,
 			visitedCoalmineAltShrine: document.getElementById('visited-coalmine-alt-shrine').checked,
@@ -2163,7 +2189,7 @@ export const app = {
 			//smallPois: document.getElementById('debug-small-pois').checked,
 			//fixHolyMountainEdgeNoise: document.getElementById('debug-fix-holy-mountain-edge-noise').checked,
 			//excludeEdgeCases: document.getElementById('exclude-edge-cases').checked,
-			//extraRerolls: document.getElementById('debug-extra-rerolls').value,
+			//extraRerolls: parseInt(document.getElementById('debug-extra-rerolls').value),
 			//rngInfo: document.getElementById('debug-rng-info').checked,
 		};
 		// Unlock settings
@@ -2194,7 +2220,7 @@ export const app = {
 				//document.getElementById('pw-vertical').value = settings.pwVertical || 0;
 				document.getElementById('no-more-shuffle').checked = settings.noMoreShuffle || false;
 				document.getElementById('greed-curse').checked = settings.greedCurse || false;
-				document.getElementById('extra-shop-items').value = settings.extraItemsInHolyMountain || 0;
+				document.getElementById('extra-shop-items').value = parseInt(settings.extraItemsInHolyMountain) || 0;
 				document.getElementById('skip-cosmetic-scenes').checked = settings.skipCosmeticScenes || false;
 				document.getElementById('show-wand-sprite-rarity').checked = settings.showWandSpriteRarity || false; 
 				document.getElementById('visited-coalmine-alt-shrine').checked = settings.visitedCoalmineAltShrine || false;
@@ -2227,7 +2253,7 @@ export const app = {
 				this.perks = {
 					noMoreShuffle: settings.noMoreShuffle || false,
 					greedCurse: settings.greedCurse || false,
-					extraShopItems: settings.extraItemsInHolyMountain || 0,
+					extraShopItems: parseInt(settings.extraItemsInHolyMountain) || 0,
 				}
 				updateSettings(settings);
 				syncSettingsToSearchWorker();

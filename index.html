@@ -308,8 +308,8 @@
         .help-text {
             display: block;
             margin-top: 4px;
-            color: #666;
-            font-size: 10px;
+            color: #888;
+            font-size: 11px;
             line-height: 1.1;
         }
 
@@ -674,9 +674,13 @@
         </div>
 
         <div class="settings-group">
-            <label title="Upload your flags folder to sync unlocks to your current progress. If your unlocks are not synced, spell generation predictions are likely to be incorrect">Sync Unlocks:</label>
-            <input type="file" id="unlock-folder-picker" webkitdirectory directory multiple style="display:none;">
-            <button onclick="document.getElementById('unlock-folder-picker').click()" title="Navigate to %appdata%/../LocalLow/Nolla_Games_Noita/save00/persistent and upload the entire flags folder to sync your unlocked spells">Upload Flags Folder</button>
+            <label>Sync Unlocks:</label>
+            <small class="help-text">Click the Copy Path button then paste it into the file picker and click upload. This will sync the spell unlocks to your current progress. <span style="color: #ff4400">Spell generation is unlikely to be correct if your unlocks are not synced.</span></small>
+            <div style="display: flex; flex-direction: row; align-items: center; gap: 10px; padding-top: 5px;">
+                <button id="copy-path-btn">Copy Path</button>
+                <input type="file" id="unlock-folder-picker" webkitdirectory directory multiple style="display:none;">
+                <button onclick="document.getElementById('unlock-folder-picker').click()" title="Navigate to %appdata%/../LocalLow/Nolla_Games_Noita/save00/persistent and upload the entire flags folder to sync your unlocked spells">Upload Flags Folder</button>
+            </div>
         </div>
 
         <div id="poi-legend" style="font-weight:bold; font-size:14px; margin-bottom:5px; border-top:1px solid #444;">
