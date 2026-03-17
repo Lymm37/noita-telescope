@@ -1028,7 +1028,7 @@ export const app = {
 		console.log("Loading pixel scene data...");
 		// Preload pixel scenes
 		await loadPixelSceneData();
-		console.log("Finished loading pixel scene data.");
+		//console.log("Finished loading pixel scene data.");
 
 		if (document.getElementById('custom-art').checked) {
 			await this.getSurfaceOverlays();
@@ -1165,11 +1165,11 @@ export const app = {
 			this.poisByPW = {};
 			this.tileOverlaysByPW = {};
 
-			console.log("Synching data to workers...");
+			//console.log("Synching data to workers...");
 			syncSearchWorkerData();
 			syncWorldWorkerData();
 			syncOverlayWorkerData();
-			console.log("Synced data to workers.");
+			//console.log("Synced data to workers.");
 
 			// Do initial overlay generation just for the main world since we need it for the initial render.
 			// Other worlds can be handled by workers asynchronously

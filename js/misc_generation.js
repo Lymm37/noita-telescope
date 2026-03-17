@@ -278,7 +278,7 @@ export function generateEndShop(ws, ng, direction) {
         spells.push({type: 'item', item: 'spell', spell: GetRandomAction(ws, ng, x, y, 10, 0), x: x, y: y});
     }
     
-    console.log(`Generated ${direction == 1 ? 'Hell' : 'Heaven'} Shop at (${basePosition.x}, ${basePosition.y}) with spells:`, spells);
+    //console.log(`Generated ${direction == 1 ? 'Hell' : 'Heaven'} Shop at (${basePosition.x}, ${basePosition.y}) with spells:`, spells);
     return {type: 'shop', items: spells, x: basePosition.x + 128, y: basePosition.y + 128, biome: direction == 1 ? 'the_end' : 'the_sky'};
 }
 

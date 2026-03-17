@@ -64,7 +64,7 @@ export function generateHolyMountainShops(ws, ng, pwIndex, perks = {}) {
             templeLoot.push({type: 'holy_mountain_shop', items: spellList, x: x, y: y, biome: 'temple_altar'});
         }
     }
-    console.log(`Generated holy mountain shops with ${templeLoot.map(shop => shop.items.length)} items.`);
+    //console.log(`Generated holy mountain shops with ${templeLoot.map(shop => shop.items.length)} items.`);
     return templeLoot;
 }
 

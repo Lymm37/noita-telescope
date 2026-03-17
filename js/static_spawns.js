@@ -127,7 +127,7 @@ const PIXEL_SCENE_BIOMES = {
 // I really don't care about this but whatever
 // TODO: Skip cosmetic not used here but removes most things
 export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData, skipCosmeticPixelScenes=false, perks={}) {
-	const t0 = performance.now();
+	//const t0 = performance.now();
 
 	//const pixelSceneOption = document.getElementById('enable-static-pixel-scenes').value;
 	const pixelSceneOption = appSettings.enableStaticPixelScenes;
@@ -426,12 +426,13 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	}
 	// Orbs and other stuff: TODO: Doesn't seem that important compared to NG+ which already works
 
-
+	/*
 	const t1 = performance.now();
 	if (Math.abs(pwIndex) <= 1 && pwIndexVertical === 0) {
 		// This is indeed a waste of time for main
 		console.log(`Adding static pixel scenes took ${t1 - t0} ms.`);
 	}
+	*/
 	return {
 		pixelScenes: newPixelScenes,
 		pois: newPois,

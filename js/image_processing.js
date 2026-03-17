@@ -138,7 +138,7 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
     }
 
 	const t1 = performance.now();
-	console.log(`Generated tile overlays in ${(t1 - t0).toFixed(2)} ms`);
+	console.log(`[Tile Overlays] PW ${pwIndex},${pwIndexVertical} took ${(t1 - t0).toFixed(2)} ms`);
     return overlays;
 }
 
@@ -252,7 +252,7 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
     }
 
 	const t1 = performance.now();
-	console.log(`Generated tile overlays in ${(t1 - t0).toFixed(2)} ms`);
+	console.log(`[Tile Overlays] PW ${pwIndex},${pwIndexVertical} took ${(t1 - t0).toFixed(2)} ms`);
     return overlays;
 }
 
@@ -421,7 +421,7 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
     }
 
     const t1 = performance.now();
-    console.log(`Generated expanded tile overlays in ${(t1 - t0).toFixed(2)} ms`);
+    console.log(`[Tile Overlays] PW ${pwIndex},${pwIndexVertical} took ${(t1 - t0).toFixed(2)} ms`);
     return overlays;
 }
 
