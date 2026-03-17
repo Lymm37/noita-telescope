@@ -21,6 +21,9 @@ import { appSettings, updateSettings } from './settings.js';
 import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
 import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes } from './overlay_manager.js';
 
+// Not quite ready yet
+//import {getTemplePerks} from './perks.js';
+
 export const app = {
 	// TODO: A lot of these are old and unused and could probably be cleaned up
 	canvas: null, 
@@ -2026,6 +2029,8 @@ export const app = {
 								}
 								break;
 							case 'utility_box':
+							case 'puzzle':
+							case 'vault_puzzle':
 								poiColor = '#FF00FFAA';
 								break;
 							case 'chest':

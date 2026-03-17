@@ -57,7 +57,7 @@ function generateHeaderHtml(name, sprite, extra, material=null) {
 			wikiName = 'Wands';
 		}
 	}
-	if (MATERIAL_CONTAINER_TYPES.some(type => name.toLowerCase().includes(type))) {
+	if (material && MATERIAL_CONTAINER_TYPES.some(type => name.toLowerCase().includes(type))) {
 		wikiName = getDisplayName(material); // Just link to the material
 	}
 	if (name.toLowerCase().includes('puzzle')) {
@@ -69,9 +69,34 @@ function generateHeaderHtml(name, sprite, extra, material=null) {
 	if (name.toLowerCase().includes('holy mountain') || name.toLowerCase().includes('pacifist')) {
 		wikiName = 'Holy_Mountain';
 	}
-	if (name.toLowerCase().includes('utility_box')) {
-		wikiName = 'Utility_Box'; // Annoying this one doesn't redirect properly
+	if (name === 'UTILITY BOX') {
+		wikiName = 'Utility_Box';
 	}
+	if (name === 'PORTAL') {
+		wikiName = 'Summon_Portal';
+	}
+	if (name === 'DRAGON') {
+		wikiName = 'Suomuhauki';
+	}
+	if (name === 'TINY') {
+		wikiName = 'Limatoukka';
+	}
+	if (name === 'PYRAMID BOSS') {
+		wikiName = 'Kolmisilmän_koipi';
+	}
+	if (name === 'ALCHEMIST BOSS') {
+		wikiName = 'Ylialkemisti';
+	}
+	if (name === 'TRIANGLE BOSS') {
+		wikiName = 'Gate_Guardian';
+	}
+	if (name === 'EYE ROOM') {
+		wikiName = 'Eye_Room';
+	}
+	if (name === 'MEDITATION_CUBE') {
+		wikiName = 'Meditation_Cube';
+	}
+	
 	// TODO: Still missing a lot, but at least the spells work correctly
 	const wikiPage = `https://noita.wiki.gg/wiki/${wikiName.replace(/\s+/g, '_')}`;
 	return `

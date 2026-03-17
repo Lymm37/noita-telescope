@@ -141,6 +141,15 @@ const EXTRA_TRANSLATIONS = {
 	'biome_potion_mimics': 'Henkevä Temple',
 	'biome_darkness': 'Ominous Temple',
 	'biome_boss_sky': 'Kivi Temple',
+
+	// Renamed perks (only a few exceptions, not worth storing all the info about perk display names)
+	'WAND_RADAR': 'Wand Radar', //radar_wand
+	'ITEM_RADAR': 'Item Radar', //radar_item
+	'MOON_RADAR': 'Moon Radar', //radar_moon
+	'FIRE_GAS': 'Gas Fire', //gas_fire
+	'BLEED_GAS': 'Gas Blood', //gas_blood
+	'DUPLICATE_PROJECTILE:': 'Duplicate Projectile', // spell_duplication
+	'PEACE_WITH_GODS': 'Peace With Gods', // peace_with_steve
 }
 
 export let TRANSLATIONS = {};
@@ -176,6 +185,11 @@ export async function loadTranslations() {
 			// Biomes
 			else if (key.startsWith('biome_')) {
 				const normalizedKey = key.replace('biome_', '').toLowerCase();
+				TRANSLATIONS[normalizedKey] = name;
+			}
+			// Perks
+			else if (key.startsWith('perk_')) {
+				const normalizedKey = key.replace('perk_', '').toLowerCase();
 				TRANSLATIONS[normalizedKey] = name;
 			}
 			// Fallback for exact matches
