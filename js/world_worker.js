@@ -59,6 +59,8 @@ function generatePWWorker() {
 
 	self.postMessage({
 		type: 'PW_GENERATED',
+		seed: seed,
+		ngPlusCount: ngPlusCount,
 		pw: pw,
 		pwVertical: pwVertical,
 		pois: generatedSpawns,

@@ -91,6 +91,8 @@ function generateOverlayWorker(seed, ngPlusCount, pw, pwVertical) {
 
 	self.postMessage({
 		type: 'OVERLAY_GENERATED',
+		seed: seed,
+		ngPlusCount: ngPlusCount,
 		pw: pw,
 		pwVertical: pwVertical,
 		overlays: bitmaps

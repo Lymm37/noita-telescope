@@ -19,7 +19,7 @@ import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings } from './settings.js';
 import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
-import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes } from './overlay_manager.js';
+import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, isOverlayPending } from './overlay_manager.js';
 
 // Not quite ready yet
 //import {getTemplePerks} from './perks.js';
@@ -1044,6 +1044,13 @@ export const app = {
 
 	// Could probably default rescan to true if tiles is true
 	async generate(tiles, rescan) {
+		// Temporarily disable the button to prevent multiple clicks during generation, will be re-enabled at the end
+		document.getElementById('gen-btn').disabled = true;
+		document.getElementById('gen-btn').innerText = "Generating...";
+		document.getElementById('seed').disabled = true;
+		document.getElementById('ng').disabled = true;
+		document.getElementById('pw').disabled = true;
+		document.getElementById('pw-vertical').disabled = true;
 		if (this.unlocksChanged) tiles = true; // Just regenerate everything ugh
 		this.setLoading(true, tiles ?  "Generating Tiles..." : "Scanning Parallel World..." );
 
@@ -1231,6 +1238,14 @@ export const app = {
 		btn.innerText = "Generate World";
 		this.setLoading(false);
 		document.getElementById('status').innerText = `Done (PW ${this.pw}, ${this.pwVertical}).`;
+
+		// Re-enable controls
+		document.getElementById('gen-btn').disabled = false;
+		document.getElementById('gen-btn').innerText = "Generate World";
+		document.getElementById('seed').disabled = false;
+		document.getElementById('ng').disabled = false;
+		document.getElementById('pw').disabled = false;
+		document.getElementById('pw-vertical').disabled = false;
 	},
 
 	loadWorld(pwX, pwY) {
@@ -1793,6 +1808,17 @@ export const app = {
 							}
 						}
 					}
+				}
+				else {
+					// Check if there is an existing overlay request pending. If not, request it.
+					// Normally this does not need to be done, but race conditions can sometimes break it
+					/*
+					if (!isOverlayPending(pwX, pwY)) {
+						console.log(`Requesting overlay for PW ${pwX}, ${pwY} to fix race condition`);
+						getOrGenerateOverlay(pwX, pwY);
+					}
+					*/
+					// This doesn't seem to help actually
 				}
 			}
 		}

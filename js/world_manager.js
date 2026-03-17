@@ -20,6 +20,15 @@ worldWorker.onmessage = async (e) => {
     }
     else if (msg.type === 'PW_GENERATED') {
         const pwKey = `${msg.pw},${msg.pwVertical}`;
+        if (app.seed !== msg.seed || app.ngPlusCount !== msg.ngPlusCount) {
+            // Race condition due to user quickly changing seed/ng values while worker is still processing - just ignore the result since it's outdated
+            console.warn(`Race condition in generation - discarding result for seed ${msg.seed}+${msg.ngPlusCount} for PW ${msg.pw},${msg.pwVertical}`);
+            pendingGenerateRequests.delete(pwKey);
+            app.poisByPW[pwKey] = null;
+            app.pixelScenesByPW[pwKey] = null;
+            // Surprisingly this still didn't fix it
+            return;
+        }
         
         // Cache the PW data sent back from the worker so the map can draw it
         app.poisByPW[pwKey] = msg.pois;

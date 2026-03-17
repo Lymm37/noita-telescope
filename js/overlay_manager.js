@@ -31,7 +31,14 @@ overlayWorker.onmessage = async (e) => {
 	}
 	else if (msg.type === 'OVERLAY_GENERATED') {
 		const pwKey = `${msg.pw},${msg.pwVertical}`;
-
+		if (app.seed !== msg.seed || app.ngPlusCount !== msg.ngPlusCount) {
+			// Race condition due to user quickly changing seed/ng values while worker is still processing - just ignore the result since it's outdated
+			console.warn(`Race condition in overlay generation - discarding result for seed ${msg.seed}+${msg.ngPlusCount} for PW ${msg.pw},${msg.pwVertical}`);
+			pendingOverlayRequests.delete(pwKey);
+			app.tileOverlaysByPW[pwKey] = null;
+			// Surprisingly this still didn't fix it
+			return;
+		}
 		// Cache the overlay data sent back from the worker
 		app.tileOverlaysByPW[pwKey] = msg.overlays;
 
@@ -124,4 +131,9 @@ export function getOrGenerateOverlay(pw, pwVertical) {
 	};
 
 	overlayWorker.postMessage(payload);
+}
+
+export function isOverlayPending(pw, pwVertical) {
+	const pwKey = `${pw},${pwVertical}`;
+	return pendingOverlayRequests.has(pwKey);
 }
