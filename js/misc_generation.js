@@ -250,6 +250,12 @@ export function getTinyDrops(worldSeed, ngPlusCount, biomeName, x, y, perks={}) 
     ], x: x, y: y, biome: biomeName};
 }
 
+export function getPitBossDrops(worldSeed, ngPlusCount, biomeName, x, y, perks={}) {
+    return {type: 'pit_boss', items: [
+        generateWand(worldSeed, ngPlusCount, x-24, y, 'wand_unshuffle_05', perks),
+        generateWand(worldSeed, ngPlusCount, x+24, y, 'wand_level_06', perks)
+    ], x: x, y: y, biome: biomeName};
+}
 
 const baseEndShopPositionHeaven = {x: 0, y: -13954};
 const baseEndShopPositionHell = {x: 0, y: 24576};

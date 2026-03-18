@@ -3,6 +3,7 @@ import { GUN_NAMES, GUN_PROBS, WAND_SHAPES, WAND_TYPES } from "./wand_config.js"
 import { GetRandomActionWithType } from "./spell_generator.js";
 import { clamp, shuffleTable, roundHalfOfEven } from "./utils.js";
 import { PROJECTILE, STATIC_PROJECTILE, MODIFIER, DRAW_MANY } from "./spells.js";
+import { generateGreatChestStandalone } from "./chest_generation.js";
 
 export function generateGun(worldSeed, ngPlusCount, wandType, cost, level, force_unshuffle, x, y, noMoreShuffle = false) {
     let gun = {};
@@ -737,4 +738,102 @@ for (let i = 0; i < results.length; i++) {
     console.log(gun2);
 }
 console.log("Done finding coordinates.");
+*/
+
+/*
+const T4 = new Set(await fetch('./data/rng/t4_rare_sprite_seeds.json').then(async res => await res.json()));
+const T4NS = new Set(await fetch('./data/rng/t4ns_rare_sprite_seeds.json').then(async res => await res.json()));
+const T5 = new Set(await fetch('./data/rng/t5_rare_sprite_seeds.json').then(async res => await res.json()));
+const T5NS = new Set(await fetch('./data/rng/t5ns_rare_sprite_seeds.json').then(async res => await res.json()));
+const T6 = new Set(await fetch('./data/rng/t6_rare_sprite_seeds.json').then(async res => await res.json()));
+const T6NS = new Set(await fetch('./data/rng/t6ns_rare_sprite_seeds.json').then(async res => await res.json()));
+const T10 = new Set(await fetch('./data/rng/t10_rare_sprite_seeds.json').then(async res => await res.json()));
+
+const valid_eoe_seeds = new Set();
+for (let seed of T4) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const tier = item.wandType;
+			// Check if tier is valid
+            if (tier === 'wand_level_04') {
+                valid_eoe_seeds.add(seed);
+            }
+		}
+	}
+}
+for (let seed of T4NS) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const tier = item.wandType;
+			// Check if tier is valid
+            if (tier === 'wand_unshuffle_04') {
+                valid_eoe_seeds.add(seed);
+            }
+		}
+	}
+}
+for (let seed of T5) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const tier = item.wandType;
+			// Check if tier is valid
+            if (tier === 'wand_level_05') {
+                valid_eoe_seeds.add(seed);
+            }
+		}
+	}
+}
+for (let seed of T5NS) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const tier = item.wandType;
+			// Check if tier is valid
+            if (tier === 'wand_unshuffle_05') {
+                valid_eoe_seeds.add(seed);
+            }
+		}
+	}
+}
+for (let seed of T6) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const tier = item.wandType;
+			// Check if tier is valid
+            if (tier === 'wand_level_06') {
+                valid_eoe_seeds.add(seed);
+            }
+		}
+	}
+}
+for (let seed of T6NS) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const tier = item.wandType;
+			// Check if tier is valid
+            if (tier === 'wand_unshuffle_06') {
+                valid_eoe_seeds.add(seed);
+            }
+		}
+	}
+}
+for (let seed of T10) {
+	const chest = generateGreatChestStandalone(seed);
+	for (let item of chest.items) {
+		if (item.type === 'wand') {
+			const tier = item.wandType;
+			// Check if tier is valid
+            if (tier === 'wand_level_10') {
+                valid_eoe_seeds.add(seed);
+            }
+		}
+	}
+}
+console.log("Valid EoE seeds: ")
+console.log(Array.from(valid_eoe_seeds).sort((a, b) => a - b));
 */

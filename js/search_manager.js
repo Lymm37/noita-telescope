@@ -370,12 +370,12 @@ export async function performLocalSearch(mode, startX, startY) {
     
     const filters = getSearchFilters();
 
-    // Re-implement your quickSearch check here so we only pass the string to the worker
     let quickSearch = null;
     if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('true_orb', filters.queryList[0])) quickSearch = 'true_orb';
     else if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('sampo', filters.queryList[0])) quickSearch = 'sampo';
     else if (filters.minCap >= 27) quickSearch = 'highcap';
     else if (filters.minSpells >= 27) quickSearch = 'highsc';
+    else if (filters.minSpriteRarity >= 7) quickSearch = 'raresprite';
 
     searchContinuing = true; //isBackgroundSearchEnabled();
     

@@ -5,7 +5,7 @@ import { generateGreatChest } from './chest_generation.js';
 import { generateWand } from './wand_generation.js';
 import { SPRITE_RARITY } from './wand_config.js';
 import { NollaPrng } from './nolla_prng.js';
-import { getDragonDrops, getTinyDrops } from './misc_generation.js';
+import { getDragonDrops, getPitBossDrops, getTinyDrops } from './misc_generation.js';
 import { generateSpiral, CONTAINER_TYPES } from './utils.js'; 
 import { updateSettings } from './settings.js';
 import { injectPixelSceneData, injectPixelSceneSpawnData } from './pixel_scene_generation.js';
@@ -27,9 +27,17 @@ let SAMPO_SEEDS = null;
 const HIGH_SC_T10_SEEDS = [36402008, 37475567, 74727319, 345207455, 377895106, 568379281, 644708457, 653552772, 698862238, 884960988, 1280537179, 1315281277, 1368348114, 1392682761, 1434236773, 1471283855, 1636302025, 1705128673, 1731966418, 1772474495, 2018351783, 2073660843, 2111754688];
 const HIGH_SC_T6_SEEDS = [262049561, 884960988];
 let HIGH_CAP_T3_SEEDS = null;
+let HIGH_CAP_T5NS_SEEDS = null;
+let HIGH_CAP_T6_SEEDS = null;
 let HIGH_CAP_T6NS_SEEDS = null;
 let HIGH_CAP_T10NS_SEEDS = null; 
 let HIGH_CAP_EOE_SEEDS = null; 
+let RARE_SPRITE_T3_SEEDS = null;
+let RARE_SPRITE_T5NS_SEEDS = null;
+let RARE_SPRITE_T6_SEEDS = null;
+let RARE_SPRITE_T6NS_SEEDS = null;
+let RARE_SPRITE_T10NS_SEEDS = null;
+let RARE_SPRITE_EOE_SEEDS = null;
 
 function checkWandMatch(w, f) {
 	const length = w.tip.x - w.grip.x;
@@ -174,6 +182,14 @@ async function loadCaches(mode, quickSearch) {
     if (quickSearch === 'highcap' && (mode === 'tiny' || mode === 'dragon') && !HIGH_CAP_T6NS_SEEDS) HIGH_CAP_T6NS_SEEDS = new Set(await fetchSafeJson('../data/rng/t6ns_high_capacity_seeds.json'));
     if (quickSearch === 'highcap' && mode === 'tiny' && !HIGH_CAP_T10NS_SEEDS) HIGH_CAP_T10NS_SEEDS = new Set(await fetchSafeJson('../data/rng/t10ns_high_capacity_seeds.json'));
     if (quickSearch === 'highcap' && mode === 'taikasauva' && !HIGH_CAP_T3_SEEDS) HIGH_CAP_T3_SEEDS = new Set(await fetchSafeJson('../data/rng/t3_high_capacity_seeds.json'));
+    if (quickSearch === 'raresprite' && (mode === 'tiny' || mode === 'dragon') && !RARE_SPRITE_T6NS_SEEDS) RARE_SPRITE_T6NS_SEEDS = new Set(await fetchSafeJson('../data/rng/t6ns_rare_sprite_seeds.json'));
+    if (quickSearch === 'raresprite' && mode === 'tiny' && !RARE_SPRITE_T10NS_SEEDS) RARE_SPRITE_T10NS_SEEDS = new Set(await fetchSafeJson('../data/rng/t10ns_rare_sprite_seeds.json'));
+    if (quickSearch === 'raresprite' && mode === 'taikasauva' && !RARE_SPRITE_T3_SEEDS) RARE_SPRITE_T3_SEEDS = new Set(await fetchSafeJson('../data/rng/t3_rare_sprite_seeds.json'));
+    if (quickSearch === 'raresprite' && mode === 'eoe' && !RARE_SPRITE_EOE_SEEDS) RARE_SPRITE_EOE_SEEDS = new Set(await fetchSafeJson('../data/rng/eoe_rare_sprite_seeds.json'));
+    if (quickSearch === 'highcap' && mode === 'pit' && !HIGH_CAP_T5NS_SEEDS) HIGH_CAP_T5NS_SEEDS = new Set(await fetchSafeJson('../data/rng/t5ns_high_capacity_seeds.json'));
+    if (quickSearch === 'raresprite' && mode === 'pit' && !RARE_SPRITE_T5NS_SEEDS) RARE_SPRITE_T5NS_SEEDS = new Set(await fetchSafeJson('../data/rng/t5ns_rare_sprite_seeds.json'));
+    if (quickSearch === 'highcap' && mode === 'pit' && !HIGH_CAP_T6_SEEDS) HIGH_CAP_T6_SEEDS = new Set(await fetchSafeJson('../data/rng/t6_high_capacity_seeds.json'));
+    if (quickSearch === 'raresprite' && mode === 'pit' && !RARE_SPRITE_T6_SEEDS) RARE_SPRITE_T6_SEEDS = new Set(await fetchSafeJson('../data/rng/t6_rare_sprite_seeds.json'));
 }
 
 self.onmessage = async function(e) {
@@ -340,9 +356,30 @@ function findNextLocalWorker() {
             if (quickSearch === 'highcap') {
                 prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
                 if (HIGH_CAP_T3_SEEDS.has(prng.Seed)) item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', perks);
+            }
+            else if (quickSearch === 'raresprite') {
+                prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
+                if (RARE_SPRITE_T3_SEEDS.has(prng.Seed)) item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', perks);
             } else {
                 item = generateWand(seed, ngPlusCount, currX, currY, 'wand_level_03', perks);
             }
+        }
+        else if (mode === "pit") {
+            if (quickSearch === 'highcap') {
+                prng.SetRandomSeed(seed + ngPlusCount, currX - 24, currY);
+                const t5nsSeed = prng.Seed;
+                prng.SetRandomSeed(seed + ngPlusCount, currX + 24, currY);
+                const t6Seed = prng.Seed;
+                if (HIGH_CAP_T5NS_SEEDS.has(t5nsSeed) || HIGH_CAP_T6_SEEDS.has(t6Seed)) item = getPitBossDrops(seed, ngPlusCount, null, currX, currY, perks);
+            }
+            else if (quickSearch === 'raresprite') {
+                prng.SetRandomSeed(seed + ngPlusCount, currX - 24, currY);
+                const t5nsSeed = prng.Seed;
+                prng.SetRandomSeed(seed + ngPlusCount, currX + 24, currY);
+                const t6Seed = prng.Seed;
+                if (RARE_SPRITE_T5NS_SEEDS.has(t5nsSeed) || RARE_SPRITE_T6_SEEDS.has(t6Seed)) item = getPitBossDrops(seed, ngPlusCount, null, currX, currY, perks);
+            }
+            else item = getPitBossDrops(seed, ngPlusCount, null, currX, currY, perks);
         }
         else if (mode === "tiny") {
             if (quickSearch === 'highsc') {
@@ -359,6 +396,13 @@ function findNextLocalWorker() {
                 const t10seed = prng.Seed;
                 if (HIGH_CAP_T6NS_SEEDS.has(t6seed) || HIGH_CAP_T10NS_SEEDS.has(t10seed)) item = getTinyDrops(seed, ngPlusCount, null, currX, currY, perks);
             }
+            else if (quickSearch === 'raresprite') {
+                prng.SetRandomSeed(seed + ngPlusCount, currX - 16, currY);
+                const t6seed = prng.Seed;
+                prng.SetRandomSeed(seed + ngPlusCount, currX + 16, currY);
+                const t10seed = prng.Seed;
+                if (RARE_SPRITE_T6NS_SEEDS.has(t6seed) || RARE_SPRITE_T10NS_SEEDS.has(t10seed)) item = getTinyDrops(seed, ngPlusCount, null, currX, currY, perks);
+            }
             else item = getTinyDrops(seed, ngPlusCount, null, currX, currY, perks);
         }
         else if (mode === "dragon") {
@@ -370,12 +414,22 @@ function findNextLocalWorker() {
 				prng.SetRandomSeed(seed + ngPlusCount, currX+16, currY);
 				if (HIGH_CAP_T6NS_SEEDS.has(prng.Seed)) item = getDragonDrops(seed, ngPlusCount, null, currX, currY, perks);
 			}
+            else if (quickSearch === 'raresprite') {
+                prng.SetRandomSeed(seed + ngPlusCount, currX + 16, currY);
+                if (RARE_SPRITE_T6NS_SEEDS.has(prng.Seed)) {
+                    console.log(`ping, ${RARE_SPRITE_T6NS_SEEDS.size}`);
+                    item = getDragonDrops(seed, ngPlusCount, null, currX, currY, perks);
+                }
+            }
 			else item = getDragonDrops(seed, ngPlusCount, null, currX, currY, perks);
 		}
 		else if (mode === "eoe") {
 			if (quickSearch === 'true_orb') {
 				prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
-				if (ORB_SEEDS.has(prng.Seed)) item = {type: 'item', item: 'true_orb', x: currX, y: currY};
+				if (ORB_SEEDS.has(prng.Seed)) {
+                    console.log(`ping, ${ORB_SEEDS.size}`);
+                    item = {type: 'item', item: 'true_orb', x: currX, y: currY};
+                }
 			}
 			else if (quickSearch === 'sampo') {
 				prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
@@ -385,6 +439,10 @@ function findNextLocalWorker() {
 				prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
 				if (HIGH_CAP_EOE_SEEDS.has(prng.Seed)) item = generateGreatChest(seed, ngPlusCount, currX, currY, perks);
 			}
+            else if (quickSearch === 'raresprite') {
+                prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
+                if (RARE_SPRITE_EOE_SEEDS.has(prng.Seed)) item = generateGreatChest(seed, ngPlusCount, currX, currY, perks);
+            }
 			else item = generateGreatChest(seed, ngPlusCount, currX, currY, perks);
 		}
 
@@ -407,7 +465,8 @@ function findNextLocalWorker() {
         let iterationScale = 1;
         if (quickSearch === 'true_orb' || quickSearch === 'sampo') iterationScale = 100;
         if (quickSearch === 'highsc') iterationScale = 100;
-        if (quickSearch === 'highcap') iterationScale = 10;
+        if (quickSearch === 'highcap') iterationScale = 100;
+        if (quickSearch === 'raresprite') iterationScale = 100;
         if (iterations % (1000 * iterationScale) === 0) {
             if (matches.length > 0) {
                 self.postMessage({ type: 'LOCAL_MATCHES_FOUND', matches });

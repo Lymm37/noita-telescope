@@ -16,6 +16,7 @@ export const CONTAINER_TYPES = [
     'triangle_boss',
     'alchemist_boss',
     'pyramid_boss',
+    'pit_boss',
     'dragon',
     'tiny',
     'laboratory',
