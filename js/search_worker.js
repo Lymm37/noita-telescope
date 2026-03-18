@@ -1,6 +1,4 @@
 import { isMatch, getDisplayName, injectTranslations } from './translations.js';
-import { scanSpawnFunctions, getSpecialPoIs } from './poi_scanner.js';
-import { addStaticPixelScenes } from './static_spawns.js';
 import { generateGreatChest } from './chest_generation.js';
 import { generateWand } from './wand_generation.js';
 import { SPRITE_RARITY } from './wand_config.js';
@@ -8,8 +6,6 @@ import { NollaPrng } from './nolla_prng.js';
 import { getDragonDrops, getPitBossDrops, getTinyDrops } from './misc_generation.js';
 import { generateSpiral, CONTAINER_TYPES } from './utils.js'; 
 import { updateSettings } from './settings.js';
-import { injectPixelSceneData, injectPixelSceneSpawnData } from './pixel_scene_generation.js';
-import { injectUnlocksData } from './unlocks.js';
 
 let activeSearch = false;
 let searchState = null; 
@@ -45,7 +41,10 @@ function checkWandMatch(w, f) {
 	// Stat filters
 	// Note for some prebuilt wands we can't predict stats due to RNG based on frame count, so we'll just skip checks on those
 	// Ignore nondeterministic wands. Luckily they all have mana max as a varying stat so this is a simple check
-	if (typeof w.mana_max !== 'number') return false;
+	if (typeof w.mana_max !== 'number') {
+        //console.log("Skipping wand with nondeterministic stats:", w);
+        return false;
+	}
 	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
 	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
 	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
@@ -58,7 +57,8 @@ function checkWandMatch(w, f) {
 	if (f.name && !isMatch(w.name, f.name)) return false;
 	if (f.sprite && w.sprite !== `wand_${f.sprite.toString().padStart(4, '0')}`) return false;
 	// Not really sure a max threshold would even be useful here
-	if (f.minSpriteRarity || f.maxSpriteRarity) {
+    // Use defaults here instead
+	if (f.minSpriteRarity !== 1.0 || f.maxSpriteRarity !== 9.0) {
 		if (SPRITE_RARITY !== undefined) {
 			if (SPRITE_RARITY[w.sprite] !== undefined) {
 				if (SPRITE_RARITY[w.sprite] > 0) {
@@ -72,6 +72,7 @@ function checkWandMatch(w, f) {
 					console.warn(`Apparently impossible wand ${w.sprite}`);
 				}
 			}
+            // This would exclude custom sprites, which is typically desirable because they're easy to find
 			else return false;
 		}
 	}

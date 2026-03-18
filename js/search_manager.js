@@ -373,8 +373,9 @@ export async function performLocalSearch(mode, startX, startY) {
     let quickSearch = null;
     if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('true_orb', filters.queryList[0])) quickSearch = 'true_orb';
     else if (mode === 'eoe' && filters.queryList.length === 1 && isMatch('sampo', filters.queryList[0])) quickSearch = 'sampo';
-    else if (filters.minCap >= 27) quickSearch = 'highcap';
-    else if (filters.minSpells >= 27) quickSearch = 'highsc';
+    // No real speedup for this compared to highcap since we're already using set lookups, but I did precompute the seeds for these so might as well use them
+    else if (filters.minSpells >= 27 && (mode === 'dragon' || mode === 'tiny')) quickSearch = 'highsc';
+    else if (filters.minCap >= 27 || filters.minSpells >= 27) quickSearch = 'highcap';
     else if (filters.minSpriteRarity >= 7) quickSearch = 'raresprite';
 
     searchContinuing = true; //isBackgroundSearchEnabled();

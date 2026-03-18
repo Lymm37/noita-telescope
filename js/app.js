@@ -20,6 +20,7 @@ import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings } from './settings.js';
 import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
 import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, isOverlayPending } from './overlay_manager.js';
+import { getBiomeModifiers, getStartingWeather } from './misc_generation.js';
 
 // Not quite ready yet
 //import {getTemplePerks} from './perks.js';
@@ -100,7 +101,10 @@ export const app = {
 
 	debugCanvas: null,
 	debugX: 0, debugY: 0,
-	hiisiHourglassPosition: null, // "left" or "right", set in static_spawns.js based on the generated position of the hourglass
+	hiisiHourglassPosition: null, // "left" or "right"
+	weather: null,
+	biomeModifiers: null,
+	isDaily: false,
 
 	worldsInView: new Set(),
 
@@ -144,17 +148,19 @@ export const app = {
 					this.ngPlusCount = 0;
 					document.getElementById('ng').value = 0;
 					const url = new URL(window.location.href);
-					url.searchParams.set('seed', this.seed);
-					url.searchParams.set('ng', 0);
+					url.searchParams.set('seed', 'daily');
+					url.searchParams.set('ng', '0');
 					window.history.replaceState({}, '', url.toString());
 					// Set all unlocks
-					const list = document.getElementById('unlocks-list');
-					list.querySelectorAll('input').forEach(c => c.checked = true);
+					//const list = document.getElementById('unlocks-list');
+					//list.querySelectorAll('input').forEach(c => c.checked = true);
+					// Moved this to settings with the daily flag so that persistent unlocks are not changed
+					this.isDaily = true;
 					this.saveSettings();
 					this.unlocksChanged = true;
 					this.generate(true, true);
 					// TODO: Add some kind of warning about the daily run unlocking everything temporarily
-					alert("Note that the daily run temporarily unlocks all spells, remember to sync your unlocks afterwards.");
+					alert("Note that the daily run temporarily unlocks all spells");
 				}
 			});
 		};
@@ -227,6 +233,11 @@ export const app = {
 			const url = new URL(window.location.href);
 			url.searchParams.set('seed', value);
 			window.history.replaceState({}, '', url.toString());
+			if (this.isDaily) {
+				this.isDaily = false; // Clear daily run mode if seed is manually changed
+				this.unlocksChanged = true; // Flag to update unlocks based on checkboxes instead of daily run
+				this.saveSettings(); // Make sure settings are saved just so that the daily run unlocks don't persist in the workers after leaving daily mode
+			}
 			this.generate(true, true);
 		};
 		document.getElementById('ng').onchange = () => {
@@ -238,6 +249,7 @@ export const app = {
 			const url = new URL(window.location.href);
 			url.searchParams.set('ng', value);
 			window.history.replaceState({}, '', url.toString());
+			// Do not clear daily run flag
 			this.generate(true, true);
 		};
 		// No longer using this button, just change the seed/NG+ count and it will auto-generate now
@@ -762,7 +774,7 @@ export const app = {
 			this.generate(false, true);
 		};
 		// Generate function sets the unlocks based on the current state of the checkboxes, so no need to do it here
-		setUnlocks([]); // Initialize with no unlocks
+		setUnlocks([]); // Initialize with no unlocks (gets overwritten by loading settings)
 	},
 
 	initSingleSlider(idPrefix, minLimit, maxLimit, step = 1, initVal = null) {
@@ -996,6 +1008,12 @@ export const app = {
 			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP);
 			if (biomeResult && biomeResult.biome) {
 				biomeName = `<br>Biome: ${getDisplayName(biomeResult.biome)}`;
+				if (this.biomeModifiers && this.biomeModifiers[biomeResult.biome]) {
+					const biomeModifier = this.biomeModifiers[biomeResult.biome];
+					const biomeModifierName = getDisplayName(biomeModifier.id);
+					const requiresFlag = biomeModifier.requires_flag ? `<br>(requires flag: ${biomeModifier.requires_flag})` : '';
+					biomeName += `<br>Modifier: ${biomeModifierName}${requiresFlag}`;
+				}
 			}
 			let materialName = '';
 			if (this.tileLayers && this.tileLayers.length > 0 && this.pixelScenesByPW && this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]) {
@@ -1115,7 +1133,12 @@ export const app = {
 		// Update unlocks (should probably add something to check if they changed to save a bit)
 		if (this.unlocksChanged) {
 			const checkedUnlocks = [];
-			document.querySelectorAll('#unlocks-list input:checked').forEach(c => checkedUnlocks.push(c.value));
+			//document.querySelectorAll('#unlocks-list input:checked').forEach(c => checkedUnlocks.push(c.value));
+			for (const unlock of Object.keys(UNLOCKABLES)) {
+				if (appSettings[`unlock_${unlock}`]) {
+					checkedUnlocks.push(unlock);
+				}
+			}
 			setUnlocks(checkedUnlocks);
 			rescan = true; // If unlocks changed, we need to rescan spawn functions even if tiles didn't change, since some spawns are gated behind unlocks
 			this.unlocksChanged = false; // Reset flag
@@ -1208,9 +1231,9 @@ export const app = {
 			const specialPoIs = getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.perks);
 			this.poisByPW[`${this.pw},${this.pwVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
 		
-			// Static pixel scenes (stupid)
+			// Static pixel scenes
 			if (document.getElementById('enable-static-pixel-scenes').value !== 'off') {
-				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, this.skipCosmeticScenes, this.perks);
+				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, this.skipCosmeticScenes, this.perks, this.isDaily);
 				this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = this.pixelScenesByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pixelScenes);
 				this.poisByPW[`${this.pw},${this.pwVertical}`] = this.poisByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pois);
 			}
@@ -1227,6 +1250,15 @@ export const app = {
 		// Generate eye messages
 		if (tiles) {
 			this.eyes = findEyeMessages(this.biomeData.pixels, seedVal, ngVal);
+
+			// Generate static info
+			const weather = getStartingWeather(seedVal, ngVal);
+			console.log("Starting Weather:", weather);
+			this.weather = weather;
+
+			const biomeModifiers = getBiomeModifiers(seedVal, ngVal, weather.snowing);
+			console.log("Biome Modifiers:", biomeModifiers);
+			this.biomeModifiers = biomeModifiers;
 		}
 
 		const t1 = performance.now();
@@ -1258,23 +1290,6 @@ export const app = {
 		}
 		getOrGenerateWorld(pwX, pwY);
 		getOrGenerateOverlay(pwX, pwY);
-		
-		// Blocking version
-		/*
-		if (!this.pixelScenesByPW[`${pwX},${pwY}`] || !this.poisByPW[`${pwX},${pwY}`]) {
-			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, pwX, pwY, this.skipCosmeticScenes, this.perks);
-			this.pixelScenesByPW[`${pwX},${pwY}`] = scanResults.finalPixelScenes;
-			const specialPoIs = getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, pwX, pwY, this.perks);
-			this.poisByPW[`${pwX},${pwY}`] = scanResults.generatedSpawns.concat(specialPoIs);
-		
-			// Static pixel scenes (stupid)
-			if (document.getElementById('enable-static-pixel-scenes').value !== 'off') {
-				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, pwX, pwY, this.biomeData, this.skipCosmeticScenes, this.perks);
-				this.pixelScenesByPW[`${pwX},${pwY}`] = this.pixelScenesByPW[`${pwX},${pwY}`].concat(staticPixelScenesResults.pixelScenes);
-				this.poisByPW[`${pwX},${pwY}`] = this.poisByPW[`${pwX},${pwY}`].concat(staticPixelScenesResults.pois);
-			}
-		}
-		*/
 	},
 
 	renderOffscreen() {
@@ -2224,17 +2239,32 @@ export const app = {
 			//rngInfo: document.getElementById('debug-rng-info').checked,
 		};
 		// Unlock settings
+		const unlockSettings = {};
 		for (const unlock of Object.keys(UNLOCKABLES)) {
 			settings[`unlock_${unlock}`] = document.getElementById(`unlock-${unlock}`).checked;
+			unlockSettings[unlock] = document.getElementById(`unlock-${unlock}`).checked;
 		}
 		// Region settings
 		for (const region of Object.keys(GENERATOR_CONFIG)) {
 			settings[`region_${region}`] = document.getElementById(`region-${region}`).checked;
 		}
+		// Daily run nonsense
+		if (this.isDaily) {
+			for (const unlock of Object.keys(UNLOCKABLES)) {
+				settings[`unlock_${unlock}`] = true;
+			}
+			this.unlocksChanged = true;
+		}
 		updateSettings(settings);
 		syncSettingsToSearchWorker();
 		syncSettingsToWorldWorker();
 		syncSettingsToOverlayWorker();
+		// Restore real settings to save in case they were overwritten for daily run
+		if (this.isDaily) {
+			for (const unlock of Object.keys(UNLOCKABLES)) {
+				settings[`unlock_${unlock}`] = unlockSettings[unlock];
+			}
+		}
 		localStorage.setItem('noitaTelescopeSettings', JSON.stringify(settings));
 		console.log("Settings saved.");
 		//console.log(settings);
@@ -2307,6 +2337,7 @@ export const app = {
 			if (!params.has(paramName)) return;
 			if (paramName === 'seed' && params.get(paramName) === 'daily') {
 				// Special case for daily seed
+				app.isDaily = true;
 				return await app.getDailyRunSeed();
 			};
 			const paramValue = params.get(paramName);

@@ -10,6 +10,7 @@ A web-based seed analyzer for [Noita](https://noitagame.com/), including a detai
 
 - **World Generation Visualization:** Generates and renders the Wang tile layout of biomes, as well as generated pixel scenes.
 - **Wand & Item Search:** Search for specific spells, wand stats (non-shuffle, always casts, 27+ slots, etc.), potions/pouches (ambrosia, silver, etc.), items (kiuaskivi, paha silma, etc.), and some enemies (like mimics).
+- **Local Search Mode:** Search for specific pixel spawns for things like Summon Taikasauva and End of Everything in a region around where you click on the map.
 - **Parallel World Support:** Scan and navigate through *all* Parallel Worlds to find rare loot.
 - **Detailed Object Inspection:** Hover over generated objects to see exact details:
 	- **Wands:** Stats (shuffle, spells/cast, cast delay, recharge time, max mana, mana charge speed, capacity, spread, speed, length), always casts, and spells.
@@ -23,7 +24,7 @@ A web-based seed analyzer for [Noita](https://noitagame.com/), including a detai
 	- **Exclude Cosmetic Pixel Scenes:** Can be toggled to not generate pixel scenes without items in them, to save a bit of time while searching.
 	- **Local Storage for Settings:** Most settings are saved between reloads.
 - **Special Biomes:** Includes spells, wands, and pacifist chests from Holy Mountains, wand spawns from the Meditation Cube, the secret snowy chamber, and the robot egg, and spell spawns from the Hiisi hourglass shop, the Eye Room, and the static heaven and hell shops, as well as the custom wands. Note that some drops are frame-dependent and not just seed dependent, so they cannot be predicted here. Examples include the coral chest, the dark chest, the tower wands, and the experimental wands.
-- **Boss Drops:** Shows the seed-based spell drops from the Alchemist, Pyramid, Triangle, and Dragon bosses. Wands dropped from bosses depend on the pixel where they were defeated, but spell drops are based only on the seed, so the dragon drops show the wand which will drop if the dragon is defeated before it moves from where it spawns.
+- **Boss Drops:** Shows the seed-based spell drops from the Alchemist, Pyramid, Triangle, and Dragon bosses. Wands dropped from bosses depend on the pixel where they were defeated, but spell drops are based only on the seed, so the dragon drops show the wand which will drop if the dragon is defeated before it moves from where it spawns. Some boss wand drops are available with local search.
 - **NG+ Orb Room Locations:** Orb rooms are shown on the map for each NG+ cycle except for NG0.
 - **Secrets:** Includes the hidden messages around the world, including the Wall Messages, a few background symbols, and the Eye Messages. (This is a major upgrade to the previous tool, "Lymm's Binoculars," which just showed the location of the eye messages for a seed, hence the name.)
 
@@ -36,17 +37,21 @@ If you prefer to run this tool locally instead of using the web version, assumin
 	git clone https://github.com/Lymm37/noita-telescope.git
 	cd noita-telescope
 	```
-2.  Run a minimal local server:
+2.  Run a minimal local server, with Node:
 	```bash
 	npx serve
 	```
-3.  Open `http://localhost:3000` in your browser.
+	or with Python:
+	```bash
+	python -m http.server
+	```
+3.  Open `http://localhost:3000` (Node) or `http://localhost:8000` (Python) in your browser.
 
 ## Usage
 
 1.  **Input seed:** Enter your current world seed and NG+ count (0 to 28). This will generate the biome map and tiles for the seed, and scan the current PW, generating pixel scenes and PoIs.
 2.  **Switch to other PWs:** Changing the PW indices (horizontal or vertical) will automatically re-scan spawns for the selected PW. Supports PWs across the entire stable map range (468 worlds for NG and 512 worlds for NG+, and 683 worlds vertically).
-3.  **Search:** Enter a search term and click search to find it in the current world. Open the "Advanced Filters" toggle to look for specific wands (e.g., to find wands with a specific always casts or stat range). Matching PoIs will be displayed at a larger scale that changes with zoom so that they are easily visible anywhere on the map. You can use the search menu to navigate between matches. When searching over multiple PWs, navigation will automatically continue to scan through PWs until a match is found.
+3.  **Search:** Enter a search term and click search to find it in the current world. Open the "Advanced Filters" toggle to look for specific wands (e.g., to find wands with a specific always casts or stat range). Matching PoIs will be displayed at a larger scale that changes with zoom so that they are easily visible anywhere on the map. You can use the search menu to navigate between matches. When searching over multiple PWs, navigation will automatically continue to scan through PWs until a match is found. For local search, if the local search mode is selected, clicking somewhere on the map will start a search at that pixel and spiral outwards until finding a match.
 4.  **Interact:** Use the mouse to drag the map and the scroll wheel to zoom. Mouse over a PoI to see the details, click on it to pin it (only one pin supported). Container-type PoIs (holy mountain shops, great treasure chests, potion labs, etc.) may have a lot of items; you can scroll within the pinned tooltip. New regions of the map will be loaded as you pan around the map.
 
 ### Search Filters
@@ -55,6 +60,12 @@ The search tool supports a variety of filtering options. In the main search fiel
 *   **Always Casts:** Ability to search for a specific always casts, or just wands with any always casts.
 *   **Stats:** Non-Shuffle, Spells/Cast, Cast Delay, Recharge Time, Max Mana, Mana Charge Speed, Capacity, Spread, the hidden Speed stat, and Wand Length if you need it.
 *   **Scope:** There is an option to search over all PWs, but this can take a while. There is a PW limit which can be toggled off. Note that it might take a minute to search all PWs for a seed, and may also end up using a lot of RAM to store the results. Once stored in memory, all objects in a seed can be searched much more quickly, until the seed or NG+ value is changed.
+*   **Local Search:** Changing the local search mode will allow you to search for drops which come from individual pixels from things like Summon Taikasauva, End of Everything, and certain boss wand drops. Once the local search mode is set, clicking on the map will search starting at that pixel. For example, if you enter "34th orb" in the main search field with the local search mode set to EoE (End of Everything), then click somewhere on the map, you can search for the nearest 34th orb drop from a great treasure chest spawned by EoE.
+*   **Search Acceleration:** In local search mode, certain search filters will automatically switch to an accelerated search mode based on precomputed RNG states, which will allow for much faster local searches. These are the current filters which support accelerated local search:
+	* Capacity > 26 for all local search modes
+	* Spells/Cast > 26 for all local search modes (though there are not very many of these at all)
+	* Sprite Rarity >= 10^7 for all local search modes
+	* Sampo and 34th orb search for End of Everything
 
 ## Issues / TODO
 

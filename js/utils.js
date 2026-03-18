@@ -22,6 +22,7 @@ export const CONTAINER_TYPES = [
     'laboratory',
     'vault_puzzle',
     'puzzle',
+    'starting_loadout'
 ];
 
 export const MATERIAL_CONTAINER_TYPES = [
@@ -353,4 +354,16 @@ export function getPayloadSize(obj) {
     const totalBytes = jsonBytes + bufferBytes;
     
     return (totalBytes / 1024 / 1024).toFixed(3) + ' MB';
+}
+
+export function getDateAndTime() {
+    const date = new Date();
+    return {
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        day: date.getDate(),
+        hour: date.getHours(),
+        minute: date.getMinutes(),
+        second: date.getSeconds()
+    };
 }

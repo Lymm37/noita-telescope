@@ -2,7 +2,7 @@ import { BIOMES_WITHOUT_WAVY_EDGE } from "./generator_config.js";
 import { NollaPrng } from "./nolla_prng.js";
 import { loadPixelScene } from "./pixel_scene_generation.js";
 import { getWorldCenter, getWorldSize } from "./utils.js";
-import { getTinyDrops } from "./misc_generation.js";
+import { getStartingLoadout, getTinyDrops } from "./misc_generation.js";
 import { appSettings } from "./settings.js";
 
 const STATIC_PIXEL_SCENES = [
@@ -126,7 +126,7 @@ const PIXEL_SCENE_BIOMES = {
 
 // I really don't care about this but whatever
 // TODO: Skip cosmetic not used here but removes most things
-export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData, skipCosmeticPixelScenes=false, perks={}) {
+export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData, skipCosmeticPixelScenes=false, perks={}, isDaily=false) {
 	//const t0 = performance.now();
 
 	//const pixelSceneOption = document.getElementById('enable-static-pixel-scenes').value;
@@ -425,6 +425,14 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		newPois.push(getTinyDrops(ws, ng, 'meat', 14941, 16454, perks));
 	}
 	// Orbs and other stuff: TODO: Doesn't seem that important compared to NG+ which already works
+
+	// Starting loadout
+	if (ng === 0) {
+		const startingLoadout = getStartingLoadout(ws, isDaily);
+		//console.log("Starting Loadout:", startingLoadout);
+		// Add as PoI at spawn
+		newPois.push(startingLoadout);
+	}
 
 	/*
 	const t1 = performance.now();
