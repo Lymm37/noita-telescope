@@ -96,6 +96,7 @@ The search tool supports a variety of filtering options. In the main search fiel
 	* NathanSnail https://github.com/NathanSnail/noitadata & https://github.com/NathanSnail/red_funs
 	* WUOTE https://noitamap.com/ & https://github.com/WUOTE/noita-builds-data
 	* Chillie-ilya https://chillie-ilya.github.io/lymms-binoculars-web/ (https://github.com/chillie-ilya/lymms-binoculars-web)
+	* sdlwdr https://github.com/sdlwdr/cauldron_forecast/ (https://sdlwdr.github.io/cauldron_forecast/)
 	* Rosalinadev for help with optimization
 	* KingCrabmaster for art
 	* and many others for help with testing

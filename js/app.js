@@ -21,6 +21,7 @@ import { appSettings, updateSettings } from './settings.js';
 import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
 import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, isOverlayPending } from './overlay_manager.js';
 import { getBiomeModifiers, getStartingWeather } from './misc_generation.js';
+import { getCauldronState, getCauldronVariation } from './cauldron.js';
 
 // Not quite ready yet
 //import {getTemplePerks} from './perks.js';
@@ -105,6 +106,7 @@ export const app = {
 	weather: null,
 	biomeModifiers: null,
 	isDaily: false,
+	cauldronState: null,
 
 	worldsInView: new Set(),
 
@@ -1259,6 +1261,9 @@ export const app = {
 			const biomeModifiers = getBiomeModifiers(seedVal, ngVal, weather.snowing);
 			console.log("Biome Modifiers:", biomeModifiers);
 			this.biomeModifiers = biomeModifiers;
+
+			this.cauldronState = await getCauldronState();
+			console.log("Cauldron State:", this.cauldronState);
 		}
 
 		const t1 = performance.now();
@@ -1458,6 +1463,7 @@ export const app = {
 			"orb_room": await loadPNGBitmap('../data/biome_maps/custom/orb_room.png'),
 			"cursed_orb_room": await loadPNGBitmap('../data/biome_maps/custom/cursed_orb_room.png'),
 			"echoing_spire": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire.png'),
+			"cauldron_broken": await loadPNGBitmap('../data/biome_maps/custom/cauldron_broken.png'),
 		};
 		
 		
@@ -1713,6 +1719,14 @@ export const app = {
 					const posY = verticalSegment * 512 * 25 - 11*512 - this.pwVertical * 24576;
 					this.ctx.drawImage(this.surfaceOverlayScenes['echoing_spire'], posX, posY, 512, 512*25);
 				}
+			}
+		}
+
+		// Cauldron
+		// Actually might want to change this to be over the biome tiles...
+		if (this.cauldronState && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_broken"]) {
+			if (this.cauldronState === 1 || (this.cauldronState === 2 && getCauldronVariation())) {
+				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_broken"], getWorldCenter(this.isNGP) * 512 + 7*512 + 128, 14*512 + 10 * 512 + 160, 8 * 32, 12 * 32);
 			}
 		}
 
