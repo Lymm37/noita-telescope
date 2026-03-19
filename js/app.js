@@ -1,7 +1,7 @@
 import { generateBiomeData, BIOME_CONFIG } from './biome_generator.js';
 import { loadPNG, loadPNGBitmap} from './png_sanitizer.js';
 import { getDisplayName, loadTranslations } from './translations.js';
-import { UNLOCKABLES, setUnlocks } from './unlocks.js';
+import { UNLOCKABLES, UNLOCK_DISPLAY_NAMES, setUnlocks } from './unlocks.js';
 import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
@@ -754,14 +754,15 @@ export const app = {
 
 	initUnlocks() {
 		const list = document.getElementById('unlocks-list');
-		Object.keys(UNLOCKABLES).sort().forEach(key => {
+		Object.keys(UNLOCKABLES).forEach(key => {
 			const div = document.createElement('div');
 			div.className = 'unlock-item';
 			const cb = document.createElement('input');
 			cb.type = 'checkbox'; cb.value = key; cb.id = `unlock-${key}`;
 			const label = document.createElement('label');
 			label.htmlFor = `unlock-${key}`;
-			label.innerText = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+			//label.innerText = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+			label.innerText = UNLOCK_DISPLAY_NAMES[key] || key;
 			div.appendChild(cb); div.appendChild(label);
 			list.appendChild(div);
 			cb.onchange = () => {

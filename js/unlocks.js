@@ -59,6 +59,46 @@ export const UNLOCKABLES = {
     "destruction": ["DESTRUCTION"],
 };
 
+export const UNLOCK_DISPLAY_NAMES = {
+    "sea_lava": "Sea of Lava Orb",
+    "crumbling_earth": "Earthquake Orb",
+    "cloud_thunder": "Thundercloud Orb",
+    "nuke": "Nuke Orb",
+    "bomb_holy": "Holy Bomb Orb",
+    "necromancy": "Necromancy Orb",
+    "material_cement": "Cement Orb",
+    "firework": "Firework Orb",
+    "exploding_deer": "Ducks/Deercoy Orb",
+    "spiral_shot": "Spiral Shot Orb",
+    "tentacle": "Tentacle Orb",
+    "sea_mimic": "Sea of Mimicium",
+    "touch_grass": "Touch of Grass",
+    "cessation": "Cessation",
+    "piss": "Touch of Piss",
+    "kantele": "Kantele Notes",
+    "ocarina": "Ocarina Notes",
+    "musicbox": "Divides/Coral Chest",
+    "alchemy": "Dark Chest",
+    "everything": "End of Everything",
+    "divide": "Divide by 10",
+    "bomb_holy_giga": "Giga Holy Bomb",
+    "nukegiga": "Giga Nuke",
+    "mestari": "Master of Masters",
+    "duplicate": "Alchemist/Greek Letters",
+    "pyramid": "Pyramid Boss",
+    "dragon": "Dragon",
+    "rain": "Pit Boss",
+    "polymorph": "Mass Polymorph",
+    "paint": "Glimmer Spells",
+    "maths": "Requirement Spells",
+    "funky": "Chaingun",
+    "fish": "Fish",
+    "homing_wand": "Wand Homing",
+    "black_hole": "Omega Black Hole",
+    "rainbow_trail": "Rainbow Trail",
+    "destruction": "Destruction",
+}
+
 // Initialize active spells (defaulting to all true before reset)
 export let unlockedSpells = new Array(ALL_SPELLS.length).fill(true);
 
