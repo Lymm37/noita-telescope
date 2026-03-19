@@ -440,7 +440,8 @@ export function updateTooltip(e, hit, tip) {
 				}
 				// Add special disclaimer for boss wand spawns
 				if (hit.type === 'pit_boss' || hit.type === 'dragon' || hit.type === 'tiny') {
-					box_contents += `<br><small style="font-size: 13px; color: red;">Note: You must kill the boss before it moves, or the wand will be different than what is shown here!</small><br>`;
+					const plural = box_wands.length > 1 ? 's' : '';
+					box_contents += `<br><small style="font-size: 13px; color: red;">Note: You must kill the boss on this exact pixel, or the wand${plural} will be different than what is shown here!</small><br>`;
 				}
 				if (box_wands.length > 0) {
 					box_contents += box_wands.map(wand => generateWandHtml(wand)).join('');

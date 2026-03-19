@@ -6,6 +6,7 @@ import { PIXEL_SCENE_DATA, PIXEL_SCENE_SPAWN_DATA } from './pixel_scene_generati
 import { TRANSLATIONS } from './translations.js';
 import { unlockedSpells } from './unlocks.js';
 import { getOrGenerateWorld } from './world_manager.js';
+import { T10_SPELLS } from './spells.js';
 
 const SEARCH_ENABLED = true;
 let searchActive = false; // Whether to display the search results
@@ -198,6 +199,39 @@ searchWorker.onmessage = async (e) => {
             document.getElementById('search-results').innerHTML = `<div style="padding:5px; color:#888;">${noResultsDisplay}</div>`;
             cancelSearch();
             */
+
+            // QoL: If the search was for something unlikely to occur, make a suggestion
+            if (search.mode === 'pw' && search.pwSequence.length === 1) {
+                if (msg.searchTarget) {
+                    if (msg.searchTarget === 't10_spell') {
+                        document.getElementById('search-all-pw').focus();
+                        const choice = confirm("Hämis says: T10 spells are more likely to be found in vertical PWs. Would you like to search there?");
+                        if (choice) {
+                            document.getElementById('search-all-pw').checked = true;
+                            document.getElementById('search-vertical-pw').checked = true;
+                            document.getElementById('search-vertical-pw').focus();
+                        }
+                    }
+                    else if (msg.searchTarget === 'true_orb') {
+                        document.getElementById('local-search-mode').focus();
+                        const choice = confirm("Hämis says: Orbs are more likely to be found in EoE local search mode. Would you like to switch?");
+                        if (choice) {
+                            document.getElementById('local-search-mode').value = 'eoe';
+                            const event = new Event('change');
+                            document.getElementById('local-search-mode').dispatchEvent(event);
+                        }
+                    }
+                    else if (msg.searchTarget === 'sampo') {
+                        document.getElementById('local-search-mode').focus();
+                        const choice = confirm("Hämis says: Sampos are more likely to be found in EoE local search mode. Would you like to switch?");
+                        if (choice) {
+                            document.getElementById('local-search-mode').value = 'eoe';
+                            const event = new Event('change');
+                            document.getElementById('local-search-mode').dispatchEvent(event);
+                        }
+                    }
+                }
+            }
         }
         document.getElementById('search-status').innerText = '';
         document.getElementById('search-status-container').style.display = 'none';
@@ -282,6 +316,38 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
     search.index = -1;
     search.mode = 'pw';
     
+    const filters = getSearchFilters();
+    // Do some smarter filtering based on the type of search
+    // First determine if it's a wand search
+    let searchTarget = null;
+    if (filters.queryList.length === 0) {
+        searchTarget = 'wand';
+    }
+    else if (filters.queryList.length === 1) {
+        const query = filters.queryList[0];
+        if (isMatch('true_orb', query)) {
+            searchTarget = 'true_orb';
+        }
+        else if (isMatch('sampo', query)) {
+            searchTarget = 'sampo';
+        }
+        else {
+            // Check if it's a tier 10 spell
+            for (let spellName of T10_SPELLS) {
+                if (isMatch(spellName, query)) {
+                    searchTarget = 't10_spell';
+                    console.log(`Identified search for tier 10 spell: ${spellName}`);
+                    // Automatically override settings if it's unlikely to find anything maybe?
+                    // Eh maybe only if it fails
+                    break;
+                }
+            }
+            if (!searchTarget) {
+                searchTarget = 'other';
+            }
+        }
+    }
+
     let currentSequence = [];
 
     // Generate the standard PW Sequence
@@ -296,6 +362,8 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
         // Generate all valid coordinates within the rectangle
         for (let x = -pwLimit; x <= pwLimit; x++) {
             for (let y = -pwVerticalLimit; y <= pwVerticalLimit; y++) {
+                if (y < 0 && (searchTarget === 'wand' || searchTarget === 'other')) continue; // Skip negative vertical PWs for wand searches since they can't spawn there
+                // I would also exclude the other vertical PWs except that the infinite power plant exists
                 coords.push({ x, y, dist: Math.abs(x) + Math.abs(y) });
             }
         }
@@ -326,8 +394,6 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
         await new Promise(r => setTimeout(r, TIME_UNTIL_LOADING));
     }
 
-    const filters = getSearchFilters();
-
     searchContinuing = isBackgroundSearchEnabled() || searchAllPW; // If searching all PW, we consider it a long-running search even if not in background mode
 
     // Send the payload to the worker
@@ -337,6 +403,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
         backgroundMode: isBackgroundSearchEnabled(),
         filters: filters,
         pwSequence: search.pwSequence,
+        searchTarget: searchTarget,
         //seed: app.seed,
         //ngPlusCount: app.ngPlusCount,
         //perks: app.perks,

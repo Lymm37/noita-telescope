@@ -197,12 +197,7 @@ self.onmessage = async function(e) {
     const data = e.data;
 
     if (data.cmd === 'SYNC_METADATA') {
-        //injectPixelSceneData(data.pixelSceneCache);
-        //injectPixelSceneSpawnData(data.pixelSceneSpawnDataCache);
         injectTranslations(data.translationsCache);
-        //injectUnlocksData(data.unlockedSpellsCache);
-        //workerBiomeData = data.biomeData;
-        //workerTileSpawns = data.tileSpawns;
         // Reset cache to ensure no weirdness with desyncs
         currentPoisByPW = {};
         return;
@@ -230,8 +225,6 @@ self.onmessage = async function(e) {
         activeSearch = true;
         searchState = data;
         pwIndex = 0;
-        //currentPoisByPW = data.poisByPW; // Avoid accessing this through searchState for performance
-        //currentPixelScenesByPW = {};
         findNextPWWorker();
     }
     else if (data.cmd === 'FIND_NEXT') {
@@ -248,30 +241,11 @@ self.onmessage = async function(e) {
 
 function findNextPWWorker() {
     if (!activeSearch || !searchState) {
-        // Return any partial results if we were in the middle of generating a PW when cancelled
-        /*
-        self.postMessage({
-            type: 'PWS_GENERATED',
-            pois: currentPoisByPW,
-            pixelScenes: currentPixelScenesByPW,
-            matches: [],
-            done: true
-        });
-        */
-        self.postMessage({type: 'DONE'});
+        self.postMessage({ type: 'DONE', searchTarget: searchState.searchTarget });
         return;
     }
     if (pwIndex >= searchState.pwSequence.length) {
-        /*
-        self.postMessage({
-            type: 'PWS_GENERATED',
-            pois: currentPoisByPW,
-            pixelScenes: currentPixelScenesByPW,
-            matches: [],
-            done: true
-        });
-        */
-        self.postMessage({ type: 'DONE' });
+        self.postMessage({ type: 'DONE', searchTarget: searchState.searchTarget });
         activeSearch = false;
         return;
     }
@@ -286,19 +260,10 @@ function findNextPWWorker() {
         self.postMessage({
             type: 'REQUEST_PW_DATA',
             pw: targetPW,
-            pwVertical: targetPWVertical
+            pwVertical: targetPWVertical,
+            searchTarget: searchState.searchTarget
         });
         return; // Wait for main thread to respond with PW data before trying to filter it
-        /*
-        const scanResults = scanSpawnFunctions(workerBiomeData, workerTileSpawns, seed, ngPlusCount, targetPW, targetPWVertical, skipCosmeticScenes, perks);
-        const specialPoIs = getSpecialPoIs(workerBiomeData, seed, ngPlusCount, targetPW, targetPWVertical, perks);
-        const staticSpawnResults = addStaticPixelScenes(seed, ngPlusCount, targetPW, targetPWVertical, workerBiomeData, skipCosmeticScenes, perks);
-        
-        specialPoIs.push(...staticSpawnResults.pois);
-        const finalPixelScenes = scanResults.finalPixelScenes.concat(staticSpawnResults.pixelScenes);
-        currentPoisByPW[`${targetPW},${targetPWVertical}`] = scanResults.generatedSpawns.concat(specialPoIs); // Cache for future searches
-        currentPixelScenesByPW[`${targetPW},${targetPWVertical}`] = finalPixelScenes; // Cache for future searches
-        */
     }
     let matches = [];
     for (let i = 0; i < currentPoisByPW[`${targetPW},${targetPWVertical}`].length; i++) {
@@ -312,25 +277,10 @@ function findNextPWWorker() {
     pwIndex++;
 
     if (matches.length > 0) {
-        self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical });
+        self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical, searchTarget: searchState.searchTarget });
         if (!backgroundMode) {
-            /*
-            self.postMessage({
-                type: 'PWS_GENERATED',
-                pois: currentPoisByPW,
-                pixelScenes: currentPixelScenesByPW,
-                matches: matches
-            });
-            */
-            
             return; // Pause execution, wait for FIND_NEXT from main thread
         }
-        /*
-        else {
-            // Just send matches immediately without the full PW data to avoid memory issues
-            self.postMessage({ type: 'MATCHES_FOUND', matches, pw: targetPW, pwVertical: targetPWVertical });
-        }
-        */
     }
 
     // Yield to let the worker process messages (like CANCEL) before the next PW

@@ -382,7 +382,10 @@ export const app = {
 			this.setLoading(false); // Clear overlay immediately on cancel
 			this.draw();
 		};
-		//document.getElementById('search-all-pw').onchange = () => {};
+		document.getElementById('search-all-pw-label').onclick = () => {
+			const checkbox = document.getElementById('search-all-pw');
+			checkbox.checked = !checkbox.checked;
+		};
 		const setPWMaxButton = document.getElementById('pw-set-max');
 		setPWMaxButton.onclick = () => {
 			document.getElementById('search-all-pw').checked = true;
@@ -499,6 +502,7 @@ export const app = {
 				}
 
 				if (!pinchange && document.getElementById('local-search-mode').value !== 'off') {
+					// TODO: Check if local search is already active and if so, maybe ask?
 					const localSearchMode = document.getElementById('local-search-mode').value;
 					//const localSearchRadius = parseInt(document.getElementById('search-radius-num').value) || 20;
 					const rect = document.getElementById('view').getBoundingClientRect();
@@ -584,6 +588,9 @@ export const app = {
 			if (acInput.value.trim() !== "") {
 				document.getElementById('search-ac-mode').value = 'must';
 			}
+			else {
+				document.getElementById('search-ac-mode').value = 'any';
+			}
 		};
 		document.getElementById('search-ac-mode').onchange = () => {
 			const mode = document.getElementById('search-ac-mode').value;
@@ -595,10 +602,12 @@ export const app = {
 			const mode = document.getElementById('local-search-mode').value;
 			const searchButton = document.getElementById('search-btn');
 			if (mode === 'off') {
+				document.getElementById('search-label').innerText = 'Search World (Global)';
 				searchButton.innerText = 'Find';
 				searchButton.disabled = false;
 			}
 			else {
+				document.getElementById('search-label').innerText = 'Search Pixels (Local)';
 				searchButton.innerText = 'Click Map';
 				searchButton.disabled = true;
 			}
@@ -606,6 +615,7 @@ export const app = {
 			document.getElementById('search-input').focus();
 			this.draw(); // Clear highlights immediately on mode change
 		};
+		
 
 		const copyBtn = document.getElementById('copy-path-btn');
 
@@ -1464,6 +1474,8 @@ export const app = {
 			"cursed_orb_room": await loadPNGBitmap('../data/biome_maps/custom/cursed_orb_room.png'),
 			"echoing_spire": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire.png'),
 			"cauldron_broken": await loadPNGBitmap('../data/biome_maps/custom/cauldron_broken.png'),
+			"moon": await loadPNGBitmap('../data/biome_maps/custom/moon.png'),
+			"darkmoon": await loadPNGBitmap('../data/biome_maps/custom/darkmoon.png'),
 		};
 		
 		
@@ -1705,6 +1717,12 @@ export const app = {
 			}
 		}
 
+		// Moons
+		if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['moon'] && this.surfaceOverlayScenes['darkmoon']) {
+			this.ctx.drawImage(this.surfaceOverlayScenes['moon'], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512, -37*512 - this.pwVertical * 24576 - 32, 512, 540);
+			this.ctx.drawImage(this.surfaceOverlayScenes['darkmoon'], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512, 87*512 - this.pwVertical * 24576 + 128, 512, 512);
+		}
+
 		// Echoing spire (so silly, why does this even exist? no one knows)
 		if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['echoing_spire']) {
 			const viewArea = this.getViewArea();
@@ -1723,9 +1741,10 @@ export const app = {
 		}
 
 		// Cauldron
-		// Actually might want to change this to be over the biome tiles...
-		if (this.cauldronState && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_broken"]) {
-			if (this.cauldronState === 1 || (this.cauldronState === 2 && getCauldronVariation())) {
+		// TODO: Actually might want to change this to be over the biome tiles...
+		if (this.cauldronState !== null && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_broken"]) {
+			// With the states being null and void it's hard to tell which is 0 and which is 1.
+			if (this.cauldronState === 0 || (this.cauldronState === 2 && getCauldronVariation())) {
 				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_broken"], getWorldCenter(this.isNGP) * 512 + 7*512 + 128, 14*512 + 10 * 512 + 160, 8 * 32, 12 * 32);
 			}
 		}
@@ -2156,6 +2175,10 @@ export const app = {
 	toggleAdvancedSearch() {
 		const ui = document.getElementById('advanced-ui');
 		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+	},
+
+	openAdvancedSearch() {
+		document.getElementById('advanced-ui').style.display = 'block';
 	},
 
 	toggleDebugOptions() {

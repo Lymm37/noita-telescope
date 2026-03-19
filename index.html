@@ -371,10 +371,24 @@
         <p id="status">Ready.</p>
 
         <div id="search-container" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
-            <span style="font-weight:bold; font-size:14px;">Search World</span>
+            <span id="search-label" style="font-weight:bold; font-size:14px;">Search World (Global)</span>
             <div style="display: flex; gap: 5px; margin-top: 5px;">
                 <input type="text" id="search-input" placeholder="Spells, items, 34th orb..." style="flex: 1;" autocomplete="off" title="Enter the name of a spell, item, potion/pouch material, or other point of interest (e.g. puzzle, dragon). Leave blank to just search for wands meeting the filter criteria.">
                 <button id="search-btn" style="flex: 0.4;" title="Start Search">Find</button>
+            </div>
+
+            <div style="margin-top:5px; padding-top:5px;">
+                <div style="font-weight:bold; font-size:14px;" title="Search in a local area around where you click on the map, used for End of Everything (EoE), boss wand drops, and Summon Taikasauva spawns.">Local Search Mode
+                    <select id="local-search-mode" title="Select an option then click somewhere to start a search centered at that pixel. Used to find orbs, high capacity wands, etc.">
+                        <option value="off" selected>Off</option>
+                        <option value="eoe">EoE</option>
+                        <option value="taikasauva">Taikasauva</option>
+                        <option value="pit">Pit Boss</option>
+                        <option value="dragon">Dragon</option>
+                        <option value="tiny">Tiny</option>
+                    </select>
+                </div>
+                <!--<small class="help-text">Click any point on the map after selecting the local search mode to query.</small>-->
             </div>
 
             <div id="search-nav" style="display: none; align-items: center; justify-content: space-between; margin-top: 8px; background: #1a1a1a; padding: 5px; border: 1px solid #333;">
@@ -382,7 +396,7 @@
                 <span id="search-count" style="font-size: 11px; color: #dca44b; width: 20%;">0 / 0</span>
                 <button id="search-next" class="btn-small" style="padding: 2px 8px; width: 20%;" title="Next Result">&gt;</button>
             </div>
-            <button id="cancel-search" class="btn-small" style="display:none; background:#822; color:white;" title="Cancel the current search and remove highlighted matches">CANCEL SEARCH</button>
+            <button id="cancel-search" class="btn-small" style="display:none; background:#822; color:white; margin-top: 5px;" title="Cancel the current search and remove highlighted matches">CANCEL SEARCH</button>
 
             <div id="search-results"></div>
 
@@ -390,8 +404,7 @@
                 <span id="search-status" style="font-size: 11px; color: #dca44b;"></span>
             </div>
 
-
-            <span class="adv-toggle" title="Show or hide advanced filters for more specific search criteria">Advanced Filters...</span>
+            <span class="adv-toggle" title="Show or hide advanced filters for more specific search criteria">Wand Stat Filters...</span>
             
             <div id="advanced-ui">
                 <div class="search-row" title="Used for special wand names like the ones from prebuilt puzzle wands, or the hidden wand name modifiers just for fun">
@@ -558,7 +571,7 @@
                     </div>
                 </div>
 
-                <div class="search-row" title="Rarity of the wand sprite (order of magnitude)">
+                <div class="search-row" title="Rarity of the wand sprite (order of magnitude, e.g. a value of 6 means 1 in a million chance or rarer)">
                     <label>Sprite Rarity (log10)</label>
                     <div class="dual-range-control">
                         <input type="number" id="rarity-min-num" title="Min Rarity">
@@ -572,78 +585,42 @@
                         <input type="number" id="rarity-max-num" title="Max Rarity">
                     </div>
                 </div>
-
-               <div class="search-section-compact" style="border-top:1px solid #333; padding-top:8px; margin-top:8px;">
-                    <div class="compact-row" title="Check this in order to search multiple PWs. If not checked, it will only search the current PW">
-                        <span class="label-orange">Search Over Multiple PWs</span>
-                        <input type="checkbox" id="search-all-pw">
-                    </div>
-
-                    <div class="compact-row" title="Set the limit for the number of PWs to search">
-                        <span>PW Limit:</span>
-                        <div class="control-group">
-                            <input type="number" id="search-pw-limit" class="pw-num-input" value="6" min="0" max="468">
-                            <button class="btn-small" id="pw-set-max" title="Set to maximum PW limit (up to precision loss)">Max</button>
-                        </div>
-                    </div>
-
-                    <div class="compact-row" title="Include vertical PWs in the search. Both horizontal and vertical PWs will be searched, in order of closest to farthest">
-                        <span>Include Vertical PWs in Search</span>
-                        <input type="checkbox" id="search-vertical-pw">
-                    </div>
-
-                    <div class="compact-row" title="Set the limit for the number of vertical PWs to search">
-                        <span>Vertical PW Limit:</span>
-                        <div class="control-group">
-                            <input type="number" id="search-pw-vertical-limit" class="pw-num-input" value="6" min="0" max="683">
-                            <button class="btn-small" id="pw-set-max-vertical" title="Set to maximum vertical PW limit (up to precision loss)">Max</button>
-                        </div>
-                    </div>
-
-                    <div class="compact-row" title="Continue search in the background">
-                        <span>Continue Search in Background</span>
-                        <input type="checkbox" id="search-background">
-                    </div>
-
-                    <small class="help-text">Only tier 10 spells spawn in vertical PWs, don't use it for wand/item searches or it will be slow for no reason</small>
-                </div>
-
-                <!-- Testing new search modes -->
-                <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
-                    <span style="font-weight:bold; font-size:14px;" title="Search in a local area around where you click on the map, used for End of Everything (EoE), boss wand drops, and Summon Taikasauva spawns.">Local Search</span>
-                    <small class="help-text">Click any point on the map after selecting the local search mode to query.</small>
-                    <div class="options-row">
-                        <label class="debug-opt" title="Select an option then click somewhere to start a search centered at that pixel. Used to find orbs, high capacity wands, etc.">
-                            Mode
-                            <select id="local-search-mode">
-                                <option value="off" selected>Off</option>
-                                <option value="taikasauva">Taikasauva</option>
-                                <option value="pit">Pit Boss</option>
-                                <option value="dragon">Dragon</option>
-                                <option value="tiny">Tiny</option>
-                                <option value="eoe">EoE</option>
-                            </select>
-                        </label>
-                    </div>
-                    <!-- Didn't end up needing this
-                    <div class="options-row">
-                        <label class="debug-opt" title="WIP">
-                            Search Radius
-                        </label>
-                        <div class="dual-range-control">
-                            <input type="number" id="search-radius-num">
-                            <div class="slider-container" id="search-radius-container" style="--range-start: 0%; --range-end: 100%;">
-                                <div class="slider-track"></div>
-                                <input type="range" id="search-radius-range">
-                            </div>
-                        </div>
-                    </div>
-                    -->
-                </div>
             </div>
 
-            
+            <div class="search-section-compact" style="border-top:1px solid #333; padding-top:8px; margin-top:8px;">
+                <div class="compact-row" title="Check this in order to search multiple PWs. If not checked, it will only search the current PW">
+                    <span id="search-all-pw-label" class="label-orange">Search Over Multiple PWs</span>
+                    <input type="checkbox" id="search-all-pw">
+                </div>
 
+                <div class="compact-row" title="Set the limit for the number of PWs to search">
+                    <span>PW Limit:</span>
+                    <div class="control-group">
+                        <input type="number" id="search-pw-limit" class="pw-num-input" value="6" min="0" max="468">
+                        <button class="btn-small" id="pw-set-max" title="Set to maximum PW limit (up to precision loss)">Max</button>
+                    </div>
+                </div>
+
+                <div class="compact-row" title="Include vertical PWs in the search. Both horizontal and vertical PWs will be searched, in order of closest to farthest">
+                    <span>Include Vertical PWs in Search</span>
+                    <input type="checkbox" id="search-vertical-pw">
+                </div>
+
+                <div class="compact-row" title="Set the limit for the number of vertical PWs to search">
+                    <span>Vertical PW Limit:</span>
+                    <div class="control-group">
+                        <input type="number" id="search-pw-vertical-limit" class="pw-num-input" value="6" min="0" max="683">
+                        <button class="btn-small" id="pw-set-max-vertical" title="Set to maximum vertical PW limit (up to precision loss)">Max</button>
+                    </div>
+                </div>
+
+                <div class="compact-row" title="Continue search in the background">
+                    <span>Continue Finding Matches in Background</span>
+                    <input type="checkbox" id="search-background">
+                </div>
+
+                <!--<small class="help-text">Only tier 10 spells spawn in vertical PWs, don't use it for wand/item searches or it will be slow for no reason</small>-->
+            </div>
         </div>
 
         <!-- Perks (global) -->

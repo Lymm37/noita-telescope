@@ -477,3 +477,5 @@ for (const spell of ALL_SPELLS) {
     }
 }
 //console.log("Done precomputing spell tier data.");
+
+export const T10_SPELLS = ALL_SPELLS.filter(spell => spell.spawn_probabilities[10] > 0).map(spell => spell.name);
