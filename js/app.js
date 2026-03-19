@@ -1745,7 +1745,7 @@ export const app = {
 		if (this.cauldronState !== null && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_broken"]) {
 			// With the states being null and void it's hard to tell which is 0 and which is 1.
 			if (this.cauldronState === 0 || (this.cauldronState === 2 && getCauldronVariation())) {
-				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_broken"], getWorldCenter(this.isNGP) * 512 + 7*512 + 128, 14*512 + 10 * 512 + 160, 8 * 32, 12 * 32);
+				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_broken"], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + 7*512 + 128, 14*512 + 10 * 512 + 160 - this.pwVertical * 24576, 8 * 32, 12 * 32);
 			}
 		}
 
