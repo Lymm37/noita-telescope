@@ -1724,6 +1724,37 @@ export const app = {
 			}
 		}
 
+		// Darken sky with height
+		if (this.pwVertical < 0) {
+			const viewArea = this.getViewArea();
+			
+			// Calculate how dark the top and bottom of the CURRENT SCREEN should be
+			// Assuming higher up = more negative Y = darker
+			const maxWorldHeight = -24576 * 6; 
+			const bottomFactor = Math.min(Math.max(viewArea.bottom / maxWorldHeight, 0), 1);
+			const topFactor = Math.min(Math.max(viewArea.top / maxWorldHeight, 0), 1);
+
+			this.ctx.save(); // Save the camera transform
+
+			// Reset the context to target the physical screen pixels
+			this.ctx.resetTransform(); 
+			// Note: If you have an older setup that doesn't support resetTransform, 
+			// use this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+			// Create a gradient from the physical top of the canvas (0) to the bottom (height)
+			const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+
+			// Top of the screen gets the topFactor, bottom gets the bottomFactor
+			// Scaled by 0.8 so it doesn't become 100% pitch black at the absolute top
+			gradient.addColorStop(0, `rgba(0, 0, 0, ${topFactor*0.75})`);
+			gradient.addColorStop(1, `rgba(0, 0, 0, ${bottomFactor*0.75})`);
+
+			this.ctx.fillStyle = gradient;
+			this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+			this.ctx.restore(); // Restore the camera transform for the rest of your rendering
+		}
+
 		// Moons
 		if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['moon'] && this.surfaceOverlayScenes['darkmoon']) {
 			this.ctx.drawImage(this.surfaceOverlayScenes['moon'], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512, -37*512 - this.pwVertical * 24576 - 32, 512, 540);

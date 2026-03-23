@@ -405,9 +405,19 @@ export function updateTooltip(e, hit, tip) {
 			let box_containers = [];
 			let box_items = [];
 			let box_wands = [];
-			let box_contents;// = '';
+			let box_contents = '';
 			if (items && items.length > 0) {
-				box_contents = '<b>Contains:</b><br>';
+				// Special handling for vault puzzles, which give different rewards depending on which material was used
+				if (box.materials) {
+					if (Array.isArray(box.materials)) {
+						box_contents += `<small><b>Puzzle materials:</b><br>Left (first wand): ${box.materials[0]}<br>Right (second wand): ${box.materials[1]}</small><br>`;
+					}
+					if (typeof box.materials === 'string') {
+						box_contents += `<small><b>Puzzle materials:</b> ${box.materials}</small><br>`;
+					}
+				}
+				box_contents += '<b>Contains:</b><br>';
+				
 				// TODO: Handle duplicates and just note the count instead of making a bunch of copies in the HTML
 				items.forEach(item => {
 					if (item.ignore) return; // Skip dummy items to identify
@@ -448,9 +458,6 @@ export function updateTooltip(e, hit, tip) {
 				}
 			} else {
 				box_contents = '<i>Empty</i>';
-			}
-			if (box.materials) {
-				box_contents += `<br><small><b>Puzzle materials:</b> ${box.materials}</small>`;
 			}
 			let displayType = hit.type.replace(/_/g, ' ').toUpperCase();
 			tip.innerHTML = `

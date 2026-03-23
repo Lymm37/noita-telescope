@@ -741,13 +741,19 @@ console.log("Done finding coordinates.");
 */
 
 /*
-const T4 = new Set(await fetch('./data/rng/t4_rare_sprite_seeds.json').then(async res => await res.json()));
-const T4NS = new Set(await fetch('./data/rng/t4ns_rare_sprite_seeds.json').then(async res => await res.json()));
-const T5 = new Set(await fetch('./data/rng/t5_rare_sprite_seeds.json').then(async res => await res.json()));
-const T5NS = new Set(await fetch('./data/rng/t5ns_rare_sprite_seeds.json').then(async res => await res.json()));
-const T6 = new Set(await fetch('./data/rng/t6_rare_sprite_seeds.json').then(async res => await res.json()));
-const T6NS = new Set(await fetch('./data/rng/t6ns_rare_sprite_seeds.json').then(async res => await res.json()));
-const T10 = new Set(await fetch('./data/rng/t10_rare_sprite_seeds.json').then(async res => await res.json()));
+const T4 = new Set(await fetch('./data/rng/t4_high_capacity_seeds.json').then(async res => await res.json()));
+const T4NS = new Set(await fetch('./data/rng/t4ns_high_capacity_seeds.json').then(async res => await res.json()));
+const T5 = new Set(await fetch('./data/rng/t5_high_capacity_seeds.json').then(async res => await res.json()));
+const T5NS = new Set(await fetch('./data/rng/t5ns_high_capacity_seeds.json').then(async res => await res.json()));
+const T6 = new Set(await fetch('./data/rng/t6_high_capacity_seeds.json').then(async res => await res.json()));
+const T6NS = new Set(await fetch('./data/rng/t6ns_high_capacity_seeds.json').then(async res => await res.json()));
+const T10 = new Set(await fetch('./data/rng/t10_high_capacity_seeds.json').then(async res => await res.json()));
+const T10NS = new Set(await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(async res => await res.json()));
+
+let capacity_counts = {};
+for (let i = 2; i <= 66; i++) {
+    capacity_counts[i] = 0;
+}
 
 const valid_eoe_seeds = new Set();
 for (let seed of T4) {
@@ -758,6 +764,9 @@ for (let seed of T4) {
 			// Check if tier is valid
             if (tier === 'wand_level_04') {
                 valid_eoe_seeds.add(seed);
+                const wand = generateGunStandalone(seed, tier);
+                if (wand['is_rare']) continue;
+                capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
             }
 		}
 	}
@@ -770,6 +779,9 @@ for (let seed of T4NS) {
 			// Check if tier is valid
             if (tier === 'wand_unshuffle_04') {
                 valid_eoe_seeds.add(seed);
+                const wand = generateGunStandalone(seed, tier);
+                if (wand['is_rare']) continue;
+                capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
             }
 		}
 	}
@@ -782,6 +794,9 @@ for (let seed of T5) {
 			// Check if tier is valid
             if (tier === 'wand_level_05') {
                 valid_eoe_seeds.add(seed);
+                const wand = generateGunStandalone(seed, tier);
+                if (wand['is_rare']) continue;
+                capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
             }
 		}
 	}
@@ -794,6 +809,9 @@ for (let seed of T5NS) {
 			// Check if tier is valid
             if (tier === 'wand_unshuffle_05') {
                 valid_eoe_seeds.add(seed);
+                const wand = generateGunStandalone(seed, tier);
+                if (wand['is_rare']) continue;
+                capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
             }
 		}
 	}
@@ -806,6 +824,9 @@ for (let seed of T6) {
 			// Check if tier is valid
             if (tier === 'wand_level_06') {
                 valid_eoe_seeds.add(seed);
+                const wand = generateGunStandalone(seed, tier);
+                if (wand['is_rare']) continue;
+                capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
             }
 		}
 	}
@@ -818,6 +839,9 @@ for (let seed of T6NS) {
 			// Check if tier is valid
             if (tier === 'wand_unshuffle_06') {
                 valid_eoe_seeds.add(seed);
+                const wand = generateGunStandalone(seed, tier);
+                if (wand['is_rare']) continue;
+                capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
             }
 		}
 	}
@@ -830,10 +854,79 @@ for (let seed of T10) {
 			// Check if tier is valid
             if (tier === 'wand_level_10') {
                 valid_eoe_seeds.add(seed);
+                const wand = generateGunStandalone(seed, tier);
+                if (wand['is_rare']) continue;
+                capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
             }
 		}
 	}
 }
 console.log("Valid EoE seeds: ")
 console.log(Array.from(valid_eoe_seeds).sort((a, b) => a - b));
+console.log("Capacity counts: ")
+console.log(capacity_counts);
+
+capacity_counts = {};
+for (let i = 2; i <= 66; i++) {
+    capacity_counts[i] = 0;
+}
+
+for (let seed of T6NS) {
+    const wand = generateGunStandalone(seed, 'wand_unshuffle_06');
+    if (wand['is_rare']) continue;
+    capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
+}
+
+console.log('T6NS capacity counts: ');
+console.log(capacity_counts);
+
+capacity_counts = {};
+for (let i = 2; i <= 66; i++) {
+    capacity_counts[i] = 0;
+}
+
+for (let seed of T10NS) {
+    const wand = generateGunStandalone(seed, 'wand_unshuffle_10');
+    if (wand['is_rare']) continue;
+    capacity_counts[Math.floor(wand['deck_capacity'])] += 1;
+}
+
+console.log('T10NS capacity counts: ');
+console.log(capacity_counts);
+*/
+
+/*
+const orb_seeds = [];
+const high_y_seeds = [];
+const y_values = {};
+const prng = new NollaPrng(0);
+// Ensure x = 400
+for (let seed = 2144802644; seed <= 2147483647; seed++) {
+    prng.Seed = seed;
+    prng.Prev();
+
+    if (prng.Random(0, 100000) === 100000) {
+        if (prng.Random(0, 1000) === 999) {
+            // Orb
+            orb_seeds.push(seed);
+            prng.Seed = seed;
+            prng.Prev();
+            const x = prng.Random(-400, 400);
+            if (x !== 400) console.log("Error: x is not 400 for seed ", seed);
+            const y = prng.Random(-400, 400);
+            if (y_values[y] === undefined) {
+                y_values[y] = 0;
+            }
+            y_values[y] += 1;
+        }
+    }
+
+    prng.Seed = seed;
+    if (prng.Random(-400, 400) === 399) {
+        high_y_seeds.push(seed);
+    }
+}
+console.log(y_values);
+console.log("Orb seeds: ", orb_seeds);
+console.log("High Y seeds: ", high_y_seeds);
 */

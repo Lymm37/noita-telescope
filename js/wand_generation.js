@@ -364,14 +364,14 @@ export function spawnSpecialWand(ws, ng, x, y, type) {
         wand['tip'] = {x: 16, y: 0};
     }
     if (type === 'vasta') {
-        wand['name'] = wand['name'] + ' Vasta';
+        wand['name'] = wand['name'].substring(0, wand['name'].length-5) + ' Vasta';
         wand['sprite'] = 'custom/vasta';
         wand['always_casts'].push('HITFX_CRITICAL_WATER');
         wand['grip'] = {x: 0, y: 0};
         wand['tip'] = {x: 18, y: 0};
     }
     if (type === 'vihta') {
-        wand['name'] = wand['name'] + ' Vihta';
+        wand['name'] = wand['name'].substring(0, wand['name'].length-5) + ' Vihta';
         wand['sprite'] = 'custom/vihta';
         wand['always_casts'].push('HITFX_EXPLOSION_ALCOHOL');
         wand['grip'] = {x: 0, y: 0};
@@ -385,7 +385,7 @@ export function spawnSpecialWand(ws, ng, x, y, type) {
         wand['tip'] = {x: 21, y: 0};
     }
     if (type === 'varpuluuta') {
-        wand['name'] = wand['name'] + ' Varpuluuta';
+        wand['name'] = wand['name'].substring(0, wand['name'].length-5) + ' Varpuluuta';
         wand['sprite'] = 'custom/plant_02';
         wand['grip'] = {x: 0, y: 0};
         wand['tip'] = {x: 22, y: 0};

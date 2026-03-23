@@ -397,6 +397,41 @@ function findNextLocalWorker() {
 			else item = generateGreatChest(seed, ngPlusCount, currX, currY, perks);
 		}
 
+        // Testing chain spell stuff
+        /*
+        prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
+        const x = prng.Random(-400, 400);
+        const y = prng.Random(-400, 400);
+        const dx = prng.Random(-10, 10);
+        const dy = prng.Random(-10, 10);
+        if (x + dx >= 400 && y + dy >= 400) {
+            console.log(`Velocity at (${currX}, ${currY}) matches orb: (${x + dx}, ${y + dy})`);
+            if (x + dx === 389 && y + dy === 389) {
+                console.log(`Exact match at (${currX}, ${currY})!`);
+            }
+            else if (x + dx === 410 && y + dy === 389) {
+                console.log(`Exact match at (${currX}, ${currY})!`);
+            }
+            else if (x + dx === 390 && y + dy === 410) {
+                console.log(`Exact match at (${currX}, ${currY})!`);
+            }
+            else if (x + dx === 410 && y + dy === 410) {
+                console.log(`Exact match at (${currX}, ${currY})!`);
+            }
+        }
+        if (y + dy <= -100 && y + dy >= -120 && Math.abs(x + dx) <= 20) {
+            console.log(`Velocity at (${currX}, ${currY}) for testing: (${x + dx}, ${y + dy})`);
+
+            prng.SetRandomSeed(seed + ngPlusCount, currX - 4.5, currY - 4);
+            const px = prng.Random(-400, 400);
+            const py = prng.Random(-400, 400);
+            const pdx = prng.Random(-10, 10);
+            const pdy = prng.Random(-10, 10);
+            console.log(`${px}, ${py}, ${pdx}, ${pdy}`);
+        }
+        */
+            
+
         if (item && checkMatch(item, filters)) {
             item.highlight = true;
             item.zoom = true;

@@ -371,22 +371,37 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 				"invis": "invisiblium",
 				"speed": "acceleratium, levitatium, hastium",
 			}
-			const materials = "Any of: " + material_conversions[type_a[firstMaterial-1]] + ", " + material_conversions[type_b[secondMaterial-1]];
-			const r = prng.ProceduralRandom(ws + ng, x, y);
-			let wand;
-			let searchItem;
-			if (r > 0.3) {
-				wand = spawnSpecialWand(ws, ng, x+70, y+10, "arpaluu");
-				searchItem = {type: 'item', item: 'vault_puzzle_arpaluu', x: x+70, y: y+10, ignore: true};
+			//const materials = "Any of: " + material_conversions[type_a[firstMaterial-1]] + ", " + material_conversions[type_b[secondMaterial-1]];
+			const materialL = material_conversions[type_a[firstMaterial-1]];
+			const materialR = material_conversions[type_b[secondMaterial-1]];
+			
+			//const r = prng.ProceduralRandom(ws + ng, x, y);
+			const rL = prng.ProceduralRandom(ws + ng, x-10, y);
+			let wandL;
+			let searchItemL;
+			if (rL > 0.3) {
+				wandL = spawnSpecialWand(ws, ng, x-10+70, y+10, "arpaluu");
+				searchItemL = {type: 'item', item: 'vault_puzzle_arpaluu', x: x-10+70, y: y+10, ignore: true};
 			}
 			else {
-				wand = spawnSpecialWand(ws, ng, x+70, y+10, "varpuluuta");
-				searchItem = {type: 'item', item: 'vault_puzzle_varpuluuta', x: x+70, y: y+10, ignore: true};
+				wandL = spawnSpecialWand(ws, ng, x-10+70, y+10, "varpuluuta");
+				searchItemL = {type: 'item', item: 'vault_puzzle_varpuluuta', x: x-10+70, y: y+10, ignore: true};
+			}
+			const rR = prng.ProceduralRandom(ws + ng, x+11, y);
+			let wandR;
+			let searchItemR;
+			if (rR > 0.3) {
+				wandR = spawnSpecialWand(ws, ng, x+11+70, y+10, "arpaluu");
+				searchItemR = {type: 'item', item: 'vault_puzzle_arpaluu', x: x+11+70, y: y+10, ignore: true};
+			}
+			else {
+				wandR = spawnSpecialWand(ws, ng, x+11+70, y+10, "varpuluuta");
+				searchItemR = {type: 'item', item: 'vault_puzzle_varpuluuta', x: x+11+70, y: y+10, ignore: true};
 			}
 			return {
 				type: 'vault_puzzle',
-				materials: materials,
-				items: [wand, searchItem], // Include dummy item for searching
+				materials: [materialL, materialR],
+				items: [wandL, searchItemL, wandR, searchItemR], // Include dummy items for searching
 				x: x+70,
 				y: y+10,
 			};
