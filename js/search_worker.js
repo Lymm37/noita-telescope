@@ -404,6 +404,7 @@ function findNextLocalWorker() {
         const y = prng.Random(-400, 400);
         const dx = prng.Random(-10, 10);
         const dy = prng.Random(-10, 10);
+        
         if (x + dx >= 400 && y + dy >= 400) {
             console.log(`Velocity at (${currX}, ${currY}) matches orb: (${x + dx}, ${y + dy})`);
             if (x + dx === 389 && y + dy === 389) {
@@ -419,7 +420,8 @@ function findNextLocalWorker() {
                 console.log(`Exact match at (${currX}, ${currY})!`);
             }
         }
-        if (y + dy <= -100 && y + dy >= -120 && Math.abs(x + dx) <= 20) {
+        
+        if (y + dy <= 25 && y + dy >= -25 && Math.abs(x + dx) <= 20) {
             console.log(`Velocity at (${currX}, ${currY}) for testing: (${x + dx}, ${y + dy})`);
 
             prng.SetRandomSeed(seed + ngPlusCount, currX - 4.5, currY - 4);
@@ -430,7 +432,6 @@ function findNextLocalWorker() {
             console.log(`${px}, ${py}, ${pdx}, ${pdy}`);
         }
         */
-            
 
         if (item && checkMatch(item, filters)) {
             item.highlight = true;

@@ -1314,6 +1314,18 @@ export const app = {
 		getOrGenerateOverlay(pwX, pwY);
 	},
 
+	async incrementSeed() {
+		this.isDaily = false;
+		this.unlocksChanged = true;
+		let seedVal = parseInt(document.getElementById('seed').value);
+		if (seedVal == 2147483647) return false;
+		seedVal++;
+		document.getElementById('seed').value = seedVal;
+		this.saveSettings();
+		await this.generate(true, true);
+		return true;
+	},
+
 	renderOffscreen() {
 		this.offscreen.width = this.w; this.offscreen.height = this.h;
 		const ctx = this.offscreen.getContext('2d');
@@ -2056,6 +2068,7 @@ export const app = {
 			// For now I'll leave these as is because it is kind of accurate to the game that the eyes just pop in when you enter the PW
 			// Technically it's drawing two copies but it doesn't matter too much
 			renderEyeMessages(this.ctx, this.eyes.east, this.pw, this.isNGP);
+			renderEyeMessages(this.ctx, this.eyes.west, this.pw, this.isNGP);
 		}
 
 		// Layer 8

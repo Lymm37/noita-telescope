@@ -37,6 +37,7 @@ export function syncSearchWorkerData() {
 
 // Ensure you have an element id='search-background' in your HTML for this toggle
 const isBackgroundSearchEnabled = () => document.getElementById('search-background')?.checked || false;
+const autoIncrementSeedEnabled = () => document.getElementById('auto-increment-seed')?.checked || false;
 
 // Soft cancel, without really canceling, but clearing highlights and resetting
 export function clearHighlights() {
@@ -238,6 +239,13 @@ searchWorker.onmessage = async (e) => {
         searchContinuing = false;
         pendingAutoNavigate = false;
         updateUIForMatches();
+        // Do auto-increment if no matches were found
+        if (search.results.length === 0 && autoIncrementSeedEnabled() && search.mode === 'pw') {
+            const seedsRemaining = await app.incrementSeed();
+            if (seedsRemaining) {
+                performSearch(true, true);
+            }
+        }
     }
     else if (msg.type === 'PROGRESS') {
         // Update the area state
