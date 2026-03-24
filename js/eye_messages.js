@@ -57,7 +57,7 @@ export function findEyeMessages(biomeMap, ws, ngp) {
 	let positionsEast = [];
 	let positionsWest = [];
 	let r = (ws) ^ 0xe4bc7e0;
-	if (r > 2147483647) {
+	if (r >= 2147483647) {
 		r *= 0.5;
 		r = Math.floor(r);
 	}
