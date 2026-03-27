@@ -218,11 +218,21 @@ export function getDisplayName(techId) {
 export function isMatch(techId, query) {
 	if (!techId || !query) return false;
 	const tid = techId.toLowerCase().replace(/_/g, ' ').trim();
-	const q = query.toLowerCase().trim();
-	if (ALIASES[techId]) {
-		return ALIASES[techId].some(alias => alias.toLowerCase().includes(q));
+	let q = query.toLowerCase().trim();
+	if (q.match(new RegExp(`".*"`))) {
+		// Exact match mode
+		q = q.replace(/"/g, '').trim();
+		if (tid === q) return true;
+		const translated = TRANSLATIONS[techId];
+		return translated && translated.toLowerCase() === q;
 	}
-	if (tid.includes(q)) return true;
-	const translated = TRANSLATIONS[techId];
-	return translated && translated.toLowerCase().includes(q);
+	else {
+		// Substring match mode
+		if (ALIASES[techId]) {
+			return ALIASES[techId].some(alias => alias.toLowerCase().includes(q));
+		}
+		if (tid.includes(q)) return true;
+		const translated = TRANSLATIONS[techId];
+		return translated && translated.toLowerCase().includes(q);
+	}
 }
