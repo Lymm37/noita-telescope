@@ -15,6 +15,7 @@ const BIOME_PATH_HEIGHT_LIMIT_CHUNKS = 4;
 //const BIOME_PATH_FIND_WORLD_POS_MIN_X = 159;
 //const BIOME_PATH_FIND_WORLD_POS_MAX_X = 223;
 const BYPASS_PATHFINDING = false; // Debug
+const RESTORE_BLOCKED_ROOMS = true; // Debug, should be true, whether to restore blocked rooms after pathfinding (only for coalmine and excavationsite)
 
 const DEFAULT_OFFSET_Y = 4; 
 const prng = new NollaPrng(0);
@@ -339,7 +340,7 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
 
             if (valid && rawResult) {
                 // After pathfinding, restore blocked rooms
-                if (rawResult.pixelSceneRooms) {
+                if (rawResult.pixelSceneRooms && RESTORE_BLOCKED_ROOMS) {
                     for (const room of rawResult.pixelSceneRooms) {
                         for (let y = room.startY; y <= room.endY; y++) {
                             for (let x = room.startX; x <= room.endX; x++) {

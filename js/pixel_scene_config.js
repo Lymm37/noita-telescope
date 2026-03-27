@@ -1,9 +1,10 @@
 export const BLOCKED_COLORS = [
 	0x00ac6e, // load_pixel_scene4_alt
 	0x70d79e, // load_gunpowderpool_01
-	0x70d79f, //???
+	0x70d79f, // load_gunpowderpool_02
+	0x70d7a0, // load_gunpowderpool_03
 	0x70d7a1, // load_gunpowderpool_04
-	0x7868ff, // load_gunpowderpool_02
+	0x7868ff, // load_puzzleroom
 	0xc35700, // load_oiltank
 	0xff0080, // load_pixel_scene2
 	0xff00ff, //???
@@ -15,9 +16,10 @@ export const BLOCKED_COLORS = [
 export const PIXEL_SCENE_ROOM_MAP = {
 	0x00ac6e: "load_pixel_scene4_alt",
 	0x70d79e: "load_gunpowderpool_01",
-	0x70d79f: "unknown_70d79f",
+	0x70d79f: "load_gunpowderpool_02",
+	0x70d7a0: "load_gunpowderpool_03",
 	0x70d7a1: "load_gunpowderpool_04",
-	0x7868ff: "load_gunpowderpool_02",
+	0x7868ff: "load_puzzleroom",
 	0xc35700: "load_oiltank",
 	0xff0080: "load_pixel_scene2",
 	0xff00ff: "unknown_ff00ff",
