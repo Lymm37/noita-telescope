@@ -378,7 +378,6 @@ function findNextLocalWorker() {
 			if (quickSearch === 'true_orb') {
 				prng.SetRandomSeed(seed + ngPlusCount, currX, currY);
 				if (ORB_SEEDS.has(prng.Seed)) {
-                    console.log(`ping, ${ORB_SEEDS.size}`);
                     item = {type: 'item', item: 'true_orb', x: currX, y: currY};
                 }
 			}
@@ -405,19 +404,32 @@ function findNextLocalWorker() {
         const dx = prng.Random(-10, 10);
         const dy = prng.Random(-10, 10);
         
-        if (x + dx >= 400 && y + dy >= 400) {
-            console.log(`Velocity at (${currX}, ${currY}) matches orb: (${x + dx}, ${y + dy})`);
+        if (x + dx >= 380 && y + dy >= 380) {
+            //console.log(`Velocity at (${currX}, ${currY}) matches orb: (${x + dx}, ${y + dy})`);
             if (x + dx === 389 && y + dy === 389) {
-                console.log(`Exact match at (${currX}, ${currY})!`);
+                console.log(`Exact match at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
             }
             else if (x + dx === 410 && y + dy === 389) {
-                console.log(`Exact match at (${currX}, ${currY})!`);
+                console.log(`Exact match at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
             }
             else if (x + dx === 390 && y + dy === 410) {
-                console.log(`Exact match at (${currX}, ${currY})!`);
+                console.log(`Exact match at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
             }
             else if (x + dx === 410 && y + dy === 410) {
-                console.log(`Exact match at (${currX}, ${currY})!`);
+                console.log(`Exact match at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
+            }
+            else if (x + dx === 395 && y + dy === 395) {
+                console.log(`Exact match at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
+            }
+            else if (x + dx === 400 && y + dy === 400) {
+                console.log(`Exact match at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
+            }
+            else if (x + dx === 405 && y + dy === 405) {
+                console.log(`Exact match at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
+            }
+
+            if (x + dx === 380 && y + dy === 380) {
+                console.log(`Failure case at (${currX}, ${currY})! -- (${x + dx}, ${y + dy})`);
             }
         }
         

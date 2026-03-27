@@ -1492,7 +1492,8 @@ export const app = {
 			"orb_room": await loadPNGBitmap('../data/biome_maps/custom/orb_room.png'),
 			"cursed_orb_room": await loadPNGBitmap('../data/biome_maps/custom/cursed_orb_room.png'),
 			"echoing_spire": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire.png'),
-			"cauldron_broken": await loadPNGBitmap('../data/biome_maps/custom/cauldron_broken.png'),
+			"cauldron_room": await loadPNGBitmap('../data/biome_maps/custom/cauldron_room.png'),
+			"cauldron_room_broken": await loadPNGBitmap('../data/biome_maps/custom/cauldron_room_broken.png'),
 			"moon": await loadPNGBitmap('../data/biome_maps/custom/moon.png'),
 			"darkmoon": await loadPNGBitmap('../data/biome_maps/custom/darkmoon.png'),
 		};
@@ -1790,15 +1791,6 @@ export const app = {
 			}
 		}
 
-		// Cauldron
-		// TODO: Actually might want to change this to be over the biome tiles...
-		if (this.cauldronState !== null && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_broken"]) {
-			// With the states being null and void it's hard to tell which is 0 and which is 1.
-			if (this.cauldronState === 0 || (this.cauldronState === 2 && getCauldronVariation())) {
-				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_broken"], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + 7*512 + 128, 14*512 + 10 * 512 + 160 - this.pwVertical * 24576, 8 * 32, 12 * 32);
-			}
-		}
-
 		const showBoxes = document.getElementById('debug-show-tile-bounds').checked;
 		const showPaths = document.getElementById('debug-show-path').checked;
 
@@ -1971,6 +1963,17 @@ export const app = {
 						this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
 					}
 				});
+			}
+		}
+
+		// Cauldron room should be on top of the biome data
+		if (this.cauldronState !== null && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_room"] && this.surfaceOverlayScenes["cauldron_room_broken"]) {
+			// With the states being null and void it's hard to tell which is 0 and which is 1.
+			if (this.cauldronState === 0 || (this.cauldronState === 2 && getCauldronVariation())) {
+				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_room_broken"], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + 7*512, 14*512 + 10 * 512 - this.pwVertical * 24576, 512, 512);
+			}
+			else {
+				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_room"], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + 7*512, 14*512 + 10 * 512 - this.pwVertical * 24576, 512, 512);
 			}
 		}
 
