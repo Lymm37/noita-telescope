@@ -1,7 +1,7 @@
 import { NollaPrng } from "./nolla_prng.js";
 import { ALTAR_SPAWN_DATA } from "./spawn_config.js";
 import { unlockedSpells } from "./unlocks.js";
-import { POTION_MATERIALS_MAGIC, POTION_MATERIALS_STANDARD, POTION_MATERIALS_SECRET, POTION_LIQUIDS, POTION_SANDS, POWDER_MATERIALS_MAGIC, POWDER_MATERIALS_STANDARD } from "./potion_config.js";
+import { POTION_MATERIALS_MAGIC, POTION_MATERIALS_STANDARD, POTION_MATERIALS_SECRET, POTION_LIQUIDS, POTION_SANDS, POWDER_MATERIALS_MAGIC, POTION_MATERIALS_MAGIC_NIGHTMARE, POWDER_MATERIALS_STANDARD } from "./potion_config.js";
 import { appSettings } from "./settings.js";
 
 // Just checks whether it should spawn, without spawning the potion/item on it, to refactor for pixel scenes
@@ -33,7 +33,7 @@ export function checkPotionAltar(ws, ng, x, y, biome) {
 	return true;
 }
 
-export function spawnPotionAltar(ws, ng, x, y, biome) {
+export function spawnPotionAltar(ws, ng, x, y, biome, perks={}, gameMode = 'normal') {
     const prng = new NollaPrng(0);
     if (!ALTAR_SPAWN_DATA[biome]) {
         //console.log(`Unknown biome for altar spawn: ${biome} at (${x}, ${y})`);
@@ -65,10 +65,10 @@ export function spawnPotionAltar(ws, ng, x, y, biome) {
     let itemY = y + py;
     let item;// = null;
     if (biome === 'liquidcave') {
-        item = generateItemLiquidcave(ws, ng, itemX, itemY);
+        item = generateItemLiquidcave(ws, ng, itemX, itemY, gameMode);
     }
     else {
-        item = generateItem(ws, ng, itemX, itemY);
+        item = generateItem(ws, ng, itemX, itemY, perks, gameMode);
     }
     if (!item) {
         return null;
@@ -84,14 +84,14 @@ export function spawnPotionAltar(ws, ng, x, y, biome) {
 }
 
 // TODO: Add perks for greed die, kind of pointless but technically necessary
-export function spawnItem(ws, ng, x, y, biome, perks={}) {
+export function spawnItem(ws, ng, x, y, biome, perks={}, gameMode = 'normal') {
 	let item;// = null;
 	//let rx = roundRNGPos(x);
     if (biome === 'liquidcave') {
-        item = generateItemLiquidcave(ws, ng, x, y);
+        item = generateItemLiquidcave(ws, ng, x, y, gameMode);
     }
     else {
-        item = generateItem(ws, ng, x, y, perks);
+        item = generateItem(ws, ng, x, y, perks, gameMode);
     }
     if (!item) {
         return null;
@@ -108,7 +108,7 @@ export function spawnItem(ws, ng, x, y, biome, perks={}) {
     return item;
 }
 
-function generateItem(ws, ng, x, y, perks={}) {
+function generateItem(ws, ng, x, y, perks={}, gameMode = 'normal') {
 	const prng = new NollaPrng(0);
 	prng.SetRandomSeed(ws + ng, x, y);
 	let rnd = prng.Random(1, 1000);
@@ -118,7 +118,7 @@ function generateItem(ws, ng, x, y, perks={}) {
 	prng.SetRandomSeed(ws + ng, x + 425, y - 243);
 	rnd = prng.Random(1, 91);
 	if (rnd <= 65) {
-		return createPotion(ws, ng, x, y-2, 'normal');
+		return createPotion(ws, ng, x, y-2, 'normal', gameMode);
 	}
 	else if (rnd <= 70) {
 		return createPowderPouch(ws, ng, x, y-2);
@@ -172,12 +172,12 @@ function generateItem(ws, ng, x, y, perks={}) {
 	}
 }
 
-function generateItemLiquidcave(ws, ng, x, y) {
+function generateItemLiquidcave(ws, ng, x, y, gameMode = 'normal') {
 	const prng = new NollaPrng(0);
 	prng.SetRandomSeed(ws + ng, x + 425, y - 243);
 	let rnd = prng.Random(1, 86);
 	if (rnd <= 49) {
-		return createPotion(ws, ng, x, y-2, 'normal');
+		return createPotion(ws, ng, x, y-2, 'normal', gameMode);
 	}
 	else if (rnd <= 52) {
 		return {type: 'item', item: 'egg_purple', x: x, y: y};
@@ -205,30 +205,74 @@ function generateItemLiquidcave(ws, ng, x, y) {
 	}
 }
 
-export function createPotion(ws, ng, x, y, type) {
+export function createPotion(ws, ng, x, y, type, gameMode = 'normal') {
 	const prng = new NollaPrng(0);
 	// Hopefully rounding it here is fine?
 	//prng.SetRandomSeed(ws + ng, roundRNGPos(x - 4.5), y - 4);
 	//prng.SetRandomSeed(ws + ng, roundRNGPos(x) - 4.5, y - 4);
 	prng.SetRandomSeed(ws + ng, x - 4.5, y - 4);
 	if (type === 'normal') {
-		let rnd = prng.Random(0, 100);
-		if (rnd <= 75) {
-			if (prng.Random(0, 100000) <= 50) {
-				return {type: 'item', item: 'potion', material: 'magic_liquid_hp_regeneration', x: x, y: y};
-			}
-			else if (prng.Random(200, 100000) <= 250) {
-				return {type: 'item', item: 'potion', material: 'purifying_powder', x: x, y: y};
-			}
-			else if (prng.Random(250, 100000) <= 500) {
-				return {type: 'item', item: 'potion', material: 'magic_liquid_weakness', x: x, y: y};
+		if (gameMode === 'nightmare') {
+			let rnd = prng.Random(1, 100);
+			if (rnd <= 50) {
+				return {type: 'item', item: 'potion', material: POTION_MATERIALS_MAGIC_NIGHTMARE[prng.Random(0, POTION_MATERIALS_MAGIC_NIGHTMARE.length - 1)], x: x, y: y};
 			}
 			else {
-				return {type: 'item', item: 'potion', material: POTION_MATERIALS_MAGIC[prng.Random(0, POTION_MATERIALS_MAGIC.length - 1)], x: x, y: y};
+				return {type: 'item', item: 'potion', material: POTION_MATERIALS_STANDARD[prng.Random(0, POTION_MATERIALS_STANDARD.length - 1)], x: x, y: y};
 			}
 		}
 		else {
-			return {type: 'item', item: 'potion', material: POTION_MATERIALS_STANDARD[prng.Random(0, POTION_MATERIALS_STANDARD.length - 1)], x: x, y: y};
+			let rnd = prng.Random(0, 100);
+			let material = null;
+			if (rnd <= 75) {
+				if (prng.Random(0, 100000) <= 50) {
+					material = 'magic_liquid_hp_regeneration';
+					//return {type: 'item', item: 'potion', material: 'magic_liquid_hp_regeneration', x: x, y: y};
+				}
+				else if (prng.Random(200, 100000) <= 250) {
+					material = 'purifying_powder';
+					//return {type: 'item', item: 'potion', material: 'purifying_powder', x: x, y: y};
+				}
+				else if (prng.Random(250, 100000) <= 500) {
+					material = 'magic_liquid_weakness';
+					//return {type: 'item', item: 'potion', material: 'magic_liquid_weakness', x: x, y: y};
+				}
+				else {
+					material = POTION_MATERIALS_MAGIC[prng.Random(0, POTION_MATERIALS_MAGIC.length - 1)];
+					//return {type: 'item', item: 'potion', material: POTION_MATERIALS_MAGIC[prng.Random(0, POTION_MATERIALS_MAGIC.length - 1)], x: x, y: y};
+				}
+			}
+			else {
+				material = POTION_MATERIALS_STANDARD[prng.Random(0, POTION_MATERIALS_STANDARD.length - 1)];
+				//return {type: 'item', item: 'potion', material: POTION_MATERIALS_STANDARD[prng.Random(0, POTION_MATERIALS_STANDARD.length - 1)], x: x, y: y};
+			}
+			if ((appSettings.date.month === 4 && appSettings.date.day === 30) || (appSettings.date.month === 5 && appSettings.date.day === 1)) {
+				if (prng.Random(0, 100) <= 20) {
+					if (prng.Random(0, 5) <= 4) {
+						material = 'sima';
+					}
+					else {
+						material = 'beer';
+					}
+				}
+			}
+			if (appSettings.date.month === 6 && appSettings.date.day >= 19 && appSettings.date.day <= 25) {
+				if (prng.Random(0, 100) <= 9) {
+					if (prng.Random(0, 3) <= 2) {
+						material = 'juhannussima';
+					}
+					else {
+						material = 'beer';
+					}
+				}
+			}
+			if ((appSettings.date.month === 3 && appSettings.date.day >= 29) || (appSettings.date.month === 4 && appSettings.date.day <= 4)) {
+				if (prng.Random(0, 100) <= 10) material = 'mammi';
+			}
+			if (appSettings.date.month === 2 && appSettings.date.day === 14) {
+				if (prng.Random(0, 100) <= 8) material = 'magic_liquid_charm';
+			}
+			return {type: 'item', item: 'potion', material: material, x: x, y: y};
 		}
 	}
 	else if (type === 'secret') {
@@ -283,7 +327,7 @@ if (POTION_DEBUG) {
 		for (let j = -max_search; j < max_search; j++) {
 			let x = base_x + i;
 			let y = base_y + j;
-			let item = createPotion(temp_seed, x, y, 'normal');
+			let item = createPotion(temp_seed, x, y, 'normal', 'normal');
 			if ((target_item == 'potion' && item && item.item == 'potion') || (target_item == 'pouch' && item.item == 'pouch')) {
 				let material = item ? item.material : 'null';
 				if (material === target_material) {
@@ -310,7 +354,7 @@ if (POTION_DEBUG) {
 		for (let j = -max_search; j < max_search; j++) {
 			let x = base_x2 + i;
 			let y = base_y2 + j;
-			let item = createPotion(temp_seed, x, y, 'normal');
+			let item = createPotion(temp_seed, x, y, 'normal', 'normal');
 			if ((target_item2 == 'potion' && item && item.item == 'potion') || (target_item2 == 'pouch' && item.item == 'pouch')) {
 				let material = item ? item.material : 'null';
 				if (material === target_material2) {

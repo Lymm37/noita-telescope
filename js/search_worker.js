@@ -113,6 +113,7 @@ function checkItemMatch(item, f) {
 
 	// Enemies
 	if (item.type === 'enemy' && f.queryList.some(q => isMatch(item.enemy, q))) return true;
+    if (item.type === 'entity' && f.queryList.some(q => isMatch(item.entity, q))) return true;
 
     // 3. Potion/Pouch Label Synthesis
     // Concatenate material and item (e.g., "water" + " " + "potion") 

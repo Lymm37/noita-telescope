@@ -5,18 +5,18 @@ import { getWorldCenter } from "./utils.js";
 const BIOME_PATH_FIND_WORLD_POS_X = 159;
 const BIOME_PATH_FIND_WORLD_POS_X_MINES = 975; // Shrug
 
-export function getMainBiomePathStartX(biomeName, chunkX, isNGP) {
-	let startX = Math.floor((BIOME_PATH_FIND_WORLD_POS_X - (chunkX - getWorldCenter(isNGP)) * 512)/10);
+export function getMainBiomePathStartX(biomeName, chunkX, isNGP, gameMode='normal') {
+	let startX = Math.floor((BIOME_PATH_FIND_WORLD_POS_X - (chunkX - getWorldCenter(isNGP, gameMode)) * 512)/10);
 	if (biomeName === 'coalmine') {
-		startX = Math.floor((BIOME_PATH_FIND_WORLD_POS_X_MINES - (chunkX - getWorldCenter(isNGP)) * 512)/10);
+		startX = Math.floor((BIOME_PATH_FIND_WORLD_POS_X_MINES - (chunkX - getWorldCenter(isNGP, gameMode)) * 512)/10);
 	}
 	return startX;
 }
 
-export function applyMainBiomeHack(chunkX, pixels, width, height, biomeName, isNGP) {
+export function applyMainBiomeHack(chunkX, pixels, width, height, biomeName, isNGP, gameMode='normal') {
 	// Find tile coordinates of the start pos x (coalmine will have some special hack)
 
-	let startX = getMainBiomePathStartX(biomeName, chunkX, isNGP);
+	let startX = getMainBiomePathStartX(biomeName, chunkX, isNGP, gameMode);
 	//console.log(`Applying main biome hack for ${biomeName} at chunk ${chunkX}, startX: ${startX}`);
 
 	for (let y = 0; y < 11; y++) {

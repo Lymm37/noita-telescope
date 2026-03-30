@@ -9,11 +9,12 @@ export const BIOME_CONFIG = {
 
 // Internal Helper to interact with the pixel buffer
 class BiomePainter {
-    constructor(pixels, w, h, rng) {
+    constructor(pixels, w, h, rng, isNightmare) {
         this.pixels = pixels; // Uint32Array
         this.w = w;
         this.h = h;
         this.rng = rng;
+        this.isNightmare = isNightmare;
     }
 
     set(x, y, c) {
@@ -58,12 +59,20 @@ class BiomePainter {
             
             this.set(x, y, c);
 
+            // Why is this different? wtf
+            if (this.isNightmare) {
+                y = Math.max(17, Math.min(45, y));
+            }
+
             // Random walk Y
             if (i > 3) {
                 if (this.rng.Random(0, 100) < 65) y++;
                 else y--;
             }
-            y = Math.max(17, Math.min(45, y));
+
+            if (!this.isNightmare) {
+                y = Math.max(17, Math.min(45, y));
+            }
 
             // Blobbing
             if (i > 6) {
@@ -85,7 +94,7 @@ class BiomePainter {
  * @param {number} height 
  * @returns {Object} { pixels: Uint32Array, orbs: Array }
  */
-export function generateBiomeData(seed, ng, baseImageData, width, height) {
+export function generateBiomeData(seed, ng, gameMode, baseImageData, width, height) {
     // Copy base pixels to new buffer to avoid modifying the cached source
     const pixels = new Uint32Array(width * height);
     for (let i = 0; i < baseImageData.length; i++) {
@@ -93,8 +102,10 @@ export function generateBiomeData(seed, ng, baseImageData, width, height) {
     }
     const orbs = [];
     
+    const isNightmare = (gameMode === 'nightmare');
+
     // If NG+ is 0, we just return the base map (static)
-    if (ng === 0) {
+    if (ng === 0 && !isNightmare) {
         // Generate heaven/hell maps (literally just repeat first/last row)
         let heavenPixels = new Uint32Array(pixels.length);
         let hellPixels = new Uint32Array(pixels.length);
@@ -104,16 +115,16 @@ export function generateBiomeData(seed, ng, baseImageData, width, height) {
                 hellPixels[y * width + x] = pixels[(height - 1) * width + (x % width)]; // Repeat last row
             }
         }
-        return { pixels, heavenPixels, hellPixels, orbs }; 
+        return { pixels, heavenPixels, hellPixels, orbs };
     }
 
     const rng = new NollaPrng(0);
     rng.SetRandomSeed(seed + ng, 4573, 4621);
-    const painter = new BiomePainter(pixels, width, height, rng);
+    const painter = new BiomePainter(pixels, width, height, rng, isNightmare);
 
     // 1. Biome Colors (Standard Palette)
     let b = {
-        coal: 0xFFD56517, 
+        coal: (isNightmare && ng === 0) ? 0xFFD57917 : 0xFFD56517, 
         coll: 0xFFD56517, 
         fungi: 0xFFE861F0, 
         excav: 0xFF124445,
@@ -124,64 +135,67 @@ export function generateBiomeData(seed, ng, baseImageData, width, height) {
         sand: 0xFFE1CD32, 
         snowvault: 0xFF0080A8,
         wand: 0xFF006C42, 
-        crypt: 0xFF786C42
+        crypt: 0xFF786C42 // Not present in nightmare biome list for some reason??
     };
 
     // 2. NG+ Variations
-    if (ng % 2 === 0) {
-        // Tower
-        b.coal = 0xFF3D3E37; 
-        b.coll = 0xFF3D3E37; 
-        b.fungi = 0xFF3D3E3B; 
-        b.excav = 0xFF3D3E38;
-        b.snow = 0xFF3D3E39; 
-        b.hiisi = 0xFF3D3E3A; 
-        b.j1 = 0xFF3D3E3C; 
-        b.j2 = 0xFF3D3E3C;
-        b.vault = 0xFF3D3E3D; 
-        b.crypt = 0xFF3D3E3E;
-    }
+    let doWalls = false;
+    if (ng > 0) {
+        if (ng % 2 === 0) {
+            // Tower
+            b.coal = 0xFF3D3E37; 
+            b.coll = 0xFF3D3E37; 
+            b.fungi = 0xFF3D3E3B; 
+            b.excav = 0xFF3D3E38;
+            b.snow = 0xFF3D3E39; 
+            b.hiisi = 0xFF3D3E3A; 
+            b.j1 = 0xFF3D3E3C; 
+            b.j2 = 0xFF3D3E3C;
+            b.vault = 0xFF3D3E3D; 
+            b.crypt = 0xFF3D3E3E;
+        }
 
-    if (ng % 3 === 0) {
-        // Shuffled world
-        let pool = [
-            0xFFD56517, 
-            0xFFD56517, 
-            0xFFE861F0, 
-            0xFF124445, 
-            0xFF1775D5, 
-            0xFF0046FF, 
-            0xFFA08400, 
-            0xFF808000,
-            0xFF008000, 
-            0xFFE1CD32, 
-            0xFF0080A8, 
-            0xFF006C42, 
-            0xFF786C42
-        ];
-        shuffleTable(pool, rng);
-        
-        b.coal = pool[0]; 
-        b.coll = pool[1]; 
-        b.fungi = pool[2]; 
-        b.excav = pool[3];
-        b.snow = pool[4]; 
-        b.hiisi = pool[5]; 
-        b.j1 = pool[6]; 
-        b.j2 = pool[7];
-        b.vault = pool[8]; 
-        b.crypt = pool[9];
-    }
+        if (ng % 3 === 0) {
+            // Shuffled world
+            let pool = [
+                0xFFD56517, 
+                0xFFD56517, 
+                0xFFE861F0, 
+                0xFF124445, 
+                0xFF1775D5, 
+                0xFF0046FF, 
+                0xFFA08400, 
+                0xFF808000,
+                0xFF008000, 
+                0xFFE1CD32, 
+                0xFF0080A8, 
+                0xFF006C42, 
+                0xFF786C42
+            ];
+            shuffleTable(pool, rng);
+            
+            b.coal = pool[0]; 
+            b.coll = pool[1]; 
+            b.fungi = pool[2]; 
+            b.excav = pool[3];
+            b.snow = pool[4]; 
+            b.hiisi = pool[5]; 
+            b.j1 = pool[6]; 
+            b.j2 = pool[7];
+            b.vault = pool[8]; 
+            b.crypt = pool[9];
+        }
 
-    const doWalls = (ng % 5 === 0);
+        doWalls = (ng % 5 === 0);
 
-    if (ng % 7 === 0) {
-        // Specific color replacement at (16, 5)
-        const t = Math.floor(ng / 7) % 3;
-        const c = (t === 0) ? 0xFFCC9944 : (t === 1) ? 0xFFD6D8E3 : 0xFF33E311;
-        const target = pixels[5 * width + 16];
-        for (let i = 0; i < pixels.length; i++) {
-            if (pixels[i] === target) pixels[i] = c;
+        if (ng % 7 === 0) {
+            // Specific color replacement at (16, 5)
+            const t = Math.floor(ng / 7) % 3;
+            const c = (t === 0) ? 0xFFCC9944 : (t === 1) ? 0xFFD6D8E3 : 0xFF33E311;
+            const target = pixels[5 * width + 16];
+            for (let i = 0; i < pixels.length; i++) {
+                if (pixels[i] === target) pixels[i] = c;
+            }
         }
     }
 
@@ -191,7 +205,13 @@ export function generateBiomeData(seed, ng, baseImageData, width, height) {
             let t = b[k1]; b[k1] = b[k2]; b[k2] = t;
         }
     };
-    swap('coal', 'coll');
+    if (!isNightmare || ng > 0) {
+        swap('coal', 'coll');
+    }
+    else {
+        // Swap without random chance
+        let t = b['coal']; b['coal'] = b['excav']; b['excav'] = t;
+    }
     swap('fungi', 'excav');
     swap('snow', 'hiisi');
     swap('j1', 'j2');
@@ -218,11 +238,20 @@ export function generateBiomeData(seed, ng, baseImageData, width, height) {
     // 5. Rect Areas
     painter.rect(32, 14, 3, 2, b.coal, 0);
     painter.rect(28, 15, 4, 1, b.coll, 1);
-    painter.rect(28, 17, 4, 2, b.excav, 2);
-    painter.rectSplit(28, 20, 7, 6, b.snow, b.hiisi, 3);
+    if (!isNightmare || ng > 0) {
+        painter.rect(28, 17, 4, 2, b.excav, 2);
+        painter.rectSplit(28, 20, 7, 6, b.snow, b.hiisi, 3);
+    }
+    else {
+        painter.rect(28, 17, 4, 4, b.snow, 2);
+        painter.rect(28, 22, 7, 4, b.hiisi, 3);
+    }
     painter.rectSplit(28, 27, 7, 4, b.j1, b.j2, 4);
     painter.rectSplit(28, 29, 7, 5, b.j2, b.vault, 4);
-    painter.rect(29, 35, 11, 3, b.crypt, 0);
+    // Not listed in nightmare but I'm pretty sure it's the same? Actually nope
+    if (!isNightmare || ng > 0) {
+        painter.rect(29, 35, 11, 3, b.crypt, 0);
+    }
 
     if (doWalls) {
         const wallLeft = rng.Random(2, 6);
@@ -232,30 +261,39 @@ export function generateBiomeData(seed, ng, baseImageData, width, height) {
     }
 
     // 6. Orbs
-    const addOrb = (x, y, name) => {
-        painter.set(x, y, 0xFFFFFFFF);
+    const addOrb = (x, y, name, color) => {
+        painter.set(x, y, color);
         //let worldX = x * 512 + 256 - 32 * 512; // Center of chunk
         //let worldY = y * 512 + 256 - 14 * 512;
         // Uses chunk x and y, unlike other objects... Weird inconsistency as a result of this being the first PoI type thing added
         orbs.push({ x: x, y: y, name, type: 'item', item: 'orb', biome: 'orb_room'});
     };
 
-    addOrb(51, 11, "Pyramid");
-    addOrb(33, 11, "Floating Island");
-    addOrb(rng.Random(0, 5) + 10, rng.Random(0, 2) + 18, "Vault");
-    addOrb(rng.Random(0, 5) + 49, rng.Random(0, 3) + 17, "Pyramid (Inside)");
+    addOrb(51, 11, "Pyramid", 0xFFC88F5F);
+    addOrb(33, 11, "Floating Island", 0xFFC08082);
+    if (!isNightmare || ng > 0) {
+        addOrb(rng.Random(0, 5) + 10, rng.Random(0, 2) + 18, "Vault", 0xFFFFD102);
+        addOrb(rng.Random(0, 5) + 49, rng.Random(0, 3) + 17, "Pyramid (Inside)", 0xFFFFD104);
 
-    let hx = rng.Random(0, 9) + 27;
-    let hy = rng.Random(0, 2) + 44;
-    if (ng === 3 || ng >= 25) hy = 47;
-    addOrb(hx, hy, "Hell");
+        let hx = rng.Random(0, 9) + 27;
+        let hy = rng.Random(0, 2) + 44;
+        if (ng === 3 || ng >= 25) hy = 47;
+        addOrb(hx, hy, "Hell", 0xFFFFD108);
 
-    addOrb(rng.Random(0, 6) + 12, rng.Random(0, 3) + 40, "Snowcave");
-    addOrb(rng.Random(0, 4) + 51, rng.Random(0, 5) + 41, "Desert");
-    addOrb(rng.Random(0, 5) + 58, rng.Random(0, 5) + 34, "Nuke");
-    addOrb(rng.Random(0, 9) + 40, rng.Random(0, 11) + 21, "Orb 1");
-    addOrb(rng.Random(0, 7) + 17, rng.Random(0, 8) + 21, "Orb 2");
-    addOrb(rng.Random(0, 7) + 1, rng.Random(0, 9) + 24, "Orb 3");
+        addOrb(rng.Random(0, 6) + 12, rng.Random(0, 3) + 40, "Snowcave", 0xFFFFD109);
+        addOrb(rng.Random(0, 4) + 51, rng.Random(0, 5) + 41, "Desert", 0xFFFFD110);
+        addOrb(rng.Random(0, 5) + 58, rng.Random(0, 5) + 34, "Nuke", 0xFFFFD103);
+        addOrb(rng.Random(0, 9) + 40, rng.Random(0, 11) + 21, "Orb 1", 0xFFFFD105);
+        addOrb(rng.Random(0, 7) + 17, rng.Random(0, 8) + 21, "Orb 2", 0xFFFFD106);
+        addOrb(rng.Random(0, 7) + 1, rng.Random(0, 9) + 24, "Orb 3", 0xFFFFD107);
+    }
+    else {
+        addOrb(12, 19, "Vault", 0xFFFFD102);
+        addOrb(51, 19, "Pyramid (Inside)", 0xFFFFD104);
+        addOrb(31, 45, "Hell", 0xFFFFD108);
+        addOrb(14, 42, "Snowcave", 0xFFFFD109);
+        addOrb(52, 45, "Desert", 0xFFFFD110);
+    }
 
     // Prevent these from getting overwritten by caves
     const color_end_room = 0xFF50EED7

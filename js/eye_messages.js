@@ -97,13 +97,14 @@ export function findEyeMessages(biomeMap, ws, ngp) {
 	return {east: positionsEast, west: positionsWest};
 }
 
-export function renderEyeMessages(ctx, messages, pw, isNGP) {
+export function renderEyeMessages(ctx, messages, pw, isNGP, gameMode='normal') {
 	if (pw !== 1 && pw !== -1) return;
+	if (gameMode !== 'normal') return;
 	for (const message of messages) {
 		if (!message.imgElement || message.imgElement.naturalWidth === 0) continue; // Image not loaded yet
 		// Draw white background to make it more readable
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-		let xPos = message.x + getWorldCenter(isNGP)*512 - pw * 512 * getWorldSize(isNGP);
+		let xPos = message.x + getWorldCenter(isNGP, gameMode)*512 - pw * 512 * getWorldSize(isNGP, gameMode);
 		// Looks more natural without the background
 		//ctx.fillRect(xPos - 10, message.y + 14*512 - 10, message.imgElement.width + 20, message.imgElement.height + 20);
 		ctx.drawImage(message.imgElement, xPos, message.y + 14*512, message.imgElement.width, message.imgElement.height);

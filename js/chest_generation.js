@@ -6,7 +6,7 @@ import { unlockedSpells } from "./unlocks.js";
 import { roundRNGPos, isDuplicateObject } from "./utils.js";
 import { MakeRandomSpell } from "./spell_generator.js";
 
-export function spawnChest(ws, ng, x, y, isTower=false, perks={}) {
+export function spawnChest(ws, ng, x, y, isTower=false, perks={}, gameMode='normal') {
     let prng = new NollaPrng(0);
 	//x = roundRNGPos(x); Testing with and without this, neither is really working correctly?
     prng.SetRandomSeed(ws + ng, x, y);
@@ -18,14 +18,14 @@ export function spawnChest(ws, ng, x, y, isTower=false, perks={}) {
     let rnd = prng.Random(1, great_chest_rate);
 
     if (rnd >= great_chest_rate - 1) {
-        return generateGreatChest(ws, ng, x, y, perks);
+        return generateGreatChest(ws, ng, x, y, perks, gameMode);
     }
     else {
-        return generateChest(ws, ng, x, y, perks);
+        return generateChest(ws, ng, x, y, perks, gameMode);
     }
 }
 
-export function generateGreatChest(ws, ng, x, y, perks={}) {
+export function generateGreatChest(ws, ng, x, y, perks={}, gameMode='normal') {
 	const prng = new NollaPrng(0);
 	const noMoreShuffle = perks['noMoreShuffle'] || false;
 	x = roundRNGPos(x);
@@ -50,16 +50,16 @@ export function generateGreatChest(ws, ng, x, y, perks={}) {
 		if (rnd <= 10) {
 			rnd = prng.Random(0, 100);
 			if (rnd <= 30) {
-				let dupPotion = createPotion(ws, ng, x, y, 'normal');
+				let dupPotion = createPotion(ws, ng, x, y, 'normal', gameMode);
 				items.push(dupPotion);
 				items.push(dupPotion);
-				items.push(createPotion(ws, ng, x, y, 'secret'));
+				items.push(createPotion(ws, ng, x, y, 'secret', gameMode));
 			}
 			else {
-				let dupPotion = createPotion(ws, ng, x, y, 'secret');
+				let dupPotion = createPotion(ws, ng, x, y, 'secret', gameMode);
 				items.push(dupPotion);
 				items.push(dupPotion);
-				items.push(createPotion(ws, ng, x, y, 'random'));
+				items.push(createPotion(ws, ng, x, y, 'random', gameMode));
 			}
 		}
 		else if (rnd <= 15) {
@@ -272,7 +272,7 @@ export function generateGreatChestStandalone(seed) {
 }
 
 
-export function generateChest(ws, ng, x, y, perks={}) {
+export function generateChest(ws, ng, x, y, perks={}, gameMode='normal') {
 	const noMoreShuffle = perks['noMoreShuffle'] || false;
 	const prng = new NollaPrng(0);
 	x = roundRNGPos(x);
@@ -350,7 +350,7 @@ export function generateChest(ws, ng, x, y, perks={}) {
 		else if (rnd <= 50) {
 			rnd = prng.Random(0, 100);
 			if (rnd <= 94) {
-				items.push(createPotion(ws, ng, x + 510, y + 683, 'normal'));
+				items.push(createPotion(ws, ng, x + 510, y + 683, 'normal', gameMode));
 			}
 			else if (rnd <= 98) {
 				items.push(createPowderPouch(ws, ng, x + 510, y + 683));
@@ -358,10 +358,10 @@ export function generateChest(ws, ng, x, y, perks={}) {
 			else {
 				rnd = prng.Random(0, 100);
 				if (rnd <= 98) {
-					items.push(createPotion(ws, ng, x + 510, y + 683, 'secret'));
+					items.push(createPotion(ws, ng, x + 510, y + 683, 'secret', gameMode));
 				}
 				else {
-					items.push(createPotion(ws, ng, x + 510, y + 683, 'random'));
+					items.push(createPotion(ws, ng, x + 510, y + 683, 'random', gameMode));
 				}
 			}
 		}
@@ -395,7 +395,7 @@ export function generateChest(ws, ng, x, y, perks={}) {
 					}
 					else {
 						items.push({type: 'item', item: 'blocked_by_unlock', x: x, y: y});
-						items.push(createPotion(ws, ng, x, y - 12, 'normal'));
+						items.push(createPotion(ws, ng, x, y - 12, 'normal', gameMode));
 					}   
 				}
 				else if (opts[selected] == 'shiny_orb') {

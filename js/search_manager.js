@@ -310,9 +310,10 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
     if (searchActive && allowIterative) return;
     
     const searchAllPW = allowIterative && document.getElementById('search-all-pw').checked;
-    const pwLimit = parseInt(document.getElementById('search-pw-limit').value) || 6;
+    // Default value of 6 here was causing issues with trying to search only verticals with limit 0
+    const pwLimit = parseInt(document.getElementById('search-pw-limit').value);
     const searchVerticalPW = document.getElementById('search-vertical-pw').checked;
-    const pwVerticalLimit = parseInt(document.getElementById('search-pw-vertical-limit').value) || 6;
+    const pwVerticalLimit = parseInt(document.getElementById('search-pw-vertical-limit').value);
     const cancelBtn = document.getElementById('cancel-search');
 
     clearHighlights();
@@ -370,7 +371,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
         // Generate all valid coordinates within the rectangle
         for (let x = -pwLimit; x <= pwLimit; x++) {
             for (let y = -pwVerticalLimit; y <= pwVerticalLimit; y++) {
-                if (y < 0 && (searchTarget === 'wand' || searchTarget === 'other')) continue; // Skip negative vertical PWs for wand searches since they can't spawn there
+                if (y < 0 && (searchTarget === 'wand' || searchTarget === 'other') && app.gameMode !== 'nightmare') continue; // Skip negative vertical PWs for wand searches since they can't spawn there
                 // I would also exclude the other vertical PWs except that the infinite power plant exists
                 coords.push({ x, y, dist: Math.abs(x) + Math.abs(y) });
             }

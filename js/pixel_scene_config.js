@@ -608,6 +608,7 @@ export const GENERAL_SCENES = {
 		{name: "lavalake_pit"},
 		{name: "lavalake_pit_cracked"},
 		{name: "cauldron"},
+		{name: "clean_entrance"},
 	]
 }
 

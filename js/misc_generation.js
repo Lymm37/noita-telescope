@@ -20,10 +20,10 @@ const eyeRoomSpellPositions = [
     {x: -3692, y: 5376}
 ];
 
-export function generateEyeRoom(ws, ng, pwIndex) {
+export function generateEyeRoom(ws, ng, pwIndex, gameMode='normal') {
     let prng = new NollaPrng(0);
     let spells = [];
-    const worldSize = ng > 0 ? 64 : 70;
+    const worldSize = getWorldSize(ng > 0, gameMode);
     for (let i = 0; i < eyeRoomSpellPositions.length; i++) {
         let pos = eyeRoomSpellPositions[i];
         let x = pos.x + pwIndex * 512 * worldSize;
@@ -83,11 +83,11 @@ export function generateHourglassShop(ws) {
 
 const meditationCubePosition = {x: -9 * 512 + 350, y: 4 * 512 + 303};
 
-export function generateMeditationCube(ws, ng, pwIndex, perks={}) {
-    const worldSize = ng > 0 ? 64 : 70;
+export function generateMeditationCube(ws, ng, pwIndex, perks={}, gameMode='normal') {
+    const worldSize = getWorldSize(ng > 0, gameMode);
     const x = meditationCubePosition.x + pwIndex * 512 * worldSize;
     const y = meditationCubePosition.y;
-    const wand = spawnWandAltar(ws, ng, x, y, 'excavationsite_cube_chamber', perks);
+    const wand = spawnWandAltar(ws, ng, x, y, 'excavationsite_cube_chamber', perks, gameMode);
     wand['biome'] = 'excavationsite_cube_chamber';
     return wand;
 }
@@ -100,13 +100,13 @@ const snowyRoomPositions = [
 ];
 
 // Only in NG0
-export function generateSnowyRoom(ws, pwIndex, perks={}) {
+export function generateSnowyRoom(ws, pwIndex, perks={}, gameMode='normal') {
     let wands = [];
     for (let i = 0; i < snowyRoomPositions.length; i++) {
         const pos = snowyRoomPositions[i];
         const x = pos.x + pwIndex * 512 * 70;
         const y = pos.y;
-        const wand = spawnWandAltar(ws, 0, x, y, 'snowcave_secret_chamber', perks);
+        const wand = spawnWandAltar(ws, 0, x, y, 'snowcave_secret_chamber', perks, gameMode);
         wand['biome'] = 'snowcave_secret_chamber';
         wands.push(wand);
     }
@@ -115,15 +115,17 @@ export function generateSnowyRoom(ws, pwIndex, perks={}) {
 
 const robotEggPosition = {x: -10 * 512 + 390, y: 29 * 512 + 313};
 
-export function generateRobotEgg(ws, ng, pwIndex, perks={}) {
-    const worldSize = ng > 0 ? 64 : 70;
+export function generateRobotEgg(ws, ng, pwIndex, perks={}, gameMode='normal') {
+    const worldSize = getWorldSize(ng > 0, gameMode);
     const x = robotEggPosition.x + pwIndex * 512 * worldSize;
     const y = robotEggPosition.y;
     // Oh this actually uses a different spawn function, weird.
     const wandType = getWandType(ws, ng, x + 5, y, 'robot_egg');
-    // Get adjusted position (same logic as taikasauvas)
-    const position = spawnWithRandomOffset(ws, ng, x, y)[0];
-    const wand = generateWand(ws, ng, roundHalfOfEven(position.x), roundHalfOfEven(position.y), wandType, perks);
+    // Get adjusted position (same logic as taikasauvas, but none of the other checks are needed)
+    const prng = new NollaPrng(0);
+    let px = x + 5 - 4 + prng.ProceduralRandom(ws + ng, x+1+5, y+5) * 8;
+	let py = y + 5 - 4 + prng.ProceduralRandom(ws + ng, x+1+5, y+5) * 8;
+    const wand = generateWand(ws, ng, roundHalfOfEven(px), roundHalfOfEven(py), wandType, perks);
     wand['biome'] = 'robot_egg';
     return wand;
 }
@@ -190,6 +192,7 @@ export function generateAlchemistBossDrops(ws, pwIndex) {
 const pyramidBossPosition = {x: 19*512 + 256, y: -2*512 + 256};
 
 // Only in NG0
+// Why does tthis have pwIndex? It's only in main
 export function generatePyramidBossDrops(ws, pwIndex) {
     let opts = ["NOLLA", "DAMAGE_RANDOM", "RANDOM_SPELL", "RANDOM_PROJECTILE", "RANDOM_MODIFIER", "RANDOM_STATIC_PROJECTILE", "DRAW_RANDOM", "DRAW_RANDOM_X3", "DRAW_3_RANDOM"];
     const prng = new NollaPrng(0);
@@ -212,7 +215,7 @@ export function generateDragonBossDrops(ws, pwIndex) {
     return getDragonDrops(ws, 0, 'dragoncave', x, dragonBossPosition.y);
 }
 
-export function getDragonDrops(worldSeed, ngPlusCount, biomeName, x, y, perks={}) {
+export function getDragonDrops(worldSeed, ngPlusCount, biomeName, x, y, perks={}, gameMode='normal') {
     let drops = [];
 
     drops.push({type: 'item', item: 'heart', x: x-16, y: y});
@@ -232,7 +235,7 @@ export function getDragonDrops(worldSeed, ngPlusCount, biomeName, x, y, perks={}
     let opts = ["ORBIT_DISCS", "ORBIT_FIREBALLS", "ORBIT_LASERS", "ORBIT_LARPA"];
     const count = 1;
     const prng = new NollaPrng(0);
-    const pwIndex = Math.floor((x + getWorldCenter(ngPlusCount > 0) * 512) / (getWorldSize(ngPlusCount > 0) * 512));
+    const pwIndex = Math.floor((x + getWorldCenter(ngPlusCount > 0, gameMode) * 512) / (getWorldSize(ngPlusCount > 0, gameMode) * 512));
     prng.SetRandomSeed( worldSeed + ngPlusCount, pwIndex, 540 )
     for (let i = 0; i < count; i++) {
         let rnd = prng.Random(1, opts.length);
@@ -647,7 +650,7 @@ export function getBiomeModifiers(ws, ng, snowing=false, flags={}) {
 
 // TODO: Check if biome modifiers and weather actually change with NG+?
 
-export function getStartingLoadout(ws, isDaily=false) {
+export function getStartingLoadout(ws, isDaily=false, gameMode='normal') {
     const x = 227;
     const y = -81;
     const prng = new NollaPrng(0);
@@ -771,7 +774,7 @@ export function getStartingLoadout(ws, isDaily=false) {
         }
     }
     else {
-        potion = createPotion(ws, 0, 0, 0, "normal");
+        potion = createPotion(ws, 0, 0, 0, "normal", gameMode);
     }
 
     return {type: 'starting_loadout', items: [wand, bomb_wand, potion], x: x, y: y, biome: null};

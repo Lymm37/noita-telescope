@@ -4,6 +4,7 @@ import { WAND_SPAWN_DATA, ALTAR_SPAWN_DATA } from "./spawn_config.js"
 import { generateUtilityBox } from "./utility_box_generation.js";
 import { generateGun } from "./gun_generation.js";
 import { appSettings } from "./settings.js";
+import { roundHalfOfEven } from "./utils.js";
 
 export function createWand(ws, ng, x, y, wandType, addOffset, noMoreShuffle = false) {
     let wandX = Math.floor(x);
@@ -99,7 +100,7 @@ export function checkWandAltar(ws, ng, x, y, biome) {
 	return true;
 }
 
-export function spawnWandAltar(ws, ng, x, y, biome, perks={}) {
+export function spawnWandAltar(ws, ng, x, y, biome, perks={}, gameMode='normal') {
 	if (!ALTAR_SPAWN_DATA[biome]) {
 		return null;
 	}
@@ -128,7 +129,7 @@ export function spawnWandAltar(ws, ng, x, y, biome, perks={}) {
 	if (ALTAR_SPAWN_DATA[biome].rg !== undefined && r >= ALTAR_SPAWN_DATA[biome].rg) {
 		if (ALTAR_SPAWN_DATA[biome].ru !== undefined && r < ALTAR_SPAWN_DATA[biome].ru) {
 			// Utility box
-			return generateUtilityBox(ws, ng, x, y, perks);
+			return generateUtilityBox(ws, ng, x, y, perks, gameMode);
 		}
 		return null;
 	}
@@ -177,7 +178,7 @@ if (WAND_DEBUG) {
         for (let j = -max_search; j < max_search; j++) {
             let x = base_x + i;
             let y = base_y + j;
-            let wand = spawnWandAltar(temp_seed, 0, x, y, 'coalmine_alt');
+            let wand = spawnWandAltar(temp_seed, 0, x, y, 'coalmine_alt', {}, 'normal');
             let wandText = JSON.stringify(wand);
             if (wandText.includes('["AIR_BULLET"]')) {
                 console.log(i, j, x, y, JSON.stringify(wand));
@@ -397,4 +398,53 @@ export function spawnSpecialWand(ws, ng, x, y, type) {
     wand['item'] = 'wand';
     //console.log(`Spawned special wand ${wand['name']} at (${wandX}, ${wandY}): `, wand);
     return wand;
+}
+
+const nightmareExceptions = [
+    'data/entities/animals/eel.xml',
+    'data/entities/animals/meatmaggot.xml',
+    'data/entities/animals/worm.xml',
+    'data/entities/animals/worm_big.xml',
+    'data/entities/animals/worm_tiny.xml',
+    'data/entities/animals/worm_end.xml',
+    'data/entities/animals/worm_skull.xml',
+    'data/entities/animals/boss_dragon.xml',
+    'data/entities/animals/maggot_tiny/maggot_tiny.xml',
+    'data/entities/animals/darkghost.xml',
+    'data/entities/animals/ghost.xml',
+    'data/entities/animals/chest_leggy.xml',
+    'data/entities/animals/boss_centipede/boss_centipede.xml',
+    'data/entities/animals/boss_limbs/boss_limbs.xml',
+    'data/entities/animals/boss_limbs/boss_limbs_physics.xml',
+    'data/entities/animals/boss_meat/boss_meat.xml',
+    'data/entities/animals/boss_pit/boss_pit.xml',
+    'data/entities/animals/boss_robot/boss_robot.xml',
+    'data/entities/animals/lukki/lukki.xml',
+    'data/entities/animals/lukki/lukki_creepy.xml',
+    'data/entities/animals/lukki/lukki_creepy_long.xml',
+    'data/entities/animals/lukki/lukki_dark.xml',
+    'data/entities/animals/lukki/lukki_longleg.xml',
+    'data/entities/animals/lukki/lukki_tiny.xml',
+    'data/entities/animals/parallel/tentacles/parallel_tentacles.xml',
+];
+export function generateNightmareWand(ws, ng, x, y, entity, perks={}) {
+    if (!entity.includes("data/entities/animals/")) return null; // Don't give to buildings
+    // A few other exceptions...
+    // This is probably wrong, need to check enemy components that I don't have, so I'll probably just make a fixed list of exceptions instead
+    //if (entity.includes("worm") || entity.includes("ghost") || entity.includes("lukki")) return null;
+    if (nightmareExceptions.includes(entity)) return null;
+    const prng = new NollaPrng(0);
+    x = roundHalfOfEven(x);
+    y = roundHalfOfEven(y);
+    prng.SetRandomSeed(ws + ng, x, y);
+    let wandLevel = Math.floor(y / (512 * 4));
+    if (wandLevel < 2) wandLevel = 2;
+    if (wandLevel > 6 && wandLevel < 8) wandLevel = 6;
+    if (wandLevel > 6) wandLevel = 10;
+    if (prng.Random(1, 100) < 50) {
+        return generateWand(ws, ng, x, y, `wand_level_${wandLevel.toString().padStart(2, '0')}`, perks);
+    }
+    else {
+        return generateWand(ws, ng, x, y, `wand_unshuffle_${wandLevel.toString().padStart(2, '0')}`, perks);
+    }
 }

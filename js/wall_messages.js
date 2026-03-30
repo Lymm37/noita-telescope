@@ -2,7 +2,7 @@ import { getWorldCenter, getWorldSize } from "./utils.js";
 
 const SECRET_MESSAGES = [
 	{ img: './data/secret_messages/boss_arena.png', x: 3425, y: 12650 },
-	{ img: './data/secret_messages/boss_arena_under.png', x: 2976, y: 13692 },
+	{ img: './data/secret_messages/boss_arena_under.png', x: 2976, y: 13692 }, // This one is off by 100 in nightmare? Why? 13792
 	{ img: './data/secret_messages/boss_arena_under_right.png', x: 4238, y: 15055 },
 	{ img: './data/secret_messages/completely_random.png', x: -5400, y: 21887 },
 	{ img: './data/secret_messages/completely_random_2.png', x: 4256, y: 26954 },
@@ -23,14 +23,18 @@ SECRET_MESSAGES.forEach(msg => {
 	msg.imgElement = img; // Store the loaded image element for later use
 });
 
-export function renderWallMessages(ctx, isNGP, pw, pwVertical) {
+export function renderWallMessages(ctx, isNGP, gameMode, pw, pwVertical) {
 	for (const secretMessage of SECRET_MESSAGES) {
+		if (gameMode === 'nightmare' && secretMessage.img === './data/secret_messages/above_alchemist.png') continue;
 		if (isNGP && (secretMessage.img === './data/secret_messages/above_alchemist.png' || secretMessage.img === './data/secret_messages/below_tree.png')) continue; // These two messages only appear in NG0
 		// Draw white background to make it more readable
 		// No longer needed since I'm not drawing on a black background anymore
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
 		//if (secretMessage.y > 17000)
 		//	ctx.fillRect(secretMessage.x + getWorldCenter(isNGP)*512 - 10, secretMessage.y + 14*512 - 10, secretMessage.imgElement.width + 20, secretMessage.imgElement.height + 20);
-		ctx.drawImage(secretMessage.imgElement, secretMessage.x + getWorldCenter(isNGP)*512 - pw*getWorldSize(isNGP)*512, secretMessage.y + 14*512 - pwVertical*48*512, secretMessage.imgElement.width, secretMessage.imgElement.height);
+		const messageX = secretMessage.x + getWorldCenter(isNGP, gameMode)*512 - pw*getWorldSize(isNGP, gameMode)*512;
+		let messageY = secretMessage.y + 14*512 - pwVertical*48*512;
+		if (gameMode === 'nightmare' && secretMessage.img === './data/secret_messages/boss_arena_under.png') messageY += 100; // Who knows
+		ctx.drawImage(secretMessage.imgElement, messageX, messageY, secretMessage.imgElement.width, secretMessage.imgElement.height);
 	}
 }

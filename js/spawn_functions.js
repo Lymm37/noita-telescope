@@ -2,7 +2,7 @@ import { NollaPrng } from './nolla_prng.js';
 import { loadPixelScene, loadRandomPixelScene } from './pixel_scene_generation.js';
 import { PIXEL_SCENE_BIOME_MAP } from './pixel_scene_config.js';
 import { spawnChest } from './chest_generation.js';
-import { generateWand, spawnWand, spawnSpecialWand, checkWandAltar } from './wand_generation.js';
+import { generateWand, spawnWand, spawnSpecialWand, checkWandAltar, generateNightmareWand } from './wand_generation.js';
 import { spawnJar, checkPotionAltar, createPotion, spawnItem } from './potion_generation.js';
 import { generateShopItem } from './spell_generator.js';
 import { spawnHeart } from './heart_generation.js';
@@ -11,6 +11,9 @@ import { BIOMES_WITH_SMALL_ALTARS, BIOME_WAND_ALTAR_OFFSET_MAP, BIOME_POTION_ALT
 import { generateUtilityBox } from './utility_box_generation.js';
 import { getBiomeAtWorldCoordinates, roundHalfOfEven } from './utils.js';
 import { getDragonDrops } from './misc_generation.js';
+import { BIOME_ENEMY_MAP, TOWER_ENEMIES } from './enemy_config.js';
+// Switching to using app settings instead?
+import { appSettings } from './settings.js';
 
 const BIOME_TIERS = {
 	'coalmine': 1,
@@ -78,24 +81,121 @@ function vault_safe(x, y) {
 }
 */
 
-// Just "spawn" in Lua
-export function spawnWithRandomOffset(ws, ng, x, y, minCount=1, maxCount=1, offsetX=5, offsetY=5) {
-	const prng = new NollaPrng(0);
-	let count = minCount + prng.ProceduralRandom(ws + ng, x+offsetX, y+offsetY) * (maxCount - minCount);
-	let positions = [];
-	for (let i = 1; i <= count; i++) {
-		let px = x + offsetX - 4 + prng.ProceduralRandom(ws + ng, x+i+offsetX, y+offsetY) * 8;
-		let py = y + offsetY - 4 + prng.ProceduralRandom(ws + ng, x+i+offsetX, y+offsetY) * 8;
-		positions.push({x: px, y: py});
+// TODO: Parallel check? Also add other time based spawn checks
+function spawnFromTable(ws, ng, x, y, table) {
+	let total = 0;
+	for (const entry of table) {
+		if (entry.ngpluslevel !== undefined && ng < entry.ngpluslevel) continue;
+		if (entry.spawn_check !== undefined) {
+			if (entry.spawn_check === 'christmas' && (appSettings.date.month !== 12 || appSettings.date.day < 24 || appSettings.date.day > 26)) continue;
+			if (entry.spawn_check === 'august24' && (appSettings.date.month !== 8 || appSettings.date.day !== 24)) continue;
+			if (entry.spawn_check === 'jussi' && (appSettings.date.month !== 6 || appSettings.date.day < 19 || appSettings.date.day > 25)) continue;
+		}
+		total += entry.prob;
 	}
-	return positions;
+	const prng = new NollaPrng(0);
+	let r = prng.ProceduralRandom(ws+ng, x, y) * total;
+	for (const entry of table) {
+		if (entry.ngpluslevel !== undefined && ng < entry.ngpluslevel) continue;
+		if (entry.spawn_check !== undefined) {
+			if (entry.spawn_check === 'christmas' && (appSettings.date.month !== 12 || appSettings.date.day < 24 || appSettings.date.day > 26)) continue;
+			if (entry.spawn_check === 'august24' && (appSettings.date.month !== 8 || appSettings.date.day !== 24)) continue;
+			if (entry.spawn_check === 'jussi' && (appSettings.date.month !== 6 || appSettings.date.day < 19 || appSettings.date.day > 25)) continue;
+		}
+		if (r <= entry.prob) {
+			return entry;
+		}
+		r -= entry.prob;
+	}
+	return null;
+}
+
+function spawnTowerEnemies(ws, ng, x, y) {
+	if (x >= 9676 && x <= 9804 && y >= 9806 && y <= 9214) return null;
+	const prng = new NollaPrng(0);
+	prng.SetRandomSeed(ws + ng, x, y);
+	let rnd = prng.Random(1, TOWER_ENEMIES.length);
+	let target = TOWER_ENEMIES[rnd-1];
+	return {type: 'enemies', items: [{type: 'entity', entity: target, x: x, y: y}], x: x, y: y};
+}
+
+// entity_load_camera_bound
+export function spawnWithRandomOffset(ws, ng, x, y, spawnChoice, offsetX=5, offsetY=5, gameMode='normal', perks={}) {
+	let spawns = [];
+	const prng = new NollaPrng(0);
+	prng.SetRandomSeed(ws + ng, x+offsetX, y+offsetY);
+	const givePerk = (gameMode === 'nightmare') ? prng.Random(1, 15) === 1 : false;
+	let giveWand = (gameMode === 'nightmare') ? prng.Random(1, 20) === 1 : false;
+	const minCount = spawnChoice.min_count !== undefined ? spawnChoice.min_count : 1;
+	const maxCount = spawnChoice.max_count !== undefined ? spawnChoice.max_count : 1;
+	if (spawnChoice.entities !== undefined) {
+		// Multiple entities in a group
+		for (let j = 0; j < spawnChoice.entities.length; j++) {
+			const entity = spawnChoice.entities[j];
+			if (typeof entity === 'object') {
+				const entityMinCount = entity.min_count !== undefined ? entity.min_count : 1;
+				const entityMaxCount = entity.max_count !== undefined ? entity.max_count : entityMinCount;
+				let count = entityMinCount + prng.ProceduralRandom(ws + ng, x+j+offsetX, y+offsetY) * (entityMaxCount - entityMinCount);
+				for (let i = 1; i <= count; i++) {
+					let px = x + offsetX - 4 + prng.ProceduralRandom(ws + ng, x+j+offsetX, y+i+offsetY) * 8;
+					let py = y + offsetY - 4 + prng.ProceduralRandom(ws + ng, x+j+offsetX, y+i+offsetY) * 8;
+					if (!appSettings.showEnemies) continue;
+					const cleanEntity = entity.entity.split("/").pop().replace(".xml", "");
+					spawns.push({type: 'entity', entity: cleanEntity, x: px, y: py});
+				}
+			}
+			else {
+				let px = x + offsetX - 4 + prng.ProceduralRandom(ws + ng, x+j+offsetX, y+offsetY) * 8;
+				let py = y + offsetY - 4 + prng.ProceduralRandom(ws + ng, x+j+offsetX, y+offsetY) * 8;
+				if (!appSettings.showEnemies) continue;
+				const cleanEntity = entity.split("/").pop().replace(".xml", "");
+				spawns.push({type: 'entity', entity: cleanEntity, x: px, y: py});
+			}
+		}
+	}
+	if (spawnChoice.entity !== undefined) {
+		// Just one entity
+		let count = minCount + prng.ProceduralRandom(ws + ng, x+offsetX, y+offsetY) * (maxCount - minCount);
+		for (let i = 1; i <= count; i++) {
+			let px = x + offsetX - 4 + prng.ProceduralRandom(ws + ng, x+i+offsetX, y+offsetY) * 8;
+			let py = y + offsetY - 4 + prng.ProceduralRandom(ws + ng, x+i+offsetX, y+offsetY) * 8;
+			//let enemyPerk = null;
+			if (givePerk) {
+				// TODO: Enemy perks (I don't really care that much right now)
+			}
+			// Instead of "giving" the enemy the wand, we'll just show it as its own thing...
+			if (giveWand) {
+				const wand = generateNightmareWand(ws, ng, px, py, spawnChoice.entity, perks);
+				if (wand) {
+					spawns.push(wand);
+				}
+				else {
+					giveWand = false;
+				}
+			}
+			if (spawnChoice.entity.includes('wand_ghost')) giveWand = true; // Generating the wand later
+			if (!appSettings.showEnemies && !giveWand ) continue;
+			const cleanEntity = spawnChoice.entity.split("/").pop().replace(".xml", "");
+			spawns.push({type: 'entity', entity: cleanEntity, x: px, y: py});
+		}
+	}
+	return spawns;
+}
+
+function spawnEntities(ws, ng, x, y, spawnList, gameMode='normal', perks={}, offsetX=5, offsetY=5) {
+	let spawnChoice = spawnFromTable(ws, ng, x, y, spawnList);
+	if (spawnChoice && ((spawnChoice.entity !== undefined && spawnChoice.entity !== "") || (spawnChoice.entities !== undefined && spawnChoice.entities.length > 0))) {
+		let result = spawnWithRandomOffset(ws, ng, x, y, spawnChoice, offsetX, offsetY, gameMode, perks);
+		return result;
+	}
+	return null;
 }
 
 // Might just make this cover all colors?
-export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}) {
+export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}, gameMode='normal') {
 
 	// Adjust biome with edge noise
-	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0);
+	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
 	// Hacky to reference app but I am feeling lazy and this is easier than passing in a parameter
 	// Actually this isn't working anyway, determining if it's an edge case might be hard
 	/*
@@ -141,20 +241,20 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 	if (biomeName === "coalmine") {
 		if (func === "load_pixel_scene") {
 			if (prng.Random(1, 100) > 50)
-				return loadRandomPixelScene(biomeData, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_oiltank"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_oiltank"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 			else
-				return loadRandomPixelScene(biomeData, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_oiltank") {
 			if (prng.Random(1, 100) <= 50) {
-				return loadRandomPixelScene(biomeData, biomeName, scenes["g_oiltank"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, scenes["g_oiltank"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 			}
 			else {
-				return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
+				return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 			}
 		}
 		else if (func === "load_oiltank_alt") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_oiltank_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_oiltank_alt"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_trapwand") {
 			const options = ["premade_1", "premade_2", "premade_3", "premade_4", "premade_5", "premade_6", "premade_7", "premade_8", "premade_9", "wand_level_01"];
@@ -175,7 +275,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 		}
 		else if (func === "spawn_swing_puzzle_target") {
-			return spawnChest(ws, ng, x - 75, y - 70, false, perks);
+			return spawnChest(ws, ng, x - 75, y - 70, false, perks, gameMode);
 		}
 		else if (func === "spawn_oiltank_puzzle") {
 			// TODO: Wand from this puzzle?
@@ -184,7 +284,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			const choice = prng.ProceduralRandomi(ws + ng, x, y, 1, materials.length);
 			console.log(`Oiltank puzzle material choice: ${materials[choice-1]}`); // Material not actually relevant to the puzzle
 			// Might be better to recolor the pixel scene with it instead, even though it technically spawns a material spawner and not a pool of the material
-			return spawnChest(ws, ng, x, y - 25, false, perks);
+			return spawnChest(ws, ng, x, y - 25, false, perks, gameMode);
 		}
 		else if (func === "spawn_receptacle_oil") {
 			const wand = spawnSpecialWand(ws, ng, x + 72, y - 22, "ruusu");
@@ -194,28 +294,45 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			let r = prng.Next() * 0.4; //prng.ProceduralRandom(ws + ng, x, y) * 0.4;
 			if (r > 0.1) {
 				// No idea why this offset works, it was supposed to be x, y+5 based on the Lua but this is what works...
-				return createPotion(ws, ng, x+5, y, 'normal');
+				return createPotion(ws, ng, x+5, y, 'normal', gameMode);
 			}
 			else {
 				return null;
 			}
 		}
+		// TODO: Enemy spawning is just barely off from the default here
+		/*
+		else if (func === "spawn_small_enemies") {
+			const r = prng.ProceduralRandom(ws + ng, x, y);
+			// Get vertical position inside biome?
+			const spawn_percent = 2.5*biomeVerticalPosition + 0.35;
+			if (r > spawn_percent) return null;
+			spawn(g_small_enemies,x,y)
+		}
+		else if (func === "spawn_big_enemies") {
+			const r = prng.ProceduralRandom(ws + ng, x, y);
+			// Get vertical position inside biome?
+			const spawn_percent = 2.1*biomeVerticalPosition;
+			if (r > spawn_percent) return null;
+			spawn(g_big_enemies,x,y)
+		}
+		*/
 	}
 	else if (biomeName === "excavationsite") {
 		if (func === "load_puzzleroom") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzleroom"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzleroom"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_gunpowderpool_01") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_01"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_01"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_gunpowderpool_02") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_02"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_02"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_gunpowderpool_03") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_03"], ws, ng, x-3, y+3, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_03"], ws, ng, x-3, y+3, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_gunpowderpool_04") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_04"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_gunpowderpool_04"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_meditation_cube") {
 			let rnd = prng.Random(1, 100);
@@ -227,19 +344,36 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			const wand = spawnSpecialWand(ws, ng, x, y - 25, "kiekurakeppi");
 			return {type: 'puzzle', materials: 'steam', items: [wand, {type: 'item', item: 'steam_receptacle_puzzle', x: x, y: y, ignore: true}], x: x, y: y - 25}; // Include dummy item for searching
 		}
+		// TODO: Enemy spawning is just barely off from the default here
+		/*
+		else if (func === "spawn_small_enemies") {
+			const r = prng.ProceduralRandom(ws + ng, x, y);
+			// Get vertical position inside biome?
+			const spawn_percent = 2.1*biomeVerticalPosition + 0.2;
+			if (r > spawn_percent) return null;
+			//spawn_with_limited_random(g_small_enemies,x,y,0,0,{"longleg","fungus"})
+		}
+		else if (func === "spawn_big_enemies") {
+			const r = prng.ProceduralRandom(ws + ng, x, y);
+			// Get vertical position inside biome?
+			const spawn_percent = 1.75*biomeVerticalPosition - 0.1;
+			if (r > spawn_percent) return null;
+			//spawn_with_limited_random(g_big_enemies,x,y,0,0,{"longleg","fungus"})
+		}
+		*/
 	}
 	else if (biomeName === "snowcave") {
 		if (func === "load_puzzle_capsule") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzle_capsule"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzle_capsule"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_puzzle_capsule_b") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzle_capsule_b"], ws, ng, x-50, y-230, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_puzzle_capsule_b"], ws, ng, x-50, y-230, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_acidtank_right") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_acidtank_right"], ws, ng, x-12, y-12, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_acidtank_right"], ws, ng, x-12, y-12, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_acidtank_left") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_acidtank_left"], ws, ng, x-252, y-12, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_acidtank_left"], ws, ng, x-252, y-12, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_buried_eye_teleporter") {
 			return {type: 'item', item: 'buried_eye_teleporter', x: x, y: y};
@@ -267,62 +401,62 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		}
 		else if (func === "load_chamfer_top_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_top_r", ws, ng, x-10, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_top_r", ws, ng, x-10, y, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_chamfer_top_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_top_l", ws, ng, x-1, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_top_l", ws, ng, x-1, y, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_chamfer_bottom_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_chamfer_bottom_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_bottom_l", ws, ng, x-1, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_bottom_l", ws, ng, x-1, y-20, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_chamfer_inner_top_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_inner_top_r", ws, ng, x-10, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_top_r", ws, ng, x-10, y, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_chamfer_inner_top_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_inner_top_l", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_top_l", ws, ng, x, y, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_chamfer_inner_bottom_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_inner_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_bottom_r", ws, ng, x-10, y-20, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_chamfer_inner_bottom_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "chamfer_inner_bottom_l", ws, ng, x, y-20, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "chamfer_inner_bottom_l", ws, ng, x, y-20, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_pillar_filler") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "pillar_filler_01", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "pillar_filler_01", ws, ng, x, y, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_pillar_filler_tall") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadPixelScene(biomeData, biomeName, "pillar_filler_tall_01", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "pillar_filler_tall_01", ws, ng, x, y, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "load_pod_large") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_large"], ws, ng, x, y-50, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_large"], ws, ng, x, y-50, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_pod_small_l") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_small_l"], ws, ng, x-30, y-40, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_small_l"], ws, ng, x-30, y-40, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_pod_small_r") {
 			if (!hiisi_safe(x, y)) return null;
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_small_r"], ws, ng, x-10, y-40, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pods_small_r"], ws, ng, x-10, y-40, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_potion" || func === "spawn_props3") {
 			// 0.1 nothing, 0.3 green, 0.3 red, 0.3 blue, 0.2 yellow, 0.1 alcohol, 0.025 potion
 			let r = prng.Next() * 1.325;
 			if (r > 1.3) {
 				// No idea why this offset works, it was supposed to be x, y+5 based on the Lua but this is what works...
-				return createPotion(ws, ng, x+5, y, 'normal');
+				return createPotion(ws, ng, x+5, y, 'normal', gameMode);
 			}
 			else if (r > 1.2) {
 				return {type: 'item', item: 'potion', material: 'alcohol', x: x+5, y: y};
@@ -330,6 +464,9 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			else {
 				return null;
 			}
+		}
+		else if (func === "spawn_chef") {
+			return {type: 'enemies', items: [{type: 'entity', entity: 'chef', x: x, y: y}], x: x, y: y};
 		}
 	}
 	else if (biomeName === "rainforest" || biomeName === "rainforest_open") {
@@ -340,19 +477,19 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 	}
 	else if (biomeName === "vault" || biomeName === "vault_frozen") {
 		if (func === "load_pixel_scene_wide") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_wide"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_wide"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_pixel_scene_tall") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_tall"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_tall"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_stains") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_stains"], ws, ng, x-10, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_stains"], ws, ng, x-10, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_stains_ceiling") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_stains_ceiling"], ws, ng, x-20, y-10, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_stains_ceiling"], ws, ng, x-20, y-10, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_laser_trap") {
-			return loadPixelScene(biomeData, biomeName, "hole", ws, ng, x, y, skipCosmeticScenes);
+			return loadPixelScene(biomeData, biomeName, "hole", ws, ng, x, y, skipCosmeticScenes, true, gameMode);
 		}
 		else if (func === "spawn_lab_puzzle") {
 			//console.log("Spawning lab puzzle at", x, y);
@@ -407,49 +544,52 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			};
 		}
 		else if (func === "spawn_pipes_hor") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_hor"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_hor"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_ver") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_ver"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_ver"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_turn_right") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_turn_right"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_turn_right"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_turn_left") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_turn_left"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_turn_left"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_cross") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_cross"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_cross"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_big_hor") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_hor"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_hor"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_big_ver") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_ver"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_ver"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_big_turn_right") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_turn_right"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_turn_right"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "spawn_pipes_big_turn_left") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_turn_left"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pipes_big_turn_left"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_catwalk") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_catwalks"], ws, ng, x, y-20, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_catwalks"], ws, ng, x, y-20, skipCosmeticScenes, gameMode);
 		}
 	}
 	else if (biomeName === "crypt" || biomeName === "wizardcave") {
 		if (func === "load_beam") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_beam"], ws, ng, x, y-65, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_beam"], ws, ng, x, y-65, skipCosmeticScenes, gameMode);
 		}
 		else if (func === "load_cavein") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_cavein"], ws, ng, x-60, y-10, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_cavein"], ws, ng, x-60, y-10, skipCosmeticScenes, gameMode);
 		}
 	}
 	else if (biomeName === "liquidcave") {
 		if (func === "load_pixel_scene") {
 			// Took me way too long to realize this one has a custom offset
 			// TODO: Get the material for this and add as PoI maybe? idk
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x-5, y-3, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x-5, y-3, skipCosmeticScenes, gameMode);
+		}
+		else if (func === "spawn_lasergun") {
+			return {type: 'enemies', items: [{type: 'entity', entity: 'lasergun', x: x, y: y}], x: x, y: y};
 		}
 	}
 	else if (biomeName === "the_end" || biomeName === "the_sky") {
@@ -516,6 +656,21 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			return null; // disabled
 		}
 	}
+	else if (biomeName === "meat") {
+		if (func === "spawn_mouth") {
+			if (!appSettings.showEnemies) return null;
+			if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].mouth) {
+				let spawnList = BIOME_ENEMY_MAP[biomeName].mouth;
+				let offsetX = 5 + prng.Random(-10, 10);
+				let offsetY = 5 + prng.Random(-10, 10);
+				let entities = spawnEntities(ws, ng, x+offsetX, y+offsetY, spawnList, gameMode, perks);
+				if (entities && entities.length > 0) {
+					return {type: 'enemies', items: entities, x: x+offsetX, y: y+offsetY, biome: biomeName};
+				}
+			}
+			return null;
+		}
+	}
 
 	// Default functions come after biome-specific ones
 	if (func === "spawn_shopitem") {
@@ -524,51 +679,199 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		return generateShopItem(ws, ng, x, y, BIOME_TIERS[biomeName], 0);
 	}
 	// Enemies (TODO: At minimum need taikasauva)
-	else if (func === "spawn_small_enemies") {
-		// In general should use enemy config or something for the biome enemy data
-		// However right now I only care about taikasauva
-		if (biomeName === "wandcave") {
-			let r = prng.Next() * 0.4;
-			if (r >= 0.3) {
-				// Replacement
-				
-				let positions = spawnWithRandomOffset(ws, ng, x, y, 1, 2);
-				let px = roundHalfOfEven(positions[positions.length-1].x);
-				let py = roundHalfOfEven(positions[positions.length-1].y);
-				const wand = generateWand(ws, ng, px, py, "wand_level_03", perks);
-				
-				/*
-				let offsetX = 5;
-				let offsetY = 5;
-				let count = 1 + prng.ProceduralRandom(ws + ng, x+offsetX, y+offsetY);
-				let wand;
-				for (let i = 1; i <= count; i++) {
-					let px = x + offsetX - 4 + prng.ProceduralRandom(ws + ng, x+i+offsetX, y+offsetY) * 8;
-					let py = y + offsetY - 4 + prng.ProceduralRandom(ws + ng, x+i+offsetX, y+offsetY) * 8;
-					wand = generateWand(ws, ng, roundHalfOfEven(px), roundHalfOfEven(py), "wand_level_03", perks);
+	else if (func === "spawn_small_enemies" || func === "spawn_small_enemies2") {
+		if (!appSettings.showEnemies && biomeName !== "wandcave" && gameMode !== 'nightmare') return null;
+		if (biomeName.includes("tower")) return spawnTowerEnemies(ws, ng, x, y);
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].small) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].small;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				if (biomeName === "wandcave") {
+					// Taikasauva, special case
+					let px = roundHalfOfEven(entities[entities.length-1].x);
+					let py = roundHalfOfEven(entities[entities.length-1].y);
+					const wand = generateWand(ws, ng, px, py, "wand_level_03", perks);
+					if (wand) {
+						wand['name'] = "Taikasauva";
+					}
+					// This would be more consistent with what is actually happening, the wand ghost enemy holds the wand,
+					// However it just ends up looking confusing because the icon for the wand ghost is the same as the summon taikasauva spell
+					// and also it makes searching for that spell more difficult
+					// So instead let's just treat it as a normal wand spawn
+					//entities.push(wand);
+					return wand;
 				}
-				*/
-				if (wand) {
-					wand['name'] = "Taikasauva";
-				}
-				return wand;
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
 			}
 		}
+		return null;
 	}
-	/*
-	else if (func === "spawn_big_enemies") {
-
+	if (func === "spawn_big_enemies" || func === "spawn_big_enemies2") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (biomeName.includes("tower")) return spawnTowerEnemies(ws, ng, x, y);
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].big) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].big;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
 	}
 	else if (func === "spawn_unique_enemy") {
-
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (biomeName.includes("tower")) return spawnTowerEnemies(ws, ng, x, y);
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].unique) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].unique;
+			let offsetX = (biomeName === 'crypt' || biomeName === 'pyramid' || biomeName === 'wizardcave') ? -1 : 0;
+			let offsetY = (biomeName === 'rainforest' || biomeName === 'rainforest_open' || biomeName === 'rainforest_dark') ? 12 : 0; // Who knows
+			let entities = spawnEntities(ws, ng, x+offsetX, y+offsetY, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x+offsetX, y: y+offsetY, biome: biomeName};
+			}
+		}
+		return null;
 	}
 	else if (func === "spawn_unique_enemy2") {
-	
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (biomeName.includes("tower")) return spawnTowerEnemies(ws, ng, x, y);
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].unique2) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].unique2;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
 	}
 	else if (func === "spawn_unique_enemy3") {
-
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (biomeName.includes("tower")) return spawnTowerEnemies(ws, ng, x, y);
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].unique3) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].unique3;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
 	}
-	*/
+	else if (func === "spawn_large_enemies") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].large) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].large;
+			let offsetX = (biomeName === 'crypt' || biomeName === 'pyramid' || biomeName === 'wizardcave') ? -1 : 0;
+			let entities = spawnEntities(ws, ng, x+offsetX, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x+offsetX, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_turret") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].turret) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].turret;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_ghost_crystal") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].ghost_crystal) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].ghost_crystal;
+			let offsetX = (biomeName === 'crypt' || biomeName === 'pyramid' || biomeName === 'wizardcave') ? -1 : 0;
+			let entities = spawnEntities(ws, ng, x+offsetX, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x+offsetX, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_nest") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (biomeName.includes("tower")) return spawnTowerEnemies(ws, ng, x, y);
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].nest) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].nest;
+			let offsetX = (biomeName === 'excavationsite' || biomeName === 'coalmine' || biomeName === 'coalmine_alt') ? 4 : 0; // Who knows
+			let offsetY = biomeName === 'excavationsite' ? 8 : 0; // Who knows
+			let entities = spawnEntities(ws, ng, x+offsetX, y+offsetY, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x+offsetX, y: y+offsetY, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_fungi") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (biomeName.includes("tower")) return spawnTowerEnemies(ws, ng, x, y);
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].fungi) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].fungi;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_robots") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].robots) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].robots;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_scavengers") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].scavengers) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].scavengers;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_scavenger_party") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].scavenger_party) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].scavenger_party;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_fish") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].fish) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].fish;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
+	else if (func === "spawn_scorpions" || func === "spawn_scorpion") {
+		if (!appSettings.showEnemies && gameMode !== 'nightmare') return null;
+		if (BIOME_ENEMY_MAP[biomeName] && BIOME_ENEMY_MAP[biomeName].scorpions) {
+			let spawnList = BIOME_ENEMY_MAP[biomeName].scorpions;
+			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
+			if (entities && entities.length > 0) {
+				return {type: 'enemies', items: entities, x: x, y: y, biome: biomeName};
+			}
+		}
+		return null;
+	}
 	// Props
 	/*
 	else if (func === "spawn_props") {
@@ -642,7 +945,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		// TODO: Block spawn for specific biomes where it's explicitly overwritten to not generate, low priority since it would require specific overlaps
 		const checkResult = checkWandAltar(ws, ng, x, y, biomeName);
 		if (checkResult === 'utility_box') {
-			return generateUtilityBox(ws, ng, x, y, perks);
+			return generateUtilityBox(ws, ng, x, y, perks, gameMode);
 		}
 		else if (checkResult) {
 			let offsetX = -10;
@@ -653,11 +956,11 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeData, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeData, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
 			}
 		}
 		else {
@@ -678,11 +981,11 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeData, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeData, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes);
+				return loadPixelScene(biomeData, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
 			}
 		}
 		else {
@@ -690,20 +993,20 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		}
 	}
 	else if (func === "spawn_potion" || func === "spawn_potions") {
-		return spawnItem(ws, ng, x, y, biomeName, perks);
+		return spawnItem(ws, ng, x, y, biomeName, perks, gameMode);
 	}
 	else if (func === "spawn_heart") {
-		return spawnHeart(ws, ng, x, y, biomeName, perks);
+		return spawnHeart(ws, ng, x, y, biomeName, perks, gameMode);
 	}
 	// Not technically a default spawn function, used for mines and tower
 	else if (func === "spawn_chest") {
 		// Note *only* tower has the higher GTC rate without greed curse
-		return spawnChest(ws, ng, x, y, biomeName.includes('tower'), perks);
+		return spawnChest(ws, ng, x, y, biomeName.includes('tower'), perks, gameMode);
 	}
 	// Also not technically default, used for mines and snowy depths
 	else if (func === "load_altar") {
 		//console.log("Spawning altar pixel scene at", x, y);
-		return loadPixelScene(biomeData, biomeName, "trailer_altar", ws, ng, x-92, y-96, skipCosmeticScenes);
+		return loadPixelScene(biomeData, biomeName, "trailer_altar", ws, ng, x-92, y-96, skipCosmeticScenes, true, gameMode);
 	}
 	else if (func === "spawn_treasure") {
 		// TODO: This is probably better as an isolated spell but it's easier to set up as an item
@@ -727,31 +1030,31 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 	// Default pixel scenes (technically only 1 and 2 are, but adding the other reused ones for convenience here)
 	if (PIXEL_SCENE_BIOME_MAP[biomeName]) {
 		if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01"] && func === "load_pixel_scene") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_01_alt"] && func === "load_pixel_scene_alt") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_01_alt"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_02"] && func === "load_pixel_scene2") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_02"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_02"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_03"] && func === "load_pixel_scene3") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_03"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_03"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_04"] && func === "load_pixel_scene4") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_04"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_04"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_04_alt"] && func === "load_pixel_scene4_alt") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_04_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_04_alt"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_05"] && func === "load_pixel_scene5") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_05b"] && func === "load_pixel_scene5b") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05b"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05b"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 		else if (PIXEL_SCENE_BIOME_MAP[biomeName]["g_pixel_scene_05_alt"] && func === "load_pixel_scene5_alt") {
-			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05_alt"], ws, ng, x, y, skipCosmeticScenes);
+			return loadRandomPixelScene(biomeData, biomeName, scenes["g_pixel_scene_05_alt"], ws, ng, x, y, skipCosmeticScenes, gameMode);
 		}
 	}
 	return null;

@@ -1,4 +1,4 @@
-import { getWorldCenter } from "./utils.js";
+import { getWorldCenter, getWorldSize } from "./utils.js";
 
 // TODO: This is currently not accurate for NG+. I wonder if it's still using the offsets for NG, just hardcoded?
 
@@ -90,8 +90,8 @@ function ComputeMagicValueFromDoubles(x, y) {
 	return (dVar7 + dVar6 + dVar8) * 70.0; // Should this be world size or just straight 70? Didn't seem to give correct results when I tried using world size. Seems 70 is correct.
 }
 
-function GetOriginalChunkPosIdAt(x, y, isNGP = false) {
-    const biomeW = isNGP ? 64 : 70;
+function GetOriginalChunkPosIdAt(x, y, isNGP = false, gameMode='normal') {
+    const biomeW = getWorldSize(isNGP, gameMode);
     
     // The engine's internal shift logic
     const shifted_x = x + 512 * (biomeW / 2);
@@ -105,7 +105,7 @@ function GetOriginalChunkPosIdAt(x, y, isNGP = false) {
 }
 
 // TODO: Should be able to do this without the shifted position...
-export function GetTrueChunkPosIdAt(x, y, isNGP = false, highDetail=true) {
+export function GetTrueChunkPosIdAt(x, y, isNGP = false, highDetail=true, gameMode='normal') {
 	let subchunk_y;
 	let subchunk_x;
 	let chunk_x;
@@ -119,7 +119,7 @@ export function GetTrueChunkPosIdAt(x, y, isNGP = false, highDetail=true) {
 	//let y2;
 	let biome;
 
-	shifted_x = x + 512 * getWorldCenter(isNGP); // This becomes offset -3 in NG+ which agrees with the word center shift
+	shifted_x = x + 512 * getWorldCenter(isNGP, gameMode); // This becomes offset -3 in NG+ which agrees with the word center shift
 	shifted_y = y + BASE_Y;
 	subchunk_x = Math.floor(shifted_x) & 0x1ff;
 	subchunk_y = Math.floor(shifted_y) & 0x1ff;

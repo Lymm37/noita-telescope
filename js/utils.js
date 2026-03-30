@@ -22,7 +22,9 @@ export const CONTAINER_TYPES = [
     'laboratory',
     'vault_puzzle',
     'puzzle',
-    'starting_loadout'
+    'starting_loadout',
+    'enemies',
+    'props',
 ];
 
 export const MATERIAL_CONTAINER_TYPES = [
@@ -32,9 +34,9 @@ export const MATERIAL_CONTAINER_TYPES = [
 ];
 
 // This function is pretty messed up even though it's currently in a working state
-export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw = 0, pwVertical = 0, isNGP = false) {
-    const world_chunk_center_x = isNGP ? WORLD_CHUNK_CENTER_X_NGP : WORLD_CHUNK_CENTER_X;
-    const worldSize = isNGP ? 64 * 512 - 8 : 70 * 512;
+export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw = 0, pwVertical = 0, isNGP = false, gameMode = 'normal') {
+    const world_chunk_center_x = (isNGP || gameMode === 'nightmare') ? WORLD_CHUNK_CENTER_X_NGP : WORLD_CHUNK_CENTER_X;
+    const worldSize = (isNGP || gameMode === 'nightmare') ? 64 * 512 - 8 : 70 * 512;
 
     let smallChunkSize = Math.floor(CHUNK_SIZE / TILE_SIZE); // 51
     let div5offX = 5 * CHUNK_SIZE * Math.floor((chunkBaseX - world_chunk_center_x)/5);
@@ -49,7 +51,7 @@ export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw 
     let worldY_alt = -TILE_SIZE + worldBaseY + tileY * TILE_SIZE + TILE_OFFSET_Y;
 
     // Dumb NG+
-    if (isNGP) {
+    if (isNGP || gameMode === 'nightmare') {
         if (mod5offX >= 3) worldX_alt += TILE_SIZE; // Seems to work?
     }
 
@@ -73,7 +75,7 @@ export function tileToWorldCoordinates(chunkBaseX, chunkBaseY, tileX, tileY, pw 
     //worldX += (pw * PW_SHIFT);
     //worldX_alt += (pw * PW_SHIFT);
 
-    if (isNGP) {
+    if (isNGP || gameMode === 'nightmare') {
         worldX_alt -= 4;
     }
 
@@ -148,19 +150,22 @@ export function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
-export function getWorldSize(isNGP) {
+export function getWorldSize(isNGP, gameMode='normal') {
+    if (gameMode === 'nightmare') return 64;
     return isNGP ? 64 : 70;
 }
 
-export function getWorldCenter(isNGP) {
+export function getWorldCenter(isNGP, gameMode='normal') {
+    if (gameMode === 'nightmare') return 32;
     return isNGP ? 32 : 35;
 }
 
-export function getPWLimit(isNGP) {
+export function getPWLimit(isNGP, gameMode='normal') {
+    if (gameMode === 'nightmare') return 512;
     return isNGP ? 512 : 468;
 }
 
-export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false) {
+export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false, gameMode='normal') {
     let biomeMap = biomeData.pixels;
     // Don't need this anymore?
     if (worldY < -14*512) {
@@ -169,7 +174,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     else if (worldY > 34*512) {
         biomeMap = biomeData.hellPixels;
     }
-    const mapWidth = getWorldSize(isNGP);
+    const mapWidth = getWorldSize(isNGP, gameMode);
     // Convert to positions mod world size
     const worldSize = mapWidth * 512;
     const worldCenter = worldSize / 2;
@@ -228,9 +233,9 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     };
 }
 
-export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, worldY, pwIndex, pwIndexVertical, isNGP = false) {
+export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, worldY, pwIndex, pwIndexVertical, isNGP = false, gameMode='normal') {
     // Adjust for PW
-    const adjustedWorldX = getWorldCenter(isNGP) * 512 + worldX - pwIndex * getWorldSize(isNGP) * 512 + (isNGP ? -8 * pwIndex : 0) - VISUAL_TILE_OFFSET_X;
+    const adjustedWorldX = getWorldCenter(isNGP, gameMode) * 512 + worldX - pwIndex * getWorldSize(isNGP, gameMode) * 512 + (isNGP || gameMode === 'nightmare' ? -8 * pwIndex : 0) - VISUAL_TILE_OFFSET_X;
     const adjustedWorldY = 14 * 512 + worldY - pwIndexVertical * 24570 - VISUAL_TILE_OFFSET_Y;
     for (const layer of tileLayers) {
         // Check if the world coordinate falls within this layer's bounds
@@ -304,8 +309,8 @@ export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, w
     return null;
 }
 
-export function getPWIndices(worldX, worldY, pw = 0, pwVertical = 0, isNGP = false) {
-    const worldSize = getWorldSize(isNGP) * 512;
+export function getPWIndices(worldX, worldY, pw = 0, pwVertical = 0, isNGP = false, gameMode='normal') {
+    const worldSize = getWorldSize(isNGP, gameMode) * 512;
     const pwX = Math.floor((worldX + pw * worldSize) / worldSize);
     const pwY = Math.floor((worldY + pwVertical * 24576) / 24576);
     return [pwX, pwY];

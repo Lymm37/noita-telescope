@@ -121,7 +121,7 @@ function generateFooterHtml(hit) {
 	const biomeName = getDisplayName(hit.biome) || hit.biome || 'Unknown';
 	if (hit.type === 'item' && hit.item === 'orb') {
 		// Hack positions for PWs since orbs are generated before PW shift and don't have their coordinates adjusted in scanLayerPois
-		objX += app.pw * 512 * getWorldSize(app.isNGP);
+		objX += app.pw * 512 * getWorldSize(app.isNGP, app.gameMode);
 	}
 	return `
 		<div style="margin-top:10px; font-size:12px; border-top:1px solid #333; padding-top:5px; color:#aaa;">
@@ -232,7 +232,7 @@ function generateItemHtml(item) {
 	
 	let spriteName = 'item_sprites/' + itemName.toLowerCase().replace(/\s+/g, '_');
 	// Hack for orbs
-	if (item.item === 'orb' && (item.x < 0 || item.x >= getWorldSize(app.isNGP))) {
+	if (item.item === 'orb' && (item.x < 0 || item.x >= getWorldSize(app.isNGP, app.gameMode) || app.gameMode === 'nightmare')) {
 		spriteName = 'item_sprites/orb_cursed';
 		itemName = 'Cursed Orb';
 	}
@@ -299,6 +299,33 @@ function generateItemListHtml(items) {
 			const title = translatedName ? translatedName : item.item;
 			const wikiPage = `https://noita.wiki.gg/wiki/${item.item}`;
 			html += `<a href="${wikiPage}" target="_blank"><img class="spell-icon" src="./data/item_sprites/${icon}" title="${title}" onerror="this.style.display='none'"></a>`;
+			html += `</div>${itemCount}`;
+		}
+	}
+	html += '</div>';
+	return html;
+}
+
+function generateEnemyListHtml(enemies) {
+	let html = '<div class="inventory-grid">';
+	for (let i = 0; i < enemies.length; i++) {
+		const enemy = enemies[i];
+		if (enemy) {
+			html += `<div class="slot">`;
+			if (enemy.entity === undefined) console.log("Undefined enemy entity for", enemy);
+			const enemyName = enemy.entity.split('/').pop().replace(".xml", "");
+			const icon = enemyName.toLowerCase() + ".png";
+			let itemCount = "";
+			if (enemy.amount && enemy.amount > 1) {
+				itemCount = ` $${enemy.amount}&nbsp;`;
+			}
+			else if (enemy.count && enemy.count > 1) {
+				itemCount = ` ×${enemy.count}&nbsp;`;
+			}
+			const translatedName = getDisplayName(enemyName.toLowerCase());
+			const title = translatedName ? translatedName : enemyName;
+			const wikiPage = `https://noita.wiki.gg/wiki/${enemyName}`;
+			html += `<a href="${wikiPage}" target="_blank"><img class="spell-icon" src="./data/enemy_sprites/${icon}" title="${title}" onerror="this.style.display='none'"></a>`;
 			html += `</div>${itemCount}`;
 		}
 	}
@@ -404,6 +431,7 @@ export function updateTooltip(e, hit, tip) {
 			let box_spells = [];
 			let box_containers = [];
 			let box_items = [];
+			let box_enemies = [];
 			let box_wands = [];
 			let box_contents = '';
 			if (items && items.length > 0) {
@@ -416,8 +444,12 @@ export function updateTooltip(e, hit, tip) {
 						box_contents += `<small><b>Puzzle materials:</b> ${box.materials}</small><br>`;
 					}
 				}
-				box_contents += '<b>Contains:</b><br>';
-				
+				if (hit.type === 'enemies') {
+					box_contents += '<b>Enemy spawn:</b><br>';
+				}
+				else {
+					box_contents += '<b>Contains:</b><br>';
+				}
 				// TODO: Handle duplicates and just note the count instead of making a bunch of copies in the HTML
 				items.forEach(item => {
 					if (item.ignore) return; // Skip dummy items to identify
@@ -433,7 +465,10 @@ export function updateTooltip(e, hit, tip) {
 					}
 					else if (item.type === 'enemy') {
 						// TODO: Only used for mimics
-						box_items.push({item: item.enemy});
+						box_items.push(item);
+					}
+					else if (item.type === 'entity') {
+						box_enemies.push(item);
 					}
 					else {
 						box_items.push(item);
@@ -441,6 +476,9 @@ export function updateTooltip(e, hit, tip) {
 				});
 				if (box_items.length > 0) {
 					box_contents += generateItemListHtml(box_items);
+				}
+				if (box_enemies.length > 0) {
+					box_contents += generateEnemyListHtml(box_enemies);
 				}
 				if (box_spells.length > 0) {
 					box_contents += generateSpellListHtml(box_spells, box_spells.length);
@@ -460,8 +498,9 @@ export function updateTooltip(e, hit, tip) {
 				box_contents = '<i>Empty</i>';
 			}
 			let displayType = hit.type.replace(/_/g, ' ').toUpperCase();
+			let header = generateHeaderHtml(displayType, 'item_sprites/' + hit.type, '');
 			tip.innerHTML = `
-				${generateHeaderHtml(displayType, 'item_sprites/' + hit.type, '')}
+				${hit.type !== 'enemies' && hit.type !== 'props' ? header : ''}
 				<div style="font-size: 14px; line-height: 1.5; text-align: left;">
 					${box_contents}
 					${generateFooterHtml(hit)}

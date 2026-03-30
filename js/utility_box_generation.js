@@ -4,7 +4,7 @@ import { roundRNGPos } from "./utils.js";
 import { unlockedSpells } from "./unlocks.js";
 import { MakeRandomUtilitySpell } from "./spell_generator.js";
 
-export function generateUtilityBox(ws, ng, x, y, perks={}) {
+export function generateUtilityBox(ws, ng, x, y, perks={}, gameMode='normal') {
 	const prng = new NollaPrng(0);
 	prng.SetRandomSeed(ws + ng, roundRNGPos(x) + 509.7, y + 683.1);
 
@@ -46,7 +46,7 @@ export function generateUtilityBox(ws, ng, x, y, perks={}) {
 						}
 					}
 					else {
-						items.push(createPotion(ws, ng, x, y - 10, 'normal'));
+						items.push(createPotion(ws, ng, x, y - 10, 'normal', gameMode));
 					}   
 				}
 				else if (opts[selected] == 'shiny_orb') {

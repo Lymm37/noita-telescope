@@ -109,6 +109,7 @@ export const app = {
 	cauldronState: null,
 
 	worldsInView: new Set(),
+	gameMode: 'normal', // or nightmare
 
 	init() {
 		this.canvas = document.getElementById('canvas');
@@ -257,6 +258,17 @@ export const app = {
 		// No longer using this button, just change the seed/NG+ count and it will auto-generate now
 		document.getElementById('gen-btn').onclick = () => this.generate(true, true);
 
+		document.getElementById('game-mode').onchange = () => {
+			const url = new URL(window.location.href);
+			if (document.getElementById('game-mode').value === 'nightmare') {
+				url.searchParams.set('gamemode', 'nightmare');
+			} else {
+				url.searchParams.delete('gamemode');
+			}
+			window.history.replaceState({}, '', url.toString());
+			this.generate(true, true);
+		};
+
 		// Perk Controls
 		// TODO: For now I'm just going to do a full regen because syncing the worker threads is a pain
 		document.getElementById('no-more-shuffle').onchange = () => {
@@ -317,6 +329,7 @@ export const app = {
 		document.getElementById('debug-original-biome-map').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-small-pois').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-fix-holy-mountain-edge-noise').onchange = () => {this.saveSettings(); this.generate(true, true);};
+		document.getElementById('show-enemy-spawns').onchange = () => {this.saveSettings(); this.generate(true, true);};
 		document.getElementById('clear-spawn-pixels').onchange = () => {
 			// TODO: Should probably rework this so it doesn't need to completely regenerate, but this is fine for now
 			this.saveSettings();
@@ -389,7 +402,7 @@ export const app = {
 		const setPWMaxButton = document.getElementById('pw-set-max');
 		setPWMaxButton.onclick = () => {
 			document.getElementById('search-all-pw').checked = true;
-			document.getElementById('search-pw-limit').value = getPWLimit(this.isNGP);
+			document.getElementById('search-pw-limit').value = getPWLimit(this.isNGP, this.gameMode);
 
 		};
 		const setPWMaxVerticalButton = document.getElementById('pw-set-max-vertical');
@@ -489,7 +502,7 @@ export const app = {
 
 				if (document.getElementById('debug-edge-noise').checked) {
 					const rect = document.getElementById('view').getBoundingClientRect();
-					this.debugX = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x - getWorldCenter(this.isNGP) * 512);
+					this.debugX = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x - getWorldCenter(this.isNGP, this.gameMode) * 512);
 					this.debugY = Math.floor((e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y - 14 * 512);
 					console.log(`Clicked at world coordinates: (${this.debugX}, ${this.debugY})`);
 					this.debugCanvas = document.getElementById('debug-noise-canvas');
@@ -511,7 +524,7 @@ export const app = {
 						const localSearchMode = document.getElementById('local-search-mode').value;
 						//const localSearchRadius = parseInt(document.getElementById('search-radius-num').value) || 20;
 						const rect = document.getElementById('view').getBoundingClientRect();
-						const x = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x) + this.pw * 512 * getWorldSize(this.isNGP) - getWorldCenter(this.isNGP) * 512;
+						const x = Math.floor((e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x) + this.pw * 512 * getWorldSize(this.isNGP, this.gameMode) - getWorldCenter(this.isNGP, this.gameMode) * 512;
 						const y = Math.floor((e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y) + this.pwVertical * 512 * 48 - 14 * 512;
 						console.log(`Performing local search at world coordinates: (${x}, ${y}) with mode ${localSearchMode}`);
 						performLocalSearch(localSearchMode, x, y);
@@ -543,12 +556,12 @@ export const app = {
 				this.drag.ly = e.clientY;
 				// Check for PW change
 				let pwChange = {x: 0, y: 0};
-				if (this.cam.x < 0 && this.pw > -getPWLimit(this.isNGP)) {
-					this.cam.x += getWorldSize(this.isNGP) * 512;
+				if (this.cam.x < 0 && this.pw > -getPWLimit(this.isNGP, this.gameMode)) {
+					this.cam.x += getWorldSize(this.isNGP, this.gameMode) * 512;
 					pwChange.x = -1;
 				}
-				if (this.cam.x > getWorldSize(this.isNGP) * 512 && this.pw < getPWLimit(this.isNGP)) {
-					this.cam.x -= getWorldSize(this.isNGP) * 512;
+				if (this.cam.x > getWorldSize(this.isNGP, this.gameMode) * 512 && this.pw < getPWLimit(this.isNGP, this.gameMode)) {
+					this.cam.x -= getWorldSize(this.isNGP, this.gameMode) * 512;
 					pwChange.x = 1;
 				}
 				if (this.cam.y < 0 && this.pwVertical > -683) {
@@ -970,7 +983,7 @@ export const app = {
 		const wx = (e.clientX - rect.left - this.canvas.width / 2) / this.cam.z + this.cam.x;
 		const wy = (e.clientY - rect.top - this.canvas.height / 2) / this.cam.z + this.cam.y;
 
-		const [mousePWX, mousePWY] = getPWIndices(wx, wy, this.pw, this.pwVertical, this.isNGP);
+		const [mousePWX, mousePWY] = getPWIndices(wx, wy, this.pw, this.pwVertical, this.isNGP, this.gameMode);
 		// Check cached PoIs for the current Parallel World
 		for (const worldKey of this.worldsInView) {
 			// Add a quick bounds check before doing the more expensive distance calculation
@@ -994,9 +1007,18 @@ export const app = {
 			const currentPois = this.poisByPW[`${pwX},${pwY}`];
 			if (!currentPois) continue;
 			const poiHit = currentPois.find(p => {
-				const px = p.x + getWorldCenter(this.isNGP) * 512 - this.pw * 512 * this.w;
+				const px = p.x + getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * 512 * this.w;
 				const py = p.y + 14 * 512 - this.pwVertical * 24576;
 				let tempRadius = POI_RADIUS;
+				if (p.type === 'enemies' || p.type === 'props') {
+					tempRadius /= 2.0;
+					for (let item of p.items) {
+						if (item.type === 'wand') {
+							tempRadius = POI_RADIUS;
+							break;
+						}
+					}
+				}
 				if (p.highlight) {
 					tempRadius = POI_RADIUS / this.cam.z;
 					if (tempRadius < POI_RADIUS) tempRadius = POI_RADIUS;
@@ -1020,11 +1042,11 @@ export const app = {
 			coordsDiv.style.top = (e.clientY - rect.top - 25) + 'px';
 			
 			// Absolute coordinate math
-			const absX = Math.floor(wx - 512*getWorldCenter(this.isNGP)) + (this.pw * 512 * getWorldSize(this.isNGP));
+			const absX = Math.floor(wx - 512*getWorldCenter(this.isNGP, this.gameMode)) + (this.pw * 512 * getWorldSize(this.isNGP, this.gameMode));
 			const absY = Math.floor(wy - 512*14 + (this.pwVertical * 512 * 48));
 			let biomeName = '';
 			// Get biome
-			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP);
+			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP, this.gameMode);
 			if (biomeResult && biomeResult.biome) {
 				biomeName = `<br>Biome: ${getDisplayName(biomeResult.biome)}`;
 				if (this.biomeModifiers && this.biomeModifiers[biomeResult.biome]) {
@@ -1037,7 +1059,7 @@ export const app = {
 			let materialName = '';
 			if (this.tileLayers && this.tileLayers.length > 0 && this.pixelScenesByPW && this.pixelScenesByPW[`${this.pw},${this.pwVertical}`]) {
 				// Get material
-				const material = getMaterialAtWorldCoordinates(this.tileLayers, this.pixelScenesByPW[`${this.pw},${this.pwVertical}`], absX, absY, this.pw, this.pwVertical, this.isNGP);
+				const material = getMaterialAtWorldCoordinates(this.tileLayers, this.pixelScenesByPW[`${this.pw},${this.pwVertical}`], absX, absY, this.pw, this.pwVertical, this.isNGP, this.gameMode);
 				if (material) {
 					materialName = `<br>Material: ${getDisplayName(material)}`;
 				}
@@ -1064,6 +1086,7 @@ export const app = {
 		try {
 			this.baseBiomeMapNG0 = await loadPNG('../data/biome_maps/biome_map.png');
 			this.baseBiomeMapNGP = await loadPNG('../data/biome_maps/biome_map_newgame_plus.png');
+			this.baseBiomeMapNightmare = await loadPNG('../data/biome_maps/biome_map_nightmare.png');
 		} catch(e) { console.error("Base assets failed to load."); console.error(e); }
 		console.log("Loading pixel scene data...");
 		// Preload pixel scenes
@@ -1098,6 +1121,7 @@ export const app = {
 		this.pw = parseInt(document.getElementById('pw').value) || 0;
 		this.pwVertical = parseInt(document.getElementById('pw-vertical').value) || 0;
 		this.isNGP = ngVal > 0;
+		this.gameMode = document.getElementById('game-mode').value;
 
 		if (tiles) {
 			// Reset existing tile and spawn data since we're doing a full generation, and we don't want old data hanging around
@@ -1111,7 +1135,7 @@ export const app = {
 			this.pwVertical = 0;
 			document.getElementById('pw').value = 0;
 			document.getElementById('pw-vertical').value = 0;
-			this.cam.x = CHUNK_SIZE*getWorldCenter(this.isNGP);
+			this.cam.x = CHUNK_SIZE*getWorldCenter(this.isNGP, this.gameMode);
 			this.cam.y = CHUNK_SIZE*24;
 			this.cam.z = 0.0625;
 
@@ -1127,17 +1151,17 @@ export const app = {
 		const t0 = performance.now();
 
 		// Set limits on PWs
-		document.getElementById('search-pw-limit').max = getPWLimit(this.isNGP);
-		if (document.getElementById('search-pw-limit').value > getPWLimit(this.isNGP)) {
-			document.getElementById('search-pw-limit').value = getPWLimit(this.isNGP);
+		document.getElementById('search-pw-limit').max = getPWLimit(this.isNGP, this.gameMode);
+		if (document.getElementById('search-pw-limit').value > getPWLimit(this.isNGP, this.gameMode)) {
+			document.getElementById('search-pw-limit').value = getPWLimit(this.isNGP, this.gameMode);
 		}
-		if (this.pw > getPWLimit(this.isNGP)) {
-			this.pw = getPWLimit(this.isNGP);
-			document.getElementById('pw').value = getPWLimit(this.isNGP);
+		if (this.pw > getPWLimit(this.isNGP, this.gameMode)) {
+			this.pw = getPWLimit(this.isNGP, this.gameMode);
+			document.getElementById('pw').value = getPWLimit(this.isNGP, this.gameMode);
 		}
-		else if (this.pw < -getPWLimit(this.isNGP)) {
-			this.pw = -getPWLimit(this.isNGP);
-			document.getElementById('pw').value = -getPWLimit(this.isNGP);
+		else if (this.pw < -getPWLimit(this.isNGP, this.gameMode)) {
+			this.pw = -getPWLimit(this.isNGP, this.gameMode);
+			document.getElementById('pw').value = -getPWLimit(this.isNGP, this.gameMode);
 		}
 
 		if (this.pwVertical > 683) {
@@ -1166,16 +1190,16 @@ export const app = {
 		// 1. FULL GENERATION (Only if seed/NG changed)
 		if (tiles) {
 			//const noMoreShuffle = this.perks['noMoreShuffle'] || false;
-			const base = (this.isNGP ? this.baseBiomeMapNGP.data : this.baseBiomeMapNG0.data);
+			const base = (this.isNGP ? this.baseBiomeMapNGP.data : (this.gameMode === 'nightmare' ? this.baseBiomeMapNightmare.data : this.baseBiomeMapNG0.data));
 			if (!base) {
 				this.setLoading(false);
 				return;
 			}
 
-			this.w = (this.isNGP ? BIOME_CONFIG.W_NGP : BIOME_CONFIG.W_NG0); // This is redundant
-			this.h = (this.isNGP ? BIOME_CONFIG.H_NGP : BIOME_CONFIG.H_NG0); // This is redundant
+			this.w = (this.isNGP || this.gameMode === 'nightmare' ? BIOME_CONFIG.W_NGP : BIOME_CONFIG.W_NG0); // This is redundant
+			this.h = (this.isNGP || this.gameMode === 'nightmare' ? BIOME_CONFIG.H_NGP : BIOME_CONFIG.H_NG0); // This is redundant
 
-			this.biomeData = generateBiomeData(seedVal, ngVal, base, this.w, this.h);
+			this.biomeData = generateBiomeData(seedVal, ngVal, this.gameMode, base, this.w, this.h);
 			this.renderOffscreen();
 			this.renderRecolorMap();
 
@@ -1191,7 +1215,8 @@ export const app = {
 			this.tileLayers = await generateBiomeTiles(
 				this.biomeData.pixels, this.w, this.h, 
 				GENERATOR_CONFIG, seedVal, ngVal,
-				global_extra_rerolls
+				global_extra_rerolls,
+				this.gameMode,
 			);
 
 			// No longer used
@@ -1208,10 +1233,10 @@ export const app = {
 
 			// Create recolored background (TODO: does this need to be done here?)
 			this.renderRecolorMap();
-			this.biomeMapAlphaMask = createBiomeMapAlphaMask(this.biomeData, getWorldSize(this.isNGP), 48);
+			this.biomeMapAlphaMask = createBiomeMapAlphaMask(this.biomeData, getWorldSize(this.isNGP, this.gameMode), 48);
 
 			// Prescan spawn functions for generated tiles, only needs to be done once per seed/NG+ combination, not every time PW or perks change
-			this.tileSpawns = prescanSpawnFunctions(this.tileLayers, this.isNGP);
+			this.tileSpawns = prescanSpawnFunctions(this.tileLayers, this.isNGP, this.gameMode);
 			// Reset spawns
 			this.pixelScenesByPW = {};
 			this.poisByPW = {};
@@ -1229,13 +1254,13 @@ export const app = {
 			if (!this.tileOverlaysByPW[`0,0`]) {
 				let recolorMapUsed = this.recolorOffscreenBuffer;
 				if (biomeOverlayMode === 'expanded') {
-					this.tileOverlaysByPW[`0,0`] = createTileOverlaysExpanded(this.biomeData, recolorMapUsed, this.tileLayers, 0, 0, this.isNGP);
+					this.tileOverlaysByPW[`0,0`] = createTileOverlaysExpanded(this.biomeData, recolorMapUsed, this.tileLayers, 0, 0, this.isNGP, this.gameMode);
 				}
 				else if (biomeOverlayMode === 'normal') {
-					this.tileOverlaysByPW[`0,0`] = createTileOverlays(this.biomeData, recolorMapUsed, this.tileLayers, 0, 0, this.isNGP);
+					this.tileOverlaysByPW[`0,0`] = createTileOverlays(this.biomeData, recolorMapUsed, this.tileLayers, 0, 0, this.isNGP, this.gameMode);
 				}
 				else {
-					this.tileOverlaysByPW[`0,0`] = createTileOverlaysCheap(this.biomeData, this.tileLayers, 0, 0, this.isNGP);
+					this.tileOverlaysByPW[`0,0`] = createTileOverlaysCheap(this.biomeData, this.tileLayers, 0, 0, this.isNGP, this.gameMode);
 				}
 			}
 		}
@@ -1245,14 +1270,14 @@ export const app = {
 		// 2. SPAWN FUNCTION SCANNING
 
 		if (rescan || !this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] || !this.poisByPW[`${this.pw},${this.pwVertical}`]) {
-			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.skipCosmeticScenes, this.perks);
+			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.skipCosmeticScenes, this.perks, this.gameMode);
 			this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = scanResults.finalPixelScenes;
-			const specialPoIs = getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.perks);
+			const specialPoIs = getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.perks, this.gameMode);
 			this.poisByPW[`${this.pw},${this.pwVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
 		
 			// Static pixel scenes
 			if (document.getElementById('enable-static-pixel-scenes').value !== 'off') {
-				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, this.skipCosmeticScenes, this.perks, this.isDaily);
+				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, this.skipCosmeticScenes, this.perks, this.isDaily, this.gameMode);
 				this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = this.pixelScenesByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pixelScenes);
 				this.poisByPW[`${this.pw},${this.pwVertical}`] = this.poisByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pois);
 			}
@@ -1503,7 +1528,7 @@ export const app = {
 
 	getViewArea() {
 		const zoomMultiplier = 0.75; // Makes the view area considered slightly larger than the screen so that loading can happen before reaching the edge
-		const worldShiftX = this.pw * 512 * getWorldSize(this.isNGP);
+		const worldShiftX = this.pw * 512 * getWorldSize(this.isNGP, this.gameMode);
 		const worldShiftY = this.pwVertical * 24576; // 512 * 48
 		const left = worldShiftX + this.cam.x - (this.canvas.width / 2) / (this.cam.z * zoomMultiplier);
 		const right = worldShiftX + this.cam.x + (this.canvas.width / 2) / (this.cam.z * zoomMultiplier);
@@ -1513,7 +1538,7 @@ export const app = {
 	},
 
 	checkBounds() {
-		const worldWidth = getWorldSize(this.isNGP) * 512;
+		const worldWidth = getWorldSize(this.isNGP, this.gameMode) * 512;
 		const worldHeight = 24576; // 512 * 48
 		const viewArea = this.getViewArea();
 		const prevWorldsInView = this.worldsInView ? this.worldsInView : new Set();
@@ -1521,7 +1546,7 @@ export const app = {
 		for (let x = Math.floor(viewArea.left/worldWidth); x <= Math.floor(viewArea.right/worldWidth); x++) {
 			for (let y = Math.floor(viewArea.top/worldHeight); y <= Math.floor(viewArea.bottom/worldHeight); y++) {
 				// We have to set limits here...
-				if (x < -getPWLimit(this.isNGP) || x > getPWLimit(this.isNGP) || y < -683 || y > 683) continue;
+				if (x < -getPWLimit(this.isNGP, this.gameMode) || x > getPWLimit(this.isNGP, this.gameMode) || y < -683 || y > 683) continue;
 				this.worldsInView.add(`${x},${y}`);
 			}
 		}
@@ -1592,7 +1617,7 @@ export const app = {
 		for (let worldKey of this.worldsInView) {
 			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 			if (pwY === 0) {
-				if (this.ngPlusCount === 0) {
+				if (this.ngPlusCount === 0 && this.gameMode === 'normal') {
 					// TODO: Need the PW/NG+ versions of the overlay, for now disable
 					if (pwX === 0) {
 						if (this.surfaceOverlay) {
@@ -1770,8 +1795,10 @@ export const app = {
 
 		// Moons
 		if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['moon'] && this.surfaceOverlayScenes['darkmoon']) {
-			this.ctx.drawImage(this.surfaceOverlayScenes['moon'], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512, -37*512 - this.pwVertical * 24576 - 32, 512, 540);
-			this.ctx.drawImage(this.surfaceOverlayScenes['darkmoon'], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512, 87*512 - this.pwVertical * 24576 + 128, 512, 512);
+			this.ctx.drawImage(this.surfaceOverlayScenes['moon'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512, -37*512 - this.pwVertical * 24576 - 32, 512, 540);
+			if (this.gameMode !== 'nightmare') {
+				this.ctx.drawImage(this.surfaceOverlayScenes['darkmoon'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512, 87*512 - this.pwVertical * 24576 + 128, 512, 512);
+			}
 		}
 
 		// Echoing spire (so silly, why does this even exist? no one knows)
@@ -1784,7 +1811,7 @@ export const app = {
 			for (let pwX = minPW; pwX <= maxPW; pwX++) {
 				for (let verticalSegment = minVerticalSegment; verticalSegment <= maxVerticalSegment; verticalSegment++) {
 					if (verticalSegment > 0 || verticalSegment < -pwX+1) continue;
-					const posX = (getWorldCenter(this.isNGP) - 25) * 512 + pwX * 512 * this.w - this.pw * 512 * this.w;
+					const posX = (getWorldCenter(this.isNGP, this.gameMode) - 25) * 512 + pwX * 512 * this.w - this.pw * 512 * this.w;
 					const posY = verticalSegment * 512 * 25 - 11*512 - this.pwVertical * 24576;
 					this.ctx.drawImage(this.surfaceOverlayScenes['echoing_spire'], posX, posY, 512, 512*25);
 				}
@@ -1817,7 +1844,7 @@ export const app = {
 
 			// Hack PW offsets
 			let pwOffset = 0;
-			if (this.isNGP) {
+			if (this.isNGP || this.gameMode === 'nightmare') {
 				pwOffset = -pwX * 8;
 			}
 			let pwOffsetVertical = -pwY * 6;
@@ -1929,7 +1956,7 @@ export const app = {
 						const pixelSceneCanvas = getPixelSceneCanvas(scene);
 						if (!pixelSceneCanvas) continue;
 						this.ctx.drawImage(pixelSceneCanvas, 
-							scene.x + getWorldCenter(this.isNGP)*512 - pwX*getWorldSize(this.isNGP)*512 + shiftX, 
+							scene.x + getWorldCenter(this.isNGP, this.gameMode)*512 - pwX*getWorldSize(this.isNGP, this.gameMode)*512 + shiftX, 
 							scene.y + 14*512 - pwY*24576 + shiftY
 						);
 					}
@@ -1943,7 +1970,7 @@ export const app = {
 					if (document.getElementById('custom-art').checked && this.surfaceOverlayScenes && this.surfaceOverlayScenes['orb_room']) {
 						if (o.y < 14) return; // Skip the sky altar and pyramid top orbs
 						// Technically always NGP the way I have this set up but whatever
-						const sceneName = pwX === 0 ? 'orb_room' : 'cursed_orb_room';
+						const sceneName = (pwX === 0 && this.gameMode !== 'nightmare') ? 'orb_room' : 'cursed_orb_room';
 						this.ctx.drawImage(this.surfaceOverlayScenes[sceneName], o.x * 512 + shiftX, o.y * 512 + shiftY, 512, 512);
 						// Circle (not really needed with exaggerated orb size in art)
 						/*
@@ -1967,13 +1994,13 @@ export const app = {
 		}
 
 		// Cauldron room should be on top of the biome data
-		if (this.cauldronState !== null && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_room"] && this.surfaceOverlayScenes["cauldron_room_broken"]) {
+		if (this.cauldronState !== null && this.gameMode !== 'nightmare' && this.surfaceOverlayScenes && this.surfaceOverlayScenes["cauldron_room"] && this.surfaceOverlayScenes["cauldron_room_broken"]) {
 			// With the states being null and void it's hard to tell which is 0 and which is 1.
 			if (this.cauldronState === 0 || (this.cauldronState === 2 && getCauldronVariation())) {
-				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_room_broken"], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + 7*512, 14*512 + 10 * 512 - this.pwVertical * 24576, 512, 512);
+				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_room_broken"], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512 + 7*512, 14*512 + 10 * 512 - this.pwVertical * 24576, 512, 512);
 			}
 			else {
-				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_room"], getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + 7*512, 14*512 + 10 * 512 - this.pwVertical * 24576, 512, 512);
+				this.ctx.drawImage(this.surfaceOverlayScenes["cauldron_room"], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512 + 7*512, 14*512 + 10 * 512 - this.pwVertical * 24576, 512, 512);
 			}
 		}
 
@@ -1986,7 +2013,7 @@ export const app = {
 				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				// Hack PW offsets
 				let pwOffset = 0;
-				if (this.isNGP) {
+				if (this.isNGP || this.gameMode === 'nightmare') {
 					pwOffset = -pwX * 8;
 				}
 				let pwOffsetVertical = -pwY * 6;
@@ -2060,8 +2087,8 @@ export const app = {
 		// TODO: These are only near the center and should just render with a sort of absolute position, no reason to iterate over worlds in view for this
 
 		// Draw secret messages
-		renderWallMessages(this.ctx, this.isNGP, this.pw, this.pwVertical);
-		if (this.pwVertical === 0) {
+		renderWallMessages(this.ctx, this.isNGP, this.gameMode, this.pw, this.pwVertical);
+		if (this.pwVertical === 0 && this.gameMode === 'normal') {
 			/*
 			if (this.pw === 0) {
 				// TODO: Two of these are really in the first vertical PW in main
@@ -2102,7 +2129,7 @@ export const app = {
 			
 			// The total width and height of the searched square
 			const size = r * 2;
-			const topLeftX = getWorldCenter(this.isNGP) * 512 - this.pw * getWorldSize(this.isNGP) * 512 + x - r;
+			const topLeftX = getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512 + x - r;
 			const topLeftY = 14 * 512 - this.pwVertical * 48 * 512 + y - r;
 
 			// Draw a semi-transparent fill
@@ -2117,7 +2144,7 @@ export const app = {
 
 		// TODO: Check this with panning
 		if (document.getElementById('debug-edge-noise').checked && this.debugCanvas) {
-			this.ctx.drawImage(this.debugCanvas, this.debugX - this.debugCanvas.width/2 + getWorldCenter(this.isNGP)*512, this.debugY - this.debugCanvas.height/2 + 14*512);
+			this.ctx.drawImage(this.debugCanvas, this.debugX - this.debugCanvas.width/2 + getWorldCenter(this.isNGP, this.gameMode)*512, this.debugY - this.debugCanvas.height/2 + 14*512);
 		}
 
 		// Layer 9
@@ -2173,12 +2200,30 @@ export const app = {
 							case 'holy_mountain_shop':
 								poiColor = '#00FF00AA';
 								break;
+							case 'enemies':
+								poiColor = '#AAAAAAAA';
+								for (let item of p.items) {
+									if (item.type === 'wand') {
+										poiColor = '#00FFFFAA';
+										break;
+									}
+								}
+								break;
 							// Add more cases as needed for different PoI types
 						}
 
-						const px = p.x - (pwX * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512 + shiftX;
+						const px = p.x - (pwX * 512 * getWorldSize(this.isNGP, this.gameMode)) + getWorldCenter(this.isNGP, this.gameMode) * 512 + shiftX;
 						const py = p.y + 14 * 512 - (pwY * 24576) + shiftY; // Shift already baked into the tile spawns
 						let tempRadius = POI_RADIUS;
+						if (p.type === 'enemies' || p.type === 'props') {
+							tempRadius /= 2.0;
+							for (let item of p.items) {
+								if (item.type === 'wand') {
+									tempRadius = POI_RADIUS;
+									break;
+								}
+							}
+						}
 						if (p.highlight === true) {
 							this.ctx.strokeStyle = '#000000AA';
 							this.ctx.lineWidth = 20 / this.cam.z;
@@ -2206,7 +2251,7 @@ export const app = {
 		}
 
 		if (this.zoomPixel) {
-			const zoomPixelX = this.zoomPixel.x - (this.pw * 512 * getWorldSize(this.isNGP)) + getWorldCenter(this.isNGP) * 512;
+			const zoomPixelX = this.zoomPixel.x - (this.pw * 512 * getWorldSize(this.isNGP, this.gameMode)) + getWorldCenter(this.isNGP, this.gameMode) * 512;
 			const zoomPixelY = this.zoomPixel.y + 14 * 512 - (this.pwVertical * 24576);
 			this.ctx.fillStyle = '#FF0000';
 			this.ctx.fillRect(zoomPixelX-1, zoomPixelY-1, 3, 3);
@@ -2242,7 +2287,7 @@ export const app = {
 
 	gotoPOI(poi) {
 		// Math adjusted for the visual map shift
-		const viewX = poi.x + (getWorldCenter(this.isNGP) * 512) - (this.pw * 512 * getWorldSize(this.isNGP));
+		const viewX = poi.x + (getWorldCenter(this.isNGP, this.gameMode) * 512) - (this.pw * 512 * getWorldSize(this.isNGP, this.gameMode));
 		const viewY = poi.y + (14 * 512) - (this.pwVertical * 24570);
 
 		// Place to the side so it doesn't get immediately covered by the tooltip, which is centered on the screen
@@ -2323,6 +2368,8 @@ export const app = {
 			overlayMode: document.getElementById('debug-biome-overlay-mode').value,
 			showTileBounds: document.getElementById('debug-show-tile-bounds').checked,
 			showPath: document.getElementById('debug-show-path').checked,
+			showEnemies: document.getElementById('show-enemy-spawns').checked,
+			gameMode: document.getElementById('game-mode').value,
 			//smallPois: document.getElementById('debug-small-pois').checked,
 			//fixHolyMountainEdgeNoise: document.getElementById('debug-fix-holy-mountain-edge-noise').checked,
 			//excludeEdgeCases: document.getElementById('exclude-edge-cases').checked,
@@ -2388,6 +2435,8 @@ export const app = {
 				document.getElementById('debug-biome-overlay-mode').value = settings.overlayMode || 'none';
 				document.getElementById('debug-show-tile-bounds').checked = settings.showTileBounds || false;
 				document.getElementById('debug-show-path').checked = settings.showPath || false;
+				document.getElementById('show-enemy-spawns').checked = settings.showEnemies || false;
+				document.getElementById('game-mode').value = settings.gameMode || 'normal';
 				//document.getElementById('debug-small-pois').checked = settings.smallPois || false;
 				//document.getElementById('debug-fix-holy-mountain-edge-noise').checked = settings.fixHolyMountainEdgeNoise || false;
 				//document.getElementById('exclude-edge-cases').checked = settings.excludeEdgeCases || false;
@@ -2444,6 +2493,11 @@ export const app = {
 		const seedInt = await parseParam('seed', 0, 2147483647);
 		const ngInt = await parseParam('ng', 0, 28);
 
+		let gameMode = 'normal';
+		if (params.has('gamemode')) {
+			gameMode = params.get('gamemode');
+		}
+
 		const newURL = new URL(window.location);
 		newURL.search = params.toString();
 		window.history.replaceState(null, '', newURL);
@@ -2451,6 +2505,9 @@ export const app = {
 		if (seedInt === undefined) return;
 		document.getElementById('seed').value = seedInt;
 		document.getElementById('ng').value = ngInt ?? 0;
+		if (gameMode === 'normal' || gameMode === 'nightmare') {
+			document.getElementById('game-mode').value = gameMode;
+		}
 		this.saveSettings();
 		this.generate(true, true);
 	}

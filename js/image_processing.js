@@ -38,10 +38,10 @@ export async function createBiomeColorLookup(mapPath) {
 export const [BIOME_BACKGROUND_COLORS, BIOME_COLOR_LOOKUP] = await createBiomeColorLookup('../data/biome_maps/biome_map_background.png');
 export const [TILE_OVERLAY_COLORS, TILE_FOREGROUND_COLORS] = await createBiomeColorLookup('../data/biome_maps/biome_map_foreground.png');
 
-export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP) {
+export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode='normal') {
     const recolorMaterials = appSettings.recolorMaterials; //document.getElementById('recolor-materials').checked;
     const clearSpawnPixels = appSettings.clearSpawnPixels; //document.getElementById('clear-spawn-pixels').checked;
-	const mapWidth = getWorldSize(isNGP);
+	const mapWidth = getWorldSize(isNGP, gameMode);
     const mapHeight = 48;
 	const t0 = performance.now();
     const overlays = []; 
@@ -75,7 +75,7 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
                 // Check for gray pixels
                 if (buffer[srcIdx] === buffer[srcIdx + 1] && buffer[srcIdx + 1] === buffer[srcIdx + 2] && buffer[srcIdx] > 0) {
 					// This still feels too expensive for how often it needs to run here
-					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
+					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
 					const roundedPosition = {
 						x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
 						y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
@@ -97,7 +97,7 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
                     if (buffer[srcIdx] > 0 || buffer[srcIdx + 1] > 0 || buffer[srcIdx + 2] > 0) {
                         if (!clearSpawnPixels) {
                             // Still need to check it's in bounds of the biome...
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
                             const roundedPosition = {
                                 x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
                                 y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
@@ -108,7 +108,7 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
                             }
                         }
                         if (recolorMaterials) {
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
                             const roundedPosition = {
                                 x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
                                 y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
@@ -142,9 +142,9 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
     return overlays;
 }
 
-export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP) {
-	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
-    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP, gameMode='normal') {
+	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
 	
     let biomeMap = biomeData.pixels;
     if (pwIndexVertical < 0) {
@@ -158,7 +158,7 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
     const clearSpawnPixels = appSettings.clearSpawnPixels; //document.getElementById('clear-spawn-pixels').checked;
     const referenceData = recolorOffscreen;
     
-    const mapWidth = getWorldSize(isNGP);
+    const mapWidth = getWorldSize(isNGP, gameMode);
 	const t0 = performance.now();
     const overlays = []; 
 
@@ -183,8 +183,8 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
                 // Check for gray pixels
                 if (buffer[srcIdx] === buffer[srcIdx + 1] && buffer[srcIdx + 1] === buffer[srcIdx + 2] && buffer[srcIdx] > 0) {
 					// This still feels too expensive for how often it needs to run here
-					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
-					const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
+					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
+					const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode);
 
 					// Find this pixel in the biome map and get the color...
 					const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -203,8 +203,8 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
                     if (buffer[srcIdx] > 0 || buffer[srcIdx + 1] > 0 || buffer[srcIdx + 2] > 0) {
                         if (!clearSpawnPixels) {
                             // Still need to check it's in bounds of the biome...
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
-                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
+                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode);
 
                             // Find this pixel in the biome map and get the color...
                             const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -215,8 +215,8 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
                         }
                         if (recolorMaterials) {
                             // This still feels too expensive for how often it needs to run here
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
-                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
+                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
+                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode);
 
                             // Find this pixel in the biome map and get the color...
                             const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -257,9 +257,9 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
 }
 
 // TODO: This is both currently broken and very slow, but the idea is that it covers some outer edges of the biome in order to fill in the wavy chunk edges
-export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP) {
-	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
-    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP, gameMode='normal') {
+	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
+    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
     
     let biomeMap = biomeData.pixels;
     if (pwIndexVertical < 0) {
@@ -271,7 +271,7 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
 
     const recolorMaterials = appSettings.recolorMaterials; //document.getElementById('recolor-materials').checked;
     const clearSpawnPixels = appSettings.clearSpawnPixels; //document.getElementById('clear-spawn-pixels').checked;
-    const mapWidth = getWorldSize(isNGP);
+    const mapWidth = getWorldSize(isNGP, gameMode);
     const t0 = performance.now();
     const overlays = [];
     const referenceData = recolorOffscreen;
@@ -322,8 +322,8 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
                             out32[targetIdx] = (255 << 24) | (b << 16) | (g << 8) | r;
                         }
 						// More expensive check to replace non-gray pixels
-						const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, pwIndexVertical, isNGP);
-                        const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
+						const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, pwIndexVertical, isNGP, gameMode);
+                        const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode);
                         // Check for gray material
                         if (r === g && g === b) {
                             if (biomeResult.biome) {
@@ -351,8 +351,8 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
                         else {
                             if (recolorMaterials) {
                                 // This still feels too expensive for how often it needs to run here
-                                const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP);
-                                const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
+                                const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
+                                const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode);
 
                                 // Find this pixel in the biome map and get the color...
                                 const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -392,8 +392,8 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
                                         y % 51.2 <= edgeThreshold || y % 51.2 >= 51.2 - edgeThreshold);
 
                     if (isPadding || isNearSeam) {
-                        const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, pwIndexVertical, isNGP);
-                        const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP);
+                        const coords = tileToWorldCoordinates(minX, minY, x, y, pwIndex, pwIndexVertical, isNGP, gameMode);
+                        const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode);
                         
                         //if (!biomeResult.biome || !GENERATOR_CONFIG[biomeResult.biome] || biomeResult.biome === layer.biomeName) {
 						if (!biomeResult.biome) {
@@ -403,7 +403,7 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
 						else if (biomeResult.biome === layer.biomeName) {
 							// Check that the other biome is empty (otherwise you could overwrite something)
 							// Adding 1 here seems to help fix the 1 pixel seam...
-							const adjBiomeResult = getBiomeAtWorldCoordinates(biomeData, 512*Math.floor(1+coords.x/512)+256, 512*Math.floor(1+coords.y/512)+256, isNGP);
+							const adjBiomeResult = getBiomeAtWorldCoordinates(biomeData, 512*Math.floor(1+coords.x/512)+256, 512*Math.floor(1+coords.y/512)+256, isNGP, gameMode);
 							if (!adjBiomeResult.biome) {
 								const refIdx = (biomeResult.pos.y * recolorOffscreen.width + biomeResult.pos.x) * 4;
 								out32[targetIdx] = (255 << 24) | (referenceData[refIdx + 2] << 16) | (referenceData[refIdx + 1] << 8) | referenceData[refIdx];

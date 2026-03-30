@@ -25,16 +25,16 @@ function findSequences(pixels, width, rowY, stride) {
     return seqs;
 }
 
-export function findMinPath(bbox, pixels, width, height, biomeName = '', isNGPlus) {
+export function findMinPath(bbox, pixels, width, height, biomeName = '', isNGPlus, gameMode='normal') {
     const stride = 3;
     let startY = 4;
     let topSequences = [];
 
     // Actually turns out it doesn't need to be a main biome, just needs to be in this range
     // Previous: if (isMainBiome && ...)
-    if (bbox[0] <= getWorldCenter(isNGPlus) && bbox[2] >= getWorldCenter(isNGPlus)) {
+    if (bbox[0] <= getWorldCenter(isNGPlus, gameMode) && bbox[2] >= getWorldCenter(isNGPlus, gameMode)) {
         startY = 4;
-        const startX = getMainBiomePathStartX(biomeName, bbox[0], isNGPlus); //MAIN_PATH_LOOKUP[biomeName];
+        const startX = getMainBiomePathStartX(biomeName, bbox[0], isNGPlus, gameMode); //MAIN_PATH_LOOKUP[biomeName];
         if (startX !== undefined) {
             const idx = (startY * width + startX) * stride;
             if (pixels[idx] === 0 && pixels[idx+1] === 0 && pixels[idx+2] === 0) {

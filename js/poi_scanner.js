@@ -67,7 +67,7 @@ export function prescanPixelScene(imgData, sourceBiome) {
     return detectedSpawns;
 }
 
-function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes = true, perks={}) {
+function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes = true, perks={}, gameMode='normal') {
     let detectedSpawns = [];
     let newPixelScenes = [];
     let generatedSpawns = [];
@@ -100,7 +100,7 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
         
         if (index >= 0 && spawnFunctions[index].isPixelScene) {
             // Nested pixel scene handling (this is literally only needed for the vault, why did Nolla do this)
-            const nestedSpawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
+            const nestedSpawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks, gameMode);
             if (nestedSpawnData && nestedSpawnData.type === 'pixel_scene') {
                 //console.log(`Generated nested pixel scene at (${spawnX}, ${spawnY}) for biome ${biomeName}: ${nestedSpawnData.name}`);
                 // Adjust nested pixel scene position (why? no idea, but it fixes the misaligned pipe nested pixel scenes in the vault)
@@ -114,14 +114,14 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
             
             // TODO: Add bar..? Actually maybe it's fine, it just makes a handful of potions close together but not as many as the lab
             if (pixelScene.name.includes("laboratory")) {
-                const spawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
+                const spawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks, gameMode);
                 //console.log(`Lab spawn data at (${spawnX}, ${spawnY}) in pixel scene ${pixelScene.name} for biome ${biomeName}: `, spawnData);
                 if (spawnData && spawnData.item === 'potion') {
                     potionList.push(spawnData);
                 }
             }
             else if (pixelScene.name.includes("shop")) {
-                const spawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks);
+                const spawnData = spawnSwitch(biomeData, biomeName, index, worldSeed, ngPlusCount, spawnX, spawnY, skipCosmeticScenes, perks, gameMode);
                 if (spawnData && spawnData.item === 'spell') {
                     spellList.push(spawnData);
                 }
@@ -175,7 +175,7 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
 }
 
 // Surprisingly this depends on NG0 vs NG+ but not on seed
-export function prescanSpawnFunctions(tileLayers, isNGP) {
+export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
     // TODO: Don't use clearSpawnPixels here, do it earlier
     //const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
     const t0 = performance.now();
@@ -208,7 +208,7 @@ export function prescanSpawnFunctions(tileLayers, isNGP) {
                 const index = getSpawnFunctionIndex(sourceBiome, colorInt);
 
                 if (index !== null) {
-                    const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, 0, isNGP);
+                    const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, 0, isNGP, gameMode);
 
                     detectedSpawns.push({
                         sourceBiome,
@@ -243,10 +243,10 @@ export function prescanSpawnFunctions(tileLayers, isNGP) {
     return detectedSpawns;
 }
 
-export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount, pwIndex, pwIndexVertical, skipCosmeticScenes = true, perks={}) {
+export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount, pwIndex, pwIndexVertical, skipCosmeticScenes = true, perks={}, gameMode='normal') {
     const t0 = performance.now();
     let detectedSpawns = tileSpawns.map(spawn => ({...spawn, 
-        x: spawn.x + pwIndex*getWorldSize(ngPlusCount > 0) * 512 - (ngPlusCount > 0 ? 8 * pwIndex : 0),
+        x: spawn.x + pwIndex*getWorldSize(ngPlusCount > 0, gameMode) * 512 - ((ngPlusCount > 0 || gameMode === 'nightmare') ? 8 * pwIndex : 0),
         y: spawn.y + pwIndexVertical*24570
     }));
     let generatedSpawns = [];
@@ -263,11 +263,11 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         for (let i = 0; i < numberOfNewPixelScenes; i++) {
             const pixelScene = newPixelScenes[i];
             finalPixelScenes.push(pixelScene);
-            const target = getBiomeAtWorldCoordinates(biomeData, pixelScene.x, pixelScene.y, ngPlusCount > 0);
+            const target = getBiomeAtWorldCoordinates(biomeData, pixelScene.x, pixelScene.y, ngPlusCount > 0, gameMode);
             const targetBiome = target ? target.biome : null;
             //const targetChunkPos = target ? target.pos : null;
 
-            const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeData, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks);
+            const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeData, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks, gameMode);
             detectedSpawns.push(...pixelSceneResults.detectedSpawns);
             newPixelScenes.push(...pixelSceneResults.newPixelScenes); // This could be a problem
             numberOfNewPixelScenes += pixelSceneResults.newPixelScenes.length; // This is a hack to allow processing newly added pixel scenes in the same cycle
@@ -279,12 +279,12 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         newPixelScenes = [];
 
         detectedSpawns.forEach(spawn => {
-            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0);
+            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode);
             const targetBiome = target ? target.biome : null;
             //const targetChunkPos = target ? target.pos : null;
             if (targetBiome) {
                 // TODO: Setting the biome in here might be redundant now
-                const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks);
+                const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks, gameMode);
                 if (spawnData) {
                     spawnData.biome = targetBiome;
                     if (spawn.sourceBiome != targetBiome) {
@@ -331,7 +331,7 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
     for (const chunkKey in shopsPerChunk) {
         const spells = shopsPerChunk[chunkKey];
         const [biomeName, chunkX, chunkY] = chunkKey.split('/').map((v, i) => i === 0 ? v : Number(v));
-        const worldX = chunkX * 512 + 256 - getWorldCenter(ngPlusCount > 0) * 512 + getWorldSize(ngPlusCount > 0) * 512 * pwIndex;
+        const worldX = chunkX * 512 + 256 - getWorldCenter(ngPlusCount > 0, gameMode) * 512 + getWorldSize(ngPlusCount > 0, gameMode) * 512 * pwIndex;
         const worldY = chunkY * 512 + 256 - 14 * 512 + 24570 * pwIndexVertical;
         const shopData = {type: 'shop', items: spells, x: worldX, y: worldY, biome: biomeName, originalBiome: biomeName};
         generatedSpawns.push(shopData);
@@ -364,7 +364,7 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
     };
 }
 
-export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwIndexVertical, perks={}) {
+export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwIndexVertical, perks={}, gameMode='normal') {
     const biomeMap = biomeData.pixels;
     //const t0 = performance.now();
     // Extra generation things
@@ -374,7 +374,7 @@ export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwInd
     if (pwIndexVertical === 0) {
         // Add HM PoIs to main layer
         if (GENERATOR_CONFIG['temple_altar'].enabled) {
-            let hmPoIs = generateHolyMountainShops(worldSeed, ngPlusCount, pwIndex, perks);
+            let hmPoIs = generateHolyMountainShops(worldSeed, ngPlusCount, pwIndex, perks, gameMode);
             pois = pois.concat(hmPoIs);
         }
         // Add Eye Room PoIs
@@ -388,7 +388,7 @@ export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwInd
                 roomExists = biomeMap.some(p => (p & 0xFFFFFF) === color);
             }
             if (roomExists) {
-                let eyeRoom = generateEyeRoom(worldSeed, ngPlusCount, pwIndex);
+                let eyeRoom = generateEyeRoom(worldSeed, ngPlusCount, pwIndex, gameMode);
                 pois = pois.concat([eyeRoom]);
             }
         }
@@ -416,7 +416,7 @@ export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwInd
                 roomExists = biomeMap.some(p => (p & 0xFFFFFF) === color);
             }
             if (roomExists) {
-                let meditationCubeWand = generateMeditationCube(worldSeed, ngPlusCount, pwIndex, perks);
+                let meditationCubeWand = generateMeditationCube(worldSeed, ngPlusCount, pwIndex, perks, gameMode);
                 if (meditationCubeWand) {
                     pois = pois.concat([meditationCubeWand]);
                 }
@@ -431,14 +431,14 @@ export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwInd
                 roomExists = biomeMap.some(p => (p & 0xFFFFFF) === color);
             }
             if (roomExists) {
-                let robotEgg = generateRobotEgg(worldSeed, ngPlusCount, pwIndex, perks);
+                let robotEgg = generateRobotEgg(worldSeed, ngPlusCount, pwIndex, perks, gameMode);
                 if (robotEgg) {
                     pois = pois.concat([robotEgg]);
                 }
             }
         }
 
-        if (ngPlusCount === 0) {
+        if (ngPlusCount === 0 && gameMode === 'normal') {
             if (GENERATOR_CONFIG['snowcave_secret_chamber'].enabled) {
                 let snowyRoomWands = generateSnowyRoom(worldSeed, pwIndex, perks);
                 if (snowyRoomWands) {
@@ -459,14 +459,6 @@ export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwInd
                     pois = pois.concat([alchemistBossDrops]);
                 }
             }
-
-            if (GENERATOR_CONFIG['pyramid_top'].enabled) {
-                let pyramidBossDrops = generatePyramidBossDrops(worldSeed, pwIndex);
-                if (pyramidBossDrops) {
-                    pois = pois.concat([pyramidBossDrops]);
-                }
-            }
-
             if (GENERATOR_CONFIG['dragoncave'].enabled) {
                 let dragonBossDrops = generateDragonBossDrops(worldSeed, pwIndex);
                 if (dragonBossDrops) {
@@ -475,17 +467,25 @@ export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwInd
             }
         }
     }
-    else if (ngPlusCount === 0 && pwIndex === 0) {
-        if (pwIndexVertical === 1) {
-            let hellShop = generateEndShop(worldSeed, ngPlusCount, pwIndexVertical);
-            if (hellShop) {
-                pois = pois.concat([hellShop]);
+    if (ngPlusCount === 0 && pwIndex === 0) {
+        if (GENERATOR_CONFIG['pyramid_top'].enabled) {
+            let pyramidBossDrops = generatePyramidBossDrops(worldSeed, pwIndex);
+            if (pyramidBossDrops) {
+                pois = pois.concat([pyramidBossDrops]);
             }
         }
-        else if (pwIndexVertical === -1) {
-            let heavenShop = generateEndShop(worldSeed, ngPlusCount, pwIndexVertical);
-            if (heavenShop) {
-                pois = pois.concat([heavenShop]);
+        if (gameMode === 'normal') {
+            if (pwIndexVertical === 1) {
+                let hellShop = generateEndShop(worldSeed, ngPlusCount, pwIndexVertical);
+                if (hellShop) {
+                    pois = pois.concat([hellShop]);
+                }
+            }
+            else if (pwIndexVertical === -1) {
+                let heavenShop = generateEndShop(worldSeed, ngPlusCount, pwIndexVertical);
+                if (heavenShop) {
+                    pois = pois.concat([heavenShop]);
+                }
             }
         }
     }

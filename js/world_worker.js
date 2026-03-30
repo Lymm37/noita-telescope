@@ -3,9 +3,8 @@ import { injectPixelSceneData, injectPixelSceneSpawnData } from './pixel_scene_g
 import { getSpecialPoIs, scanSpawnFunctions } from './poi_scanner.js';
 import { addStaticPixelScenes } from './static_spawns.js';
 import { injectTranslations } from './translations.js';
-import { appSettings, updateSettings } from './settings.js';
+import { updateSettings } from './settings.js';
 import { injectUnlocksData } from './unlocks.js';
-import { getPayloadSize } from './utils.js';
 
 let worldState = null;
 let workerBiomeData = null;
@@ -36,13 +35,13 @@ self.onmessage = async function(e) {
 function generatePWWorker() {
 	if (!worldState) return;
 
-	const { seed, ngPlusCount, pw, pwVertical, skipCosmeticScenes, perks } = worldState;
+	const { seed, ngPlusCount, pw, pwVertical, skipCosmeticScenes, perks, isDaily, gameMode } = worldState;
 	
 	//self.postMessage({ type: 'STATUS', msg: `Searching PW ${pw >= 0 ? '+' : ''}${pw}, ${pwVertical}...` });
 
-	const scanResults = scanSpawnFunctions(workerBiomeData, workerTileSpawns, seed, ngPlusCount, pw, pwVertical, skipCosmeticScenes, perks);
-	const specialPoIs = getSpecialPoIs(workerBiomeData, seed, ngPlusCount, pw, pwVertical, perks);
-	const staticSpawnResults = addStaticPixelScenes(seed, ngPlusCount, pw, pwVertical, workerBiomeData, skipCosmeticScenes, perks);
+	const scanResults = scanSpawnFunctions(workerBiomeData, workerTileSpawns, seed, ngPlusCount, pw, pwVertical, skipCosmeticScenes, perks, gameMode);
+	const specialPoIs = getSpecialPoIs(workerBiomeData, seed, ngPlusCount, pw, pwVertical, perks, gameMode);
+	const staticSpawnResults = addStaticPixelScenes(seed, ngPlusCount, pw, pwVertical, workerBiomeData, skipCosmeticScenes, perks, isDaily, gameMode);
 	
 	specialPoIs.push(...staticSpawnResults.pois);
 	const finalPixelScenes = scanResults.finalPixelScenes.concat(staticSpawnResults.pixelScenes);

@@ -1,3 +1,5 @@
+import { getDateAndTime } from "./utils.js";
+
 export const appSettings = {
 	enableStaticPixelScenes: 'some',
 	skipCosmeticScenes: true,
@@ -10,11 +12,18 @@ export const appSettings = {
 	excludeTaikasauva: true,
 	excludeEdgeCases: false, // Not yet implemented
 	biomeOverlayMode: 'cheap',
+	showEnemies: false,
+	gameMode: 'normal',
+	noMoreShuffle: false,
+	greedCurse: false,
+	extraItemsInHolyMountain: 0,
+	date: null,
 	// UI related options are not included here, this is mainly for settings which the web workers will need
 }
 
 export function updateSettings(newSettings) {
     Object.assign(appSettings, newSettings);
+	appSettings.date = getDateAndTime();
 }
 
 export function updateSettingsFromUI() {
@@ -30,6 +39,11 @@ export function updateSettingsFromUI() {
 		excludeTaikasauva: document.getElementById('exclude-taikasauva')?.checked || true,
 		excludeEdgeCases: document.getElementById('exclude-edge-cases')?.checked || false,
 		biomeOverlayMode: document.getElementById('debug-biome-overlay-mode')?.value || 'cheap',
+		showEnemies: document.getElementById('show-enemy-spawns')?.checked || false,
+		gameMode: document.getElementById('game-mode')?.value || 'normal',
+		noMoreShuffle: document.getElementById('no-more-shuffle')?.checked || false,
+		greedCurse: document.getElementById('greed-curse')?.checked || false,
+		extraItemsInHolyMountain: parseInt(document.getElementById('extra-shop-items')?.value) || 0,
 	};
 	updateSettings(newSettings);
 }

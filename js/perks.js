@@ -569,7 +569,7 @@ export const PERK_INDEX_LOOKUP = PERKS.map(perk => perk.id).reduce((lookup, id, 
 
 //console.log(`Loaded ${PERKS.length} perks.`);
 
-export function getPerkDeck(ws, ng, perkPickups={}, ignoreList=[]) {
+export function getPerkDeck(ws, ng, perkPickups={}, ignoreList=[], gameMode='normal') {
 	const MIN_DISTANE_BETWEEN_DUPLICATE_PERKS = 4;
 	const DEFAULT_MAX_STACKABLE_PERK_COUNT = 128;
 
@@ -585,6 +585,8 @@ export function getPerkDeck(ws, ng, perkPickups={}, ignoreList=[]) {
 		if (perk.not_in_default_perk_pool === true) continue;
 		if (ignoreList.includes(perk.id)) continue;
 		const perkName = perk.id;
+    // Nightmare specifically excludes invisibility
+    if (gameMode === 'nightmare' && perkName === 'INVISIBILITY') continue;
 		let howManyTimes = 1;
 		stackableDistances[perkName] = -1;
 		stackableCount[perkName] = -1;
@@ -689,8 +691,8 @@ function getAlwaysCasts(ws, ng, x, y) {
 	return card;
 }
 
-function getNextPerk(ws, ng, perkIndex, perkPickups={}) {
-	const perkDeck = getPerkDeck(ws, ng, perkPickups);
+function getNextPerk(ws, ng, perkIndex, perkPickups={}, gameMode='normal') {
+	const perkDeck = getPerkDeck(ws, ng, perkPickups, [], gameMode);
 	let perk = perkDeck[perkIndex];
 	while (perk === "") {
 		perkIndex++;
@@ -710,11 +712,11 @@ function getNextPerk(ws, ng, perkIndex, perkPickups={}) {
 }
 
 // Still trying to decide how to use this, since picking it up requires adjusting future perks
-function getGamblePerks(ws, ng, perkIndex, perkPickups={}) {
+function getGamblePerks(ws, ng, perkIndex, perkPickups={}, gameMode='normal') {
 	let count = 2;
 	let perks = [];
 	while (count > 0) {
-		let { perk, perkIndex: newPerkIndex } = getNextPerk(ws, ng, perkIndex, perkPickups);
+		let { perk, perkIndex: newPerkIndex } = getNextPerk(ws, ng, perkIndex, perkPickups, gameMode);
 		if (perk !== 'GAMBLE') {
 			perks.push(perk);
 			count--;
@@ -745,14 +747,14 @@ const templeXNGPlus = [-32, -32, -32, -32, 2560];
 const templeYNGPlus = [1410, 2946, 6530, 10626, 13181];
 
 // Need to maintain this index as temples are loaded
-export function getTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, perkPickups={}) {
+export function getTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, perkPickups={}, gameMode='normal') {
 	const isNGP = ng > 0;
 	const templeXPos = isNGP ? templeXNGPlus : templeX;
 	const templeYPos = isNGP ? templeYNGPlus : templeY;
 	const perkCount = perkPickups['EXTRA_PERK'] ? perkPickups['EXTRA_PERK'] + 3 : 3;
 	const width = 60;
 	const stepSize = width / perkCount;
-	const perkDeck = getPerkDeck(ws, ng, perkPickups);
+	const perkDeck = getPerkDeck(ws, ng, perkPickups, [], gameMode);
 	if (perkIndex === null) {
 		perkIndex = 0;
 	}
@@ -770,12 +772,12 @@ export function getTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, per
 		if (perkIndex >= perkDeck.length) {
 			perkIndex = 0;
 		}
-		const origX = pwIndex * 512 * getWorldSize(ng > 0) + templeXPos[templeIndex] + (i + 0.5)*stepSize;
+		const origX = pwIndex * 512 * getWorldSize(ng > 0, gameMode) + templeXPos[templeIndex] + (i + 0.5)*stepSize;
 		const x = roundHalfOfEven(origX); //Math.fround(origX); // Used for spells but not perks I guess
 		const y = templeYPos[templeIndex];
 		const luckyStates = getLuckyStates(ws, ng, x, y);
 		const alwaysCast = perk === 'ALWAYS_CAST' ? getAlwaysCasts(ws, ng, x, y) : null;
-		const hypotheticalGamble = perk === 'GAMBLE' ? getGamblePerks(ws, ng, perkIndex, perkPickups) : null;
+		const hypotheticalGamble = perk === 'GAMBLE' ? getGamblePerks(ws, ng, perkIndex, perkPickups, gameMode) : null;
 		perks.push({
 			type: 'perk',
 			perk: perk,
@@ -794,14 +796,14 @@ export function getTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, per
 
 // Note this uses a separate index, going in reverse
 // Original index still needed *only* for gamble, what a pain. Maybe it would be better to just not precalculate gamble.
-export function rerollTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, rerollIndex=null, perkPickups={}) {
+export function rerollTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, rerollIndex=null, perkPickups={}, gameMode='normal') {
 	const isNGP = ng > 0;
 	const templeXPos = isNGP ? templeXNGPlus : templeX;
 	const templeYPos = isNGP ? templeYNGPlus : templeY;
 	const perkCount = perkPickups['EXTRA_PERK'] ? perkPickups['EXTRA_PERK'] + 3 : 3;
 	const width = 60;
 	const stepSize = width / perkCount;
-	const perkDeck = getPerkDeck(ws, ng, perkPickups);
+	const perkDeck = getPerkDeck(ws, ng, perkPickups, [], gameMode);
 	if (perkIndex === null) {
 		perkIndex = 0;
 	}
@@ -822,13 +824,13 @@ export function rerollTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, 
 		if (rerollIndex < 0) {
 			rerollIndex = perkDeck.length - 1;
 		}
-		const origX = pwIndex * 512 * getWorldSize(ng > 0) + templeXPos[templeIndex] + (i + 0.5)*stepSize;
+		const origX = pwIndex * 512 * getWorldSize(ng > 0, gameMode) + templeXPos[templeIndex] + (i + 0.5)*stepSize;
 		const x = roundHalfOfEven(origX); //Math.fround(origX); // Used for spells but not perks I guess
 		const y = templeYPos[templeIndex];
 		const luckyStates = getLuckyStates(ws, ng, x, y);
 		const alwaysCast = perk === 'ALWAYS_CAST' ? getAlwaysCasts(ws, ng, x, y) : null;
 		// Note that gamble uses the perk index, not the reroll index, making this even more annoying
-		const hypotheticalGamble = perk === 'GAMBLE' ? getGamblePerks(ws, ng, perkIndex, perkPickups) : null;
+		const hypotheticalGamble = perk === 'GAMBLE' ? getGamblePerks(ws, ng, perkIndex, perkPickups, gameMode) : null;
 		perks.push({
 			type: 'perk',
 			perk: perk,
@@ -846,7 +848,7 @@ export function rerollTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex=null, 
 	};
 }
 
-export function getAllTemplePerks(ws, ng, pwIndex, perkIndex=null, perkPickups={}) {
+export function getAllTemplePerks(ws, ng, pwIndex, perkIndex=null, perkPickups={}, gameMode='normal') {
 	if (perkIndex === null) {
 		perkIndex = 0;
 	}
@@ -854,7 +856,7 @@ export function getAllTemplePerks(ws, ng, pwIndex, perkIndex=null, perkPickups={
 	const templeCount = isNGP ? templeXNGPlus.length : templeX.length;
 	let allTemplePerks = [];
 	for (let templeIndex = 0; templeIndex < templeCount; templeIndex++) {
-		const { perks, perkIndex: newPerkIndex } = getTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex, perkPickups);
+		const { perks, perkIndex: newPerkIndex } = getTemplePerks(ws, ng, pwIndex, templeIndex, perkIndex, perkPickups, gameMode);
 		allTemplePerks.push(perks);
 		perkIndex = newPerkIndex;
 	}

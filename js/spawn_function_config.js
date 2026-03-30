@@ -10,8 +10,8 @@ export const BLOCK_DEFAULT_SPAWNS = [
 ]
 
 export const COALMINE_SPAWNS = [
-	{color: 0x0000ff, funcName: "spawn_nest" },
-	{color: 0xB40000, funcName: "spawn_fungi" },
+	{color: 0x0000ff, funcName: "spawn_nest", active: true },
+	{color: 0xB40000, funcName: "spawn_fungi", active: true },
 	{color: 0x969678, funcName: "load_structures" },
 	{color: 0x967878, funcName: "load_large_structures" },
 	{color: 0x967896, funcName: "load_i_structures" },
@@ -32,8 +32,8 @@ export const COALMINE_SPAWNS = [
 ];
 
 export const COALMINE_ALT_SPAWNS = [
-	{color: 0x0000ff, funcName: "spawn_nest" },
-	{color: 0xB40000, funcName: "spawn_fungi" },
+	{color: 0x0000ff, funcName: "spawn_nest", active: true },
+	{color: 0xB40000, funcName: "spawn_fungi", active: true },
 	{color: 0x969678, funcName: "load_structures" },
 	{color: 0x967878, funcName: "load_large_structures" },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
@@ -41,7 +41,7 @@ export const COALMINE_ALT_SPAWNS = [
 ];
 
 export const EXCAVATIONSITE_SPAWNS = [
-	{color: 0x0000ff, funcName: "spawn_nest" },
+	{color: 0x0000ff, funcName: "spawn_nest", active: true },
 	{color: 0xFF50FF, funcName: "spawn_hanger" },
 	{color: 0x00AC64, funcName: "load_pixel_scene4", isPixelScene: true, active: true },
 	{color: 0x00ac6e, funcName: "load_pixel_scene4_alt", isPixelScene: true, active: true },
@@ -76,7 +76,7 @@ export const SNOWCAVE_SPAWNS = [
 	{color: 0x55AF4B, funcName: "load_altar", isPixelScene: true, active: true },
 	{color: 0x23B9C3, funcName: "spawn_altar_torch" },
 	{color: 0x55AF8C, funcName: "spawn_skulls" },
-	{color: 0xF516E3, funcName: "spawn_scavenger_party" },
+	{color: 0xF516E3, funcName: "spawn_scavenger_party", active: true },
 	{color: 0xFFC84E, funcName: "spawn_acid" },
 	{color: 0x7285c4, funcName: "load_acidtank_right", isPixelScene: true, active: true },
 	{color: 0x9472c4, funcName: "load_acidtank_left", isPixelScene: true, active: true },
@@ -85,7 +85,7 @@ export const SNOWCAVE_SPAWNS = [
 	{color: 0x33934c, funcName: "spawn_shopitem", active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
 	{color: 0x434040, funcName: "spawn_burning_barrel" },
-	{color: 0xb4a00a, funcName: "spawn_fish" },
+	{color: 0xb4a00a, funcName: "spawn_fish", active: true },
 	{color: 0xaa42ff, funcName: "spawn_electricity_trap" },
 	{color: 0x366178, funcName: "spawn_buried_eye_teleporter", active: true },
 	{color: 0x876543, funcName: "spawn_statue_hand" },
@@ -94,13 +94,13 @@ export const SNOWCAVE_SPAWNS = [
 
 export const SNOWCASTLE_SPAWNS = [
 	{color: 0xC8C800, funcName: "spawn_lamp2" },
-	{color: 0x01a1fa, funcName: "spawn_turret" },
+	{color: 0x01a1fa, funcName: "spawn_turret", active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
 	{color: 0xc78f20, funcName: "spawn_barricade" },
 	{color: 0xc022f5, funcName: "spawn_forcefield_generator" },
 	{color: 0xa3d900, funcName: "spawn_brimstone", active: true },
 	{color: 0x00d982, funcName: "spawn_vasta_or_vihta", active: true },
-	{color: 0x932020, funcName: "spawn_cook" },
+	{color: 0x932020, funcName: "spawn_cook", active: true },
 
 	{color: 0x614630, funcName: "load_panel_01" },
 	{color: 0x614635, funcName: "load_panel_02" },
@@ -134,8 +134,8 @@ export const SNOWCASTLE_SPAWNS = [
 
 export const RAINFOREST_SPAWNS = [
 	{color: 0xffeedd, funcName: "init" },
-	{color: 0x400000, funcName: "spawn_scavengers" },
-	{color: 0x400080, funcName: "spawn_large_enemies" },
+	{color: 0x400000, funcName: "spawn_scavengers", active: true },
+	{color: 0x400080, funcName: "spawn_large_enemies", active: true },
 	{color: 0xC8C800, funcName: "spawn_lamp2" },
 	{color: 0x00AC64, funcName: "load_pixel_scene4", isPixelScene: true, active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
@@ -147,8 +147,8 @@ export const RAINFOREST_SPAWNS = [
 // Same as rainforest
 export const RAINFOREST_OPEN_SPAWNS = [
 	{color: 0xffeedd, funcName: "init" },
-	{color: 0x400000, funcName: "spawn_scavengers" },
-	{color: 0x400080, funcName: "spawn_large_enemies" },
+	{color: 0x400000, funcName: "spawn_scavengers", active: true },
+	{color: 0x400080, funcName: "spawn_large_enemies", active: true },
 	{color: 0xC8C800, funcName: "spawn_lamp2" },
 	{color: 0x00AC64, funcName: "load_pixel_scene4", isPixelScene: true, active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
@@ -160,8 +160,8 @@ export const RAINFOREST_OPEN_SPAWNS = [
 // Same as rainforest
 export const RAINFOREST_DARK_SPAWNS = [
 	{color: 0xffeedd, funcName: "init" },
-	{color: 0x400000, funcName: "spawn_scavengers" },
-	{color: 0x400080, funcName: "spawn_large_enemies" },
+	{color: 0x400000, funcName: "spawn_scavengers", active: true },
+	{color: 0x400080, funcName: "spawn_large_enemies", active: true },
 	{color: 0xC8C800, funcName: "spawn_lamp2" },
 	{color: 0x00AC64, funcName: "load_pixel_scene4", isPixelScene: true, active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
@@ -175,7 +175,7 @@ export const VAULT_SPAWNS = [
 	{color: 0x822e5b, funcName: "load_pixel_scene_tall", isPixelScene: true, active: true },
 
 	{color: 0x00AC64, funcName: "load_warning_strip" },
-	{color: 0x01a1fa, funcName: "spawn_turret" },
+	{color: 0x01a1fa, funcName: "spawn_turret", active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
 	{color: 0x504B64, funcName: "spawn_machines" },
 	{color: 0xc999ff, funcName: "spawn_hanging_prop" },
@@ -212,13 +212,13 @@ export const CRYPT_SPAWNS = [
 	{color: 0x97ab00, funcName: "load_pixel_scene5", isPixelScene: true, active: true },
 	{color: 0xc9d959, funcName: "load_pixel_scene5b", isPixelScene: true, active: true },
 	{color: 0xC8C800, funcName: "spawn_lamp2" },
-	{color: 0x400080, funcName: "spawn_large_enemies" },
-	{color: 0xC8001A, funcName: "spawn_ghost_crystal" },
+	{color: 0x400080, funcName: "spawn_large_enemies", active: true },
+	{color: 0xC8001A, funcName: "spawn_ghost_crystal", active: true },
 	{color: 0x82FF5A, funcName: "spawn_crawlers" },
 	{color: 0x647D7D, funcName: "spawn_pressureplates" },
 	{color: 0x649B7D, funcName: "spawn_doors" },
-	{color: 0xA07864, funcName: "spawn_scavengers" },
-	{color: 0xFFCD2A, funcName: "spawn_scorpions" }, 
+	{color: 0xA07864, funcName: "spawn_scavengers", active: true },
+	{color: 0xFFCD2A, funcName: "spawn_scorpions", active: true }, 
 	{color: 0x2D1E5A, funcName: "spawn_bones" },
 	{color: 0x782060, funcName: "load_beam", isPixelScene: true, active: true },
 	{color: 0x783060, funcName: "load_background_scene" },
@@ -229,16 +229,33 @@ export const CRYPT_SPAWNS = [
 	{color: 0x33934c, funcName: "spawn_shopitem", active: true },
 ];
 
+export const PYRAMID_SPAWNS = [
+	{color: 0xffeedd, funcName: "init" },
+	{color: 0x808000, funcName: "spawn_statues" },
+	{color: 0x00AC64, funcName: "load_pixel_scene4", isPixelScene: true, active: true },
+	{color: 0xC8C800, funcName: "spawn_lamp2" },
+	{color: 0x400080, funcName: "spawn_large_enemies", active: true },
+	{color: 0xC8001A, funcName: "spawn_ghost_crystal", active: true },
+	{color: 0x82FF5A, funcName: "spawn_crawlers" },
+	{color: 0x647D7D, funcName: "spawn_pressureplates" },
+	{color: 0x649B7D, funcName: "spawn_doors" },
+	{color: 0xA07864, funcName: "spawn_scavengers", active: true },
+	{color: 0x00AC33, funcName: "load_pixel_scene3", isPixelScene: true, active: true },
+	{color: 0xFFCD2A, funcName: "spawn_scorpions", active: true },
+	{color: 0x905ecb, funcName: "spawn_reward_wands" },
+	{color: 0x905ecc, funcName: "spawn_boss_limbs_trigger" },
+];
+
 export const FUNGICAVE_SPAWNS = [
 	{color: 0xffeedd, funcName: "init" },
-	{color: 0x400000, funcName: "spawn_robots" },
-	{color: 0x0000ff, funcName: "spawn_nest" },
+	{color: 0x400000, funcName: "spawn_robots", active: true },
+	{color: 0x0000ff, funcName: "spawn_nest", active: true },
 	{color: 0x30b3b0, funcName: "spawn_physics_fungus" },
 ];
 
 export const FUNGIFOREST_SPAWNS = [
 	{color: 0xffeedd, funcName: "init" },
-	{color: 0x0000ff, funcName: "spawn_nest" },
+	{color: 0x0000ff, funcName: "spawn_nest", active: true },
 	{color: 0x30b3b0, funcName: "spawn_physics_fungus" },
 	{color: 0x30b3f0, funcName: "spawn_physics_acid_fungus" },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
@@ -253,13 +270,13 @@ export const WIZARDCAVE_SPAWNS = [
 	{color: 0x97ab00, funcName: "load_pixel_scene5", isPixelScene: true, active: true },
 	{color: 0xc9d959, funcName: "load_pixel_scene5b", isPixelScene: true, active: true },
 	{color: 0xC8C800, funcName: "spawn_lamp2" },
-	{color: 0x400080, funcName: "spawn_large_enemies" },
-	{color: 0xC8001A, funcName: "spawn_ghost_crystal" },
+	{color: 0x400080, funcName: "spawn_large_enemies", active: true },
+	{color: 0xC8001A, funcName: "spawn_ghost_crystal", active: true },
 	{color: 0x82FF5A, funcName: "spawn_crawlers" },
 	{color: 0x647D7D, funcName: "spawn_pressureplates" },
 	{color: 0x649B7D, funcName: "spawn_doors" },
-	{color: 0xA07864, funcName: "spawn_scavengers" },
-	{color: 0xFFCD2A, funcName: "spawn_scorpions" }, 
+	{color: 0xA07864, funcName: "spawn_scavengers", active: true },
+	{color: 0xFFCD2A, funcName: "spawn_scorpions", active: true }, 
 	{color: 0x2D1E5A, funcName: "spawn_bones" },
 	{color: 0x782060, funcName: "load_beam", isPixelScene: true, active: true },
 	{color: 0x783060, funcName: "load_background_scene" },
@@ -280,14 +297,14 @@ export const WANDCAVE_SPAWNS = [
 export const LIQUIDCAVE_SPAWNS = [
 	{color: 0xffeedd, funcName: "init" },
 	{color: 0x00AC64, funcName: "load_background_panel_big" },
-	{color: 0x967878, funcName: "spawn_lasergun" },
+	{color: 0x967878, funcName: "spawn_lasergun", active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
-	{color: 0xc88dab, funcName: "spawn_statues" },
+	{color: 0xc88dab, funcName: "spawn_statues", active: true },
 ];
 
 export const ROBOBASE_SPAWNS = [
 	{color: 0x00AC64, funcName: "load_warning_strip" },
-	{color: 0x01a1fa, funcName: "spawn_turret" },
+	{color: 0x01a1fa, funcName: "spawn_turret", active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
 	{color: 0xc999ff, funcName: "spawn_hanging_prop" },
 	{color: 0xc78f20, funcName: "spawn_barricade" },
@@ -320,14 +337,14 @@ export const MEAT_SPAWNS = [
 	{color: 0x55AF8C, funcName: "spawn_skulls" },
 	{color: 0x4c63e1, funcName: "spawn_cyst" },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
-	{color: 0xd97f7f, funcName: "spawn_mouth" },
+	{color: 0xd97f7f, funcName: "spawn_mouth", active: true },
 	{color: 0xc999ff, funcName: "spawn_hanging_prop" }
 ];
 
 export const VAULT_FROZEN_SPAWNS = [
-	{color: 0x400000, funcName: "spawn_robots" },
+	{color: 0x400000, funcName: "spawn_robots", active: true },
 	{color: 0x00AC64, funcName: "load_pixel_scene4", isPixelScene: true, active: true },
-	{color: 0x01a1fa, funcName: "spawn_turret" },
+	{color: 0x01a1fa, funcName: "spawn_turret", active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
 	{color: 0x504B64, funcName: "spawn_machines" },
 	{color: 0xBE8246, funcName: "spawn_pipes_hor", isPixelScene: true, active: true },
@@ -339,8 +356,8 @@ export const VAULT_FROZEN_SPAWNS = [
 ];
 
 export const TOWER_SPAWNS = [
-	{color: 0x0000ff, funcName: "spawn_nest" },
-	{color: 0xB40000, funcName: "spawn_fungi" },
+	{color: 0x0000ff, funcName: "spawn_nest", active: true },
+	{color: 0xB40000, funcName: "spawn_fungi", active: true },
 	{color: 0x80FF5A, funcName: "spawn_vines" },
 	{color: 0x55AF8C, funcName: "spawn_skulls" },
 	{color: 0x55FF8C, funcName: "spawn_chest", active: true },
@@ -352,7 +369,7 @@ export const SNOWCASTLE_CAVERN_SPAWNS = [
 	{color: 0x80FF5A, funcName: "spawn_vines" },
 	{color: 0x33934c, funcName: "spawn_shopitem", active: true },
 	{color: 0xffeedd, funcName: "init" },
-	{color: 0x03deaf, funcName: "spawn_fish" },
+	{color: 0x03deaf, funcName: "spawn_fish", active: true },
 	{color: 0xff2974, funcName: "spawn_hourglass_blood" },
 	{color: 0xff9122, funcName: "spawn_hourglass_master" },
 	{color: 0x216bff, funcName: "spawn_hourglass_music_trigger" }
@@ -387,18 +404,19 @@ export const TEMPLES_COMMON_SPAWNS = [
 	{ color: 0xffeed3, funcName: "spawn_book_barren" },
 	{ color: 0xffeed4, funcName: "spawn_potion_beer", active: true },
 	{ color: 0xffeed5, funcName: "spawn_potion_milk", active: true },
-	{ color: 0xffeed6, funcName: "spawn_scorpion" },
+	{ color: 0xffeed6, funcName: "spawn_scorpion", active: true },
 	{ color: 0xffaaaa, funcName: "spawn_sign_left" },
 	{ color: 0xffaadd, funcName: "spawn_sign_right" }
 ];
 
 export const WATCHTOWER_SPAWNS = [
-	{ color: 0xaaff00, funcName: "spawn_small_enemies2" },
-	{ color: 0xffaa00, funcName: "spawn_big_enemies2" }
+	{ color: 0xaaff00, funcName: "spawn_small_enemies2", active: true },
+	{ color: 0xffaa00, funcName: "spawn_big_enemies2", active: true }
 ];
 
 export const CLOUDS_SPAWNS = [];
 export const TEMPLE_ALTAR_SPAWNS = [];
+export const LAKE_DEEP_SPAWNS = [];
 
 // Assume all active for now
 export const DEFAULT_SPAWNS = [
@@ -448,6 +466,7 @@ export const BIOME_SPAWN_FUNCTION_MAP = {
 	"vault": [...DEFAULT_SPAWNS, ...VAULT_SPAWNS],
 	"vault_frozen": [...DEFAULT_SPAWNS, ...VAULT_FROZEN_SPAWNS],
 	"crypt": [...DEFAULT_SPAWNS, ...CRYPT_SPAWNS],
+	"pyramid": [...DEFAULT_SPAWNS, ...PYRAMID_SPAWNS],
 	"fungicave": [...DEFAULT_SPAWNS, ...FUNGICAVE_SPAWNS],
 	"fungiforest": [...DEFAULT_SPAWNS, ...FUNGIFOREST_SPAWNS],
 	"wandcave": [...DEFAULT_SPAWNS, ...WANDCAVE_SPAWNS],
@@ -461,6 +480,7 @@ export const BIOME_SPAWN_FUNCTION_MAP = {
 	"the_end": [...DEFAULT_SPAWNS, ...THE_END_SPAWNS],
 	"temple_altar": [...DEFAULT_SPAWNS, ...TEMPLE_ALTAR_SPAWNS],
 	"meat": [...DEFAULT_SPAWNS, ...MEAT_SPAWNS],
+	"lake_deep": [...DEFAULT_SPAWNS, ...LAKE_DEEP_SPAWNS],
 	"tower_coalmine": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
 	"tower_excavationsite": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
 	"tower_snowcave": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],

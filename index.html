@@ -350,6 +350,14 @@
         </div>
         <label>NG+ Count</label> <input type="number" id="ng" value="0" min="0" max="28" autocomplete="off" title="New Game Plus count, 0 for New Game, max 28">
         
+        <label class="debug-opt" title="Game mode variant, e.g. Nightmare. Not everything in Nightmare may be accurate.">
+            Game Mode
+            <select id="game-mode">
+                <option value="normal" selected>Normal</option>
+                <option value="nightmare">Nightmare</option>
+            </select>
+        </label>
+        
         <label>Parallel Worlds (PWs)</label>
 
         <label>Horizontal</label>
@@ -750,6 +758,7 @@
             </label>
             <label class="debug-opt" title="Show tile bounds for each region, with numerical values of the tile indices shown."><input type="checkbox" id="debug-show-tile-bounds"> Show Tile Bounds</label>
             <label class="debug-opt" title="Show the calculated pathfinding validation step for the region. This may not be exactly the same as the path the game uses, and is definitely not the shortest path or anything, it's just a verification that there is some path to the bottom of the biome. If it seems broken and nonsensical sometimes, it's because the way the game does it is too."><input type="checkbox" id="debug-show-path"> Show Paths</label>
+            <label class="debug-opt" title="Show enemy spawns. Will make generation/searching slightly slower. Might still be buggy."><input type="checkbox" id="show-enemy-spawns"> Show Enemy Spawns</label>
             <label class="debug-opt hidden" title="Make PoIs very small to try to see their precise positions better"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
             <label class="debug-opt hidden" title="Apply straight edges to the Holy Mountain biomes instead of using the normal wavy edge noise"><input type="checkbox" id="debug-fix-holy-mountain-edge-noise" checked> Fix Holy Mountain Edge Noise</label>
             <label class="debug-opt hidden" title="Exclude edge cases (unfinished)"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases (Unfinished)</label>

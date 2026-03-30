@@ -1,11 +1,15 @@
 import { NollaPrng } from "./nolla_prng.js";
 import { generateChest, generateGreatChest } from "./chest_generation.js";
+import { appSettings } from "./settings.js";
 
 // TODO: Not working for NG+?
-export function spawnHeart(ws, ng, x, y, biome, perks={}) {
+export function spawnHeart(ws, ng, x, y, biome, perks={}, gameMode='normal') {
 	let prng = new NollaPrng(0);
 	let r = prng.ProceduralRandom(ws+ng, x, y);
 	let heart_spawn_rate = 0.7;
+	if (appSettings.date.month === 2 && appSettings.date.day === 14) {
+		heart_spawn_rate = 0.35;
+	}
 
 	//console.log(`spawnHeart at (${x}, ${y}): r = ${r}`);
 
@@ -22,10 +26,10 @@ export function spawnHeart(ws, ng, x, y, biome, perks={}) {
 				//hasSign = true;
 			}
 			if (rnd >= 1000) {
-				return generateGreatChest(ws, ng, x, y, perks);
+				return generateGreatChest(ws, ng, x, y, perks, gameMode);
 			}
 			else {
-				return generateChest(ws, ng, x, y, perks);
+				return generateChest(ws, ng, x, y, perks, gameMode);
 			}
 		}
 		else {

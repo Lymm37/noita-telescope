@@ -23,7 +23,7 @@ self.onmessage = async function(e) {
 		generatePixelSceneImagesWorker(data.pixelSceneKeys, data.variantKeys);
 	}
 	else if (data.cmd === 'GENERATE_OVERLAY') {
-		generateOverlayWorker(data.seed, data.ngPlusCount, data.pw, data.pwVertical);
+		generateOverlayWorker(data.seed, data.ngPlusCount, data.pw, data.pwVertical, data.gameMode);
 	}
 };
 
@@ -65,20 +65,20 @@ function generatePixelSceneImagesWorker(pixelSceneKeys, variantKeys) {
 	});
 }
 
-function generateOverlayWorker(seed, ngPlusCount, pw, pwVertical) {
+function generateOverlayWorker(seed, ngPlusCount, pw, pwVertical, gameMode) {
 	const biomeOverlayMode = appSettings.biomeOverlayMode;
 	let canvases;
 
 	//if (biomeOverlayMode === 'cheap') {
-		canvases = createTileOverlaysCheap(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0);
+		canvases = createTileOverlaysCheap(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0, gameMode);
 	//}
 	// TODO: Currently missing recolorOffscreen... For now just use cheap mode
 	/*
 	else if (biomeOverlayMode === 'normal') {
-		canvases = createTileOverlays(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0);
+		canvases = createTileOverlays(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0, gameMode);
 	}
 	else if (biomeOverlayMode === 'expanded') {
-		canvases = createTileOverlaysExpanded(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0);
+		canvases = createTileOverlaysExpanded(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0, gameMode);
 	}
 	*/
 
@@ -95,6 +95,7 @@ function generateOverlayWorker(seed, ngPlusCount, pw, pwVertical) {
 		ngPlusCount: ngPlusCount,
 		pw: pw,
 		pwVertical: pwVertical,
+		gameMode: gameMode,
 		overlays: bitmaps
 	}, bitmaps);
 }

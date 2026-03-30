@@ -28,6 +28,17 @@ export const POTION_MATERIALS_MAGIC = [
 	'magic_liquid_mana_regeneration'
 ];
 
+export const POTION_MATERIALS_MAGIC_NIGHTMARE = [
+	'magic_liquid_unstable_teleportation',
+	'magic_liquid_polymorph',
+	'magic_liquid_random_polymorph',
+	'magic_liquid_berserk',
+	'magic_liquid_charm',
+	'material_confusion',
+	'magic_liquid_movement_faster',
+	'magic_liquid_worm_attractor',
+];
+
 export const POTION_MATERIALS_SECRET = [
 	'magic_liquid_hp_regeneration_unstable',
 	'blood_worm',

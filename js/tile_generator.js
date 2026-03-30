@@ -65,7 +65,7 @@ function getCachedTileset(biomeName, wangData) {
     return ts;
 }
 
-function generateRawTileBuffer(regionPoints, bbox, wangData, worldSeed, ngPlus, extraRerolls, biomeName) {
+function generateRawTileBuffer(regionPoints, bbox, wangData, worldSeed, ngPlus, extraRerolls, biomeName, gameMode='normal') {
     const minX = bbox[0];
     const minY = bbox[1];
     //const [minX, minY, maxX, maxY] = bbox;
@@ -110,10 +110,11 @@ function generateRawTileBuffer(regionPoints, bbox, wangData, worldSeed, ngPlus, 
     //console.log(`${biomeName} - ${bbox[0]},${bbox[2]} to ${bbox[1]},${bbox[3]} - Main biome: ${isMainBiome} - Pathfinding attempts: ${extraRerolls}`);
     // Apparently doesn't need to be main biome, just needs to be in the right range
     // Previous: if (isMainBiome && ...)
-    if (bbox[0] <= getWorldCenter(ngPlus > 0) && bbox[2] >= getWorldCenter(ngPlus > 0)) {
-        applyMainBiomeHack(bbox[0], rawBuffer, mapW, outH, biomeName, ngPlus > 0);
+    if (bbox[0] <= getWorldCenter(ngPlus > 0, gameMode) && bbox[2] >= getWorldCenter(ngPlus > 0, gameMode)) {
+        applyMainBiomeHack(bbox[0], rawBuffer, mapW, outH, biomeName, ngPlus > 0, gameMode);
     }
-    if (biomeName === 'coalmine' || biomeName === 'tower_coalmine') {
+    // Nightmare doesn't have coalmine hack
+    if ((biomeName === 'coalmine' || biomeName === 'tower_coalmine') && gameMode !== 'nightmare') {
         applyCoalmineHack(rawBuffer, mapW, outH, 'coalmine');
     }
 
@@ -294,7 +295,7 @@ function generateStaticTile(biomeName, config, bbox) {
  * Visual Generation Loop
  * Removed PoI scanning from here. It now stores the raw buffer for later use.
  */
-export async function generateBiomeTiles(biomePixels, width, height, biomeConfig, worldSeed, ngPlus, global_extra_rerolls = 0) {
+export async function generateBiomeTiles(biomePixels, width, height, biomeConfig, worldSeed, ngPlus, global_extra_rerolls = 0, gameMode = 'normal') {
     const t0 = performance.now();
     const layers = [];
 
@@ -321,9 +322,9 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
             let finalPath = null;
 
             while (!valid && attempts < MAX_PATHFINDING_ATTEMPTS) {
-                rawResult = generateRawTileBuffer(regions[i], bboxes[i], conf.wangData, worldSeed, ngPlus, currentRerolls, biomeName);
+                rawResult = generateRawTileBuffer(regions[i], bboxes[i], conf.wangData, worldSeed, ngPlus, currentRerolls, biomeName, gameMode);
                 if (!rawResult) break;
-                let path = (1 + bboxes[i][3] - bboxes[i][1] > BIOME_PATH_HEIGHT_LIMIT_CHUNKS) ? [] : findMinPath(bboxes[i], rawResult.buffer, rawResult.width, rawResult.height, biomeName, ngPlus > 0);
+                let path = (1 + bboxes[i][3] - bboxes[i][1] > BIOME_PATH_HEIGHT_LIMIT_CHUNKS) ? [] : findMinPath(bboxes[i], rawResult.buffer, rawResult.width, rawResult.height, biomeName, ngPlus > 0, gameMode);
                 if (BYPASS_PATHFINDING && !path) path = [];
                 if (path) { valid = true; finalPath = path; } 
                 else { currentRerolls++; attempts++; }
@@ -333,7 +334,7 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
 
             if (attempts == MAX_PATHFINDING_ATTEMPTS) {
                 console.warn(`[Generator] Failed to generate valid tile buffer for ${biomeName} after ${MAX_PATHFINDING_ATTEMPTS} attempts`);
-                rawResult = generateRawTileBuffer(regions[i], bboxes[i], conf.wangData, worldSeed, ngPlus, currentRerolls, biomeName);
+                rawResult = generateRawTileBuffer(regions[i], bboxes[i], conf.wangData, worldSeed, ngPlus, currentRerolls, biomeName, gameMode);
                 valid = true;
                 finalPath = [];
             }
@@ -354,7 +355,7 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
                 }
 
                 // Replace coalmine hack blocked area with air
-                if (biomeName === 'coalmine' || biomeName === 'tower_coalmine') {
+                if ((biomeName === 'coalmine' || biomeName === 'tower_coalmine') && gameMode !== 'nightmare') {
                     undoCoalmineHack(rawResult.buffer, rawResult.width, rawResult.height, 'coalmine');
                 }
 

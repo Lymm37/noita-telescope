@@ -197,6 +197,11 @@ export async function loadTranslations() {
 				const normalizedKey = key.replace('perk_', '').toLowerCase();
 				TRANSLATIONS[normalizedKey] = name;
 			}
+			// Enemies
+			else if (key.startsWith('animal_')) {
+				const normalizedKey = key.replace('animal_', '').toLowerCase();
+				TRANSLATIONS[normalizedKey] = name;
+			}
 			// Fallback for exact matches
 			TRANSLATIONS[key] = name;
 		});

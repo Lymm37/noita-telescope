@@ -4,6 +4,7 @@ import { loadPixelScene } from "./pixel_scene_generation.js";
 import { getWorldCenter, getWorldSize } from "./utils.js";
 import { getStartingLoadout, getTinyDrops } from "./misc_generation.js";
 import { appSettings } from "./settings.js";
+import { generateWand } from "./wand_generation.js";
 
 const STATIC_PIXEL_SCENES = [
 	{name: "pyramid/boss_limbs", x: 9726, y: -1024, required: true},
@@ -40,6 +41,17 @@ const STATIC_PIXEL_SCENES = [
 	{name: "general/lavalake_pit_cracked", x: 7*512, y: 4*512},
 	{name: "general/cauldron", x: 7*512, y: 10*512},
 	// entities...
+];
+
+const STATIC_PIXEL_SCENES_NIGHTMARE = [
+	{name: "pyramid/boss_limbs", x: 9726, y: -1024, required: true},
+	{name: "general/clean_entrance", x: 128, y: 1535, required: true},
+	{name: "general/clean_entrance", x: 128, y: 4095, required: true},
+	{name: "general/clean_entrance", x: 128, y: 6655, required: true},
+	{name: "general/clean_entrance", x: 128, y: 10751, required: true},
+	{name: "snowcastle/altar_snowcastle_capsule", x: 143, y: 5112, required: true},
+	{name: "vault/altar_vault_capsule", x: 143, y: 8704, required: true},
+	{name: "snowcave/altar_snowcave_capsule", x: 127, y: 3072, required: true},
 ];
 
 // Using 'required' for ones which look bad if they're missing
@@ -126,8 +138,10 @@ const PIXEL_SCENE_BIOMES = {
 
 // I really don't care about this but whatever
 // TODO: Skip cosmetic not used here but removes most things
-export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData, skipCosmeticPixelScenes=false, perks={}, isDaily=false) {
+export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData, skipCosmeticPixelScenes=false, perks={}, isDaily=false, gameMode='normal') {
 	//const t0 = performance.now();
+
+	const isNightmare = (gameMode === 'nightmare');
 
 	//const pixelSceneOption = document.getElementById('enable-static-pixel-scenes').value;
 	const pixelSceneOption = appSettings.enableStaticPixelScenes;
@@ -135,21 +149,22 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	//if (pixelSceneOption === 'off') return [];
 	let newPixelScenes = [];
 	let newPois = [];
-	const mapWidth = getWorldSize(ng > 0);
+	const mapWidth = getWorldSize(ng > 0, gameMode);
 	const pwOffsetX = pwIndex * mapWidth * 512;
 	//const pwOffsetY = pwIndexVertical * 48 * 512;
 	// Hardcoded position pixel scenes
 	if (pixelSceneOption !== 'off') {
-		for (const scene of STATIC_PIXEL_SCENES) {
+		const staticScenesToUse = isNightmare ? STATIC_PIXEL_SCENES_NIGHTMARE : STATIC_PIXEL_SCENES;
+		for (const scene of staticScenesToUse) {
 			if (!scene.inNGP && ng > 0) continue;
 			if (pixelSceneOption === 'some' && !scene.required) continue;
 			// Check PW position
-			const targetPW = Math.floor((scene.x + 512 * getWorldCenter(ng > 0))/(512*mapWidth));
+			const targetPW = Math.floor((scene.x + 512 * getWorldCenter(ng > 0, gameMode))/(512*mapWidth));
 			const targetPWVertical = Math.floor((scene.y + 512 * 14)/(512*48));
 			if (targetPW !== pwIndex || targetPWVertical !== pwIndexVertical) continue;
 			const biomeFolder = scene.name.split('/')[0];
 			const sceneName = scene.name.split('/')[1];
-			const pixelScene = loadPixelScene(biomeData, biomeFolder, sceneName, ws, ng, scene.x, scene.y, skipCosmeticPixelScenes, false);
+			const pixelScene = loadPixelScene(biomeData, biomeFolder, sceneName, ws, ng, scene.x, scene.y, skipCosmeticPixelScenes, false, gameMode);
 			if (pixelScene) {
 				newPixelScenes.push(pixelScene);
 			}
@@ -168,7 +183,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 							const offsetY = biomePixelSceneInfo.offsetY || 0;
 							const adjX = x * 512 - mapWidth * 256 + pwIndex * mapWidth * 512 + offsetX;
 							const adjY = y * 512 - 14*512 + pwIndexVertical * 48 * 512 + offsetY;
-							const pixelScene = loadPixelScene(biomeData, biomeName, biomePixelSceneName, ws, ng, adjX, adjY, skipCosmeticPixelScenes, false);
+							const pixelScene = loadPixelScene(biomeData, biomeName, biomePixelSceneName, ws, ng, adjX, adjY, skipCosmeticPixelScenes, false, gameMode);
 							//console.log(`Biome color ${biomeColor.toString(16)} at (${x}, ${y}) corresponds to biome ${biomeName} and pixel scene ${biomePixelSceneName}`);
 							if (pixelScene) {
 								newPixelScenes.push(pixelScene);
@@ -187,13 +202,13 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	// Special biomes (randomized)
 	const prng = new NollaPrng(0);
-	if (ng === 0 && pwIndexVertical === 0) {
+	if (ng === 0 && pwIndexVertical === 0 && !isNightmare) {
 		// Hiisi hourglass shop
 		const is_right = prng.ProceduralRandom(ws, 0, 0) > 0.5;
 		if (is_right) {
 			hiisiHourglassPosition = 'right';
 			if (pixelSceneOption === 'all') {
-				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_right", ws, ng, 3*512 - 50, 10*512, skipCosmeticPixelScenes, false);
+				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_right", ws, ng, 3*512 - 50, 10*512, skipCosmeticPixelScenes, false, gameMode);
 				if (pixelScene) {
 					newPixelScenes.push(pixelScene);
 				}
@@ -202,7 +217,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		else {
 			hiisiHourglassPosition = 'left';
 			if (pixelSceneOption === 'all') {
-				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_left", ws, ng, -5*512 + 50, 10*512, skipCosmeticPixelScenes, false);
+				const pixelScene = loadPixelScene(biomeData, "snowcastle_cavern", "side_cavern_left", ws, ng, -5*512 + 50, 10*512, skipCosmeticPixelScenes, false, gameMode);
 				if (pixelScene) {
 					newPixelScenes.push(pixelScene);
 				}
@@ -223,7 +238,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		const friendRoom = prng.Random(1, 6);
 		for (let i = 1; i <= 6; i++) {
 			// Note "cavern" is the one with the friends, and "friendroom" is the empty one, who decided this
-			const pixelScene = loadPixelScene(biomeData, `friend_${i}`, i === friendRoom ? 'cavern' : 'friendroom', ws, ng, friendRoomPositions[i-1].x, friendRoomPositions[i-1].y, skipCosmeticPixelScenes, false);
+			const pixelScene = loadPixelScene(biomeData, `friend_${i}`, i === friendRoom ? 'cavern' : 'friendroom', ws, ng, friendRoomPositions[i-1].x, friendRoomPositions[i-1].y, skipCosmeticPixelScenes, false, gameMode);
 			if (pixelScene) {
 				newPixelScenes.push(pixelScene);
 			}
@@ -241,7 +256,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 			{x: -8*512 + pwOffsetX, y: 22*512},
 		];
 		const location = Math.floor(prng.ProceduralRandom(ws, 1240, -750)*4);
-		const pixelScene = loadPixelScene(biomeData, "solid_wall_hidden_cavern", "solid_wall_hidden_cavern", ws, ng, stashLocations[location].x-30, stashLocations[location].y, skipCosmeticPixelScenes, false);
+		const pixelScene = loadPixelScene(biomeData, "solid_wall_hidden_cavern", "solid_wall_hidden_cavern", ws, ng, stashLocations[location].x-30, stashLocations[location].y, skipCosmeticPixelScenes, false, gameMode);
 		if (pixelScene) {
 			newPixelScenes.push(pixelScene);
 		}
@@ -249,7 +264,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		if (pwIndex === 0) {
 			// Watercave
 			const layout = 1 + Math.floor(prng.ProceduralRandom(ws, -2048, 515)*5);
-			const waterCaveScene = loadPixelScene(biomeData, "watercave", `watercave_layout_${layout}`, ws, ng, -2048, 515, skipCosmeticPixelScenes, false);
+			const waterCaveScene = loadPixelScene(biomeData, "watercave", `watercave_layout_${layout}`, ws, ng, -2048, 515, skipCosmeticPixelScenes, false, gameMode);
 			if (waterCaveScene) {
 				newPixelScenes.push(waterCaveScene);
 			}
@@ -265,12 +280,12 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		}
 	}
 
-	// Holy mountain basins
-	const holyMountainDepths = {'ng': [2, 5, 9, 12, 16, 20, 25], 'ngplus': [2, 5, 12, 20, 25]};
-	const holyMountainStarts = {'ng': [-3, -4, -5, -4, -5, -6, -6], 'ngplus': [-4, -4, -4, -4, -6]};
-	const holyMountainWidths = {'ng': [7, 8, 10, 7, 9, 11, 9], 'ngplus': [7, 7, 7, 9, 9]};
+	// Holy mountain basins (nightmare makes me think I should automate this better based on the biome map but eh)
+	const holyMountainDepths = {'ng': [2, 5, 9, 12, 16, 20, 25], 'ngplus': [2, 5, 12, 20, 25], 'nightmare': [2, 7, 12, 20, 25]};
+	const holyMountainStarts = {'ng': [-3, -4, -5, -4, -5, -6, -6], 'ngplus': [-4, -4, -4, -4, -6], 'nightmare': [-7, -7, -7, -7, -6]};
+	const holyMountainWidths = {'ng': [7, 8, 10, 7, 9, 11, 9], 'ngplus': [7, 7, 7, 9, 9], 'nightmare': [14, 14, 13, 14, 9]};
 	
-	const ngpkey = ng === 0 ? 'ng' : 'ngplus';
+	const ngpkey = ng === 0 ? (isNightmare ? 'nightmare' : 'ng') : 'ngplus';
 	if (pwIndexVertical === 0) {
 		for (let i = 0; i < holyMountainDepths[ngpkey].length; i++) {
 			const depth = holyMountainDepths[ngpkey][i];
@@ -295,7 +310,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 					else if (randomTop === 13) material = '_radioactive';
 					else if (randomTop === 15) material = '_lava';
 				}
-				const pixelScene = loadPixelScene(biomeData, 'temple', `altar_top${material}`, ws, ng, basin.x, basin.y-40, skipCosmeticPixelScenes, false);
+				const pixelScene = loadPixelScene(biomeData, 'temple', `altar_top${material}`, ws, ng, basin.x, basin.y-40, skipCosmeticPixelScenes, false, gameMode);
 				if (pixelScene) {
 					newPixelScenes.push(pixelScene);
 				}
@@ -307,24 +322,25 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	// Just set biome as "spliced" and don't deal with this bs
 	if (pixelSceneOption !== 'off') {
 		const splicedScenes = [
-			{name: "boss_arena", x: 3*512, y: 24*512, inNGP: true},
+			{name: "boss_arena", x: 3*512, y: 24*512, inNGP: true, inNightmare: true},
 			{name: "gourd_room", x: -33*512, y: -14*512, inNGP: true},
-			{name: "lake_statue", x: -29*512, y: 0, inNGP: true},
-			{name: "lavalake_pit_bottom", x: 5*512, y: 6*512},
+			{name: "lake_statue", x: -29*512, y: 0, inNGP: true, inNightmare: true},
+			{name: "lavalake_pit_bottom", x: 5*512, y: 6*512}, // TODO: Says this is in nightmare but it doesn't appear to be?
 			{name: "lavalake2", x: 4*512, y: 0},
-			{name: "moon", x: 0, y: -51*512, inNGP: true, required: true},
+			{name: "moon", x: 0, y: -51*512, inNGP: true, required: true, inNightmare: true},
 			{name: "moon_dark", x: 0, y: 73*512 + 136, inNGP: true, required: true},
-			{name: "mountain_lake", x: 5*512, y: 0}, // TODO: Top of this changes in NG vs NGP, also it's flat and missing in PWs...
+			{name: "mountain_lake", x: 5*512, y: 0, inNightmare: true}, // TODO: Top of this changes in NG vs NGP, also it's flat and missing in PWs...
 			{name: "skull", x: 29*512, y: 31*512 + 256}, // TODO: Looks weird with the default color
-			{name: "skull_in_desert", x: 14*512 - 68, y: -100, inNGP: true},
-			{name: "tree", x: -4*512, y: -3*512 + 212, inNGP: true},
+			{name: "skull_in_desert", x: 14*512 - 68, y: -100, inNGP: true, inNightmare: true},
+			{name: "tree", x: -4*512, y: -3*512 + 212, inNGP: true, inNightmare: true},
 			{name: "watercave", x: -4*512, y: 0, required: true}, // Just the top and bottom edges of the watercave
 		];
 
 		for (const splicedScene of splicedScenes) {
 			if (!splicedScene.inNGP && ng > 0) continue;
+			if (!splicedScene.inNightmare && isNightmare) continue;
 			if (pixelSceneOption === 'some' && !splicedScene.required) continue;
-			const pixelScene = loadPixelScene(biomeData, "spliced", splicedScene.name, ws, ng, splicedScene.x, splicedScene.y, skipCosmeticPixelScenes, false);
+			const pixelScene = loadPixelScene(biomeData, "spliced", splicedScene.name, ws, ng, splicedScene.x, splicedScene.y, skipCosmeticPixelScenes, false, gameMode);
 			if (pixelScene) {
 				newPixelScenes.push(pixelScene);
 			}
@@ -332,7 +348,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	}
 
 	// Static PoIs (still only in NG main)
-	if (ng === 0 && pwIndex === 0 && pwIndexVertical === 0) {
+	if (ng === 0 && pwIndex === 0 && pwIndexVertical === 0 && !isNightmare) {
 		// Eye
 		newPois.push({type: 'item', item: 'paha_silma', x: -2434, y: -204, biome: 'winter'});
 		// Rainbow cloud
@@ -370,7 +386,10 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 		// Tower treasure
 		newPois.push({type: 'item', item: 'treasure', x: 9472, y: 4347, biome: 'hills'});
+	}
 
+	// This one is in nightmare though
+	if (ng === 0 && pwIndex === 0 && pwIndexVertical === 0) {
 		// Kantele
 		newPois.push(generateWandKantele(-1634, -792));
 		newPois.push({type: 'shop', biome: 'mountain_tree', x: -1628, y: -736, items: [
@@ -387,7 +406,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		]});
 	}
 
-	if (ng === 0 && pwIndexVertical === 0) {
+	if (ng === 0 && pwIndexVertical === 0 && !isNightmare) {
 		// Chaingun
 		newPois.push(generateExperimentalWand3(16121 + pwOffsetX, 9987)); // Approx position
 		// Saha
@@ -397,7 +416,9 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		newPois.push(generateGoodWand1(9884 + pwOffsetX, 4360));
 		newPois.push(generateGoodWand2(9984 + pwOffsetX, 4360));
 		newPois.push(generateGoodWand3(10084 + pwOffsetX, 4360));
+	}
 
+	if (ng === 0 && pwIndexVertical === 0) {
 		// Ocarina / Flute / Huilu
 		newPois.push(generateWandHuilu(-9987 + pwOffsetX, -6479));
 		newPois.push({type: 'shop', biome: 'ocarina', x: -9987 + pwOffsetX, y: -6400, items: [
@@ -421,17 +442,23 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	}
 
 	// Tiny
-	if (pwIndex === 0 && pwIndexVertical === 0) {
+	if (pwIndex === 0 && pwIndexVertical === 0 && !isNightmare) {
 		newPois.push(getTinyDrops(ws, ng, 'meat', 14941, 16454, perks));
 	}
 	// Orbs and other stuff: TODO: Doesn't seem that important compared to NG+ which already works
 
 	// Starting loadout
 	if (ng === 0) {
-		const startingLoadout = getStartingLoadout(ws, isDaily);
+		const startingLoadout = getStartingLoadout(ws, isDaily, gameMode);
 		//console.log("Starting Loadout:", startingLoadout);
 		// Add as PoI at spawn
 		newPois.push(startingLoadout);
+	}
+
+	// Starting wands in Nightmare
+	if (isNightmare && ng === 0 && pwIndexVertical === 0) {
+		const nightmareWands = getNightmareStartingWands(ws, pwIndex);
+		newPois.push(...nightmareWands);
 	}
 
 	/*
@@ -446,6 +473,22 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		pois: newPois,
 		hiisiHourglassPosition
 	};
+}
+
+function getNightmareStartingWands(ws, pwIndex) {
+	const prng = new NollaPrng(0);
+	prng.SetRandomSeed(ws, 703 + pwIndex * 64 * 512, -94); // Chunk 1, -1, pos 191, 418
+	const wands = [];
+	const opts = ["wand_level_02", "wand_level_02_better", "wand_level_03", "wand_unshuffle_01", "wand_unshuffle_02", "wand_unshuffle_03"];
+	for (let i = 0; i < 3; i++) {
+		const wandChoice = 0; //prng.Random(1, opts.length) - 1;
+		const x = Math.fround(703 + i*132/3);
+		const y = -94;
+		const wand = generateWand(ws, 0, x, y, opts[wandChoice]);
+		wand['biome'] = 'mountain_hall';
+		wands.push(wand);
+	}
+	return wands;
 }
 
 // TODO: Add sprite length stats, need to go find them in the xml
