@@ -13,6 +13,7 @@ export const appSettings = {
 	excludeEdgeCases: false, // Not yet implemented
 	biomeOverlayMode: 'cheap',
 	showEnemies: false,
+	enableHamisHints: false,
 	gameMode: 'normal',
 	noMoreShuffle: false,
 	greedCurse: false,
@@ -40,6 +41,7 @@ export function updateSettingsFromUI() {
 		excludeEdgeCases: document.getElementById('exclude-edge-cases')?.checked || false,
 		biomeOverlayMode: document.getElementById('debug-biome-overlay-mode')?.value || 'cheap',
 		showEnemies: document.getElementById('show-enemy-spawns')?.checked || false,
+		enableHamisHints: document.getElementById('enable-hamis-hints')?.checked || false,
 		gameMode: document.getElementById('game-mode')?.value || 'normal',
 		noMoreShuffle: document.getElementById('no-more-shuffle')?.checked || false,
 		greedCurse: document.getElementById('greed-curse')?.checked || false,

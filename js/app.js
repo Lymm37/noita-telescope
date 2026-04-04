@@ -239,8 +239,15 @@ export const app = {
 			if (this.isDaily) {
 				this.isDaily = false; // Clear daily run mode if seed is manually changed
 				this.unlocksChanged = true; // Flag to update unlocks based on checkboxes instead of daily run
-				this.saveSettings(); // Make sure settings are saved just so that the daily run unlocks don't persist in the workers after leaving daily mode
+				//this.saveSettings(); // Make sure settings are saved just so that the daily run unlocks don't persist in the workers after leaving daily mode
 			}
+			// Reset perks
+			document.getElementById('no-more-shuffle').checked = false;
+			document.getElementById('greed-curse').checked = false;
+			document.getElementById('extra-shop-items').value = 0;
+			this.perks = {};
+			// Still need to save settings I think...
+			this.saveSettings();
 			this.generate(true, true);
 		};
 		document.getElementById('ng').onchange = () => {
@@ -253,6 +260,7 @@ export const app = {
 			url.searchParams.set('ng', value);
 			window.history.replaceState({}, '', url.toString());
 			// Do not clear daily run flag
+			this.saveSettings();
 			this.generate(true, true);
 		};
 		// No longer using this button, just change the seed/NG+ count and it will auto-generate now
@@ -330,6 +338,7 @@ export const app = {
 		document.getElementById('debug-small-pois').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-fix-holy-mountain-edge-noise').onchange = () => {this.saveSettings(); this.generate(true, true);};
 		document.getElementById('show-enemy-spawns').onchange = () => {this.saveSettings(); this.generate(true, true);};
+		document.getElementById('enable-hamis-hints').onchange = () => {this.saveSettings();};
 		document.getElementById('clear-spawn-pixels').onchange = () => {
 			// TODO: Should probably rework this so it doesn't need to completely regenerate, but this is fine for now
 			this.saveSettings();
@@ -2369,6 +2378,7 @@ export const app = {
 			showTileBounds: document.getElementById('debug-show-tile-bounds').checked,
 			showPath: document.getElementById('debug-show-path').checked,
 			showEnemies: document.getElementById('show-enemy-spawns').checked,
+			enableHamisHints: document.getElementById('enable-hamis-hints').checked,
 			gameMode: document.getElementById('game-mode').value,
 			//smallPois: document.getElementById('debug-small-pois').checked,
 			//fixHolyMountainEdgeNoise: document.getElementById('debug-fix-holy-mountain-edge-noise').checked,
@@ -2436,6 +2446,7 @@ export const app = {
 				document.getElementById('debug-show-tile-bounds').checked = settings.showTileBounds || false;
 				document.getElementById('debug-show-path').checked = settings.showPath || false;
 				document.getElementById('show-enemy-spawns').checked = settings.showEnemies || false;
+				document.getElementById('enable-hamis-hints').checked = settings.enableHamisHints || false;
 				document.getElementById('game-mode').value = settings.gameMode || 'normal';
 				//document.getElementById('debug-small-pois').checked = settings.smallPois || false;
 				//document.getElementById('debug-fix-holy-mountain-edge-noise').checked = settings.fixHolyMountainEdgeNoise || false;

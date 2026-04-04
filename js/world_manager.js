@@ -2,7 +2,7 @@
 import { app } from './app.js';
 import { recolorPixelScenes } from './overlay_manager.js';
 import { PIXEL_SCENE_DATA, PIXEL_SCENE_SPAWN_DATA } from './pixel_scene_generation.js';
-import { continueSearchSequence } from './search_manager.js';
+import { continueSearchSequence, syncPW } from './search_manager.js';
 import { appSettings, updateSettingsFromUI } from './settings.js';
 import { TRANSLATIONS } from './translations.js';
 import { unlockedSpells } from './unlocks.js';
@@ -88,8 +88,12 @@ export function syncSettingsToWorldWorker() {
 export function getOrGenerateWorld(pw, pwVertical) {
     const pwKey = `${pw},${pwVertical}`;
 
-    // 1. If we already have it, skip
+    // 1. If we already have it, skip, but sync to make sure it doesn't get stuck?
     if (app.poisByPW[pwKey]) {
+        // Doesn't quite work, continues searching even when a match is found, though this isn't a problem if background search is enabled
+        continueSearchSequence(pw, pwVertical);
+        // Doesn't quite work, still gets stuck on the loading screen
+        //syncPW(pw, pwVertical);
         return;
     }
 

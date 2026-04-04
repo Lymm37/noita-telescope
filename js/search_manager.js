@@ -202,7 +202,7 @@ searchWorker.onmessage = async (e) => {
             */
 
             // QoL: If the search was for something unlikely to occur, make a suggestion
-            if (search.mode === 'pw' && search.pwSequence.length === 1) {
+            if (search.mode === 'pw' && search.pwSequence.length === 1 && appSettings.enableHamisHints) {
                 if (msg.searchTarget) {
                     if (msg.searchTarget === 't10_spell') {
                         document.getElementById('search-all-pw').focus();
@@ -597,6 +597,20 @@ export function continueSearchSequence(pw, pwVertical) {
     if (searchActive) {
         searchWorker.postMessage({
             cmd: 'FIND_NEXT'
+        });
+    }
+}
+
+// Testing only syncing (doesn't quite work)
+export function syncPW(pw, pwVertical) {
+    const key = `${pw},${pwVertical}`;
+    if (app.poisByPW[key]) {
+        syncedKeys.add(key);
+        searchWorker.postMessage({
+            cmd: 'SYNC_DATA',
+            pw,
+            pwVertical,
+            pois: app.poisByPW[key]
         });
     }
 }

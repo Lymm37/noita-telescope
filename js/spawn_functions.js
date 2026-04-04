@@ -275,7 +275,8 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 		}
 		else if (func === "spawn_swing_puzzle_target") {
-			return spawnChest(ws, ng, x - 75, y - 70, false, perks, gameMode);
+			const chest = spawnChest(ws, ng, x - 75, y - 70, false, perks, gameMode);
+			return {type: 'puzzle', materials: 'electricity', items: chest.items, x: x - 75, y: y - 70};
 		}
 		else if (func === "spawn_oiltank_puzzle") {
 			// TODO: Wand from this puzzle?
@@ -284,7 +285,8 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			const choice = prng.ProceduralRandomi(ws + ng, x, y, 1, materials.length);
 			console.log(`Oiltank puzzle material choice: ${materials[choice-1]}`); // Material not actually relevant to the puzzle
 			// Might be better to recolor the pixel scene with it instead, even though it technically spawns a material spawner and not a pool of the material
-			return spawnChest(ws, ng, x, y - 25, false, perks, gameMode);
+			const chest = spawnChest(ws, ng, x, y - 25, false, perks, gameMode);
+			return {type: 'puzzle', materials: materials[choice-1], items: chest.items, x: x, y: y - 25};
 		}
 		else if (func === "spawn_receptacle_oil") {
 			const wand = spawnSpecialWand(ws, ng, x + 72, y - 22, "ruusu");

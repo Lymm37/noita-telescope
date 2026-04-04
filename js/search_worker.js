@@ -58,11 +58,12 @@ function checkWandMatch(w, f) {
 	if (f.sprite && w.sprite !== `wand_${f.sprite.toString().padStart(4, '0')}`) return false;
 	// Not really sure a max threshold would even be useful here
     // Use defaults here instead
-	if (f.minSpriteRarity !== 1.0 || f.maxSpriteRarity !== 9.0) {
+	if (f.minSpriteRarity !== 1.0 || f.maxSpriteRarity !== 9.0 || (f.queryList.length > 0 && (f.queryList[0].toLowerCase() === 'rare' || f.queryList[0].toLowerCase() === 'raresprite' || f.queryList[0].toLowerCase() === 'rare sprite'))) {
 		if (SPRITE_RARITY !== undefined) {
 			if (SPRITE_RARITY[w.sprite] !== undefined) {
 				if (SPRITE_RARITY[w.sprite] > 0) {
 					const wand_rarity = 1.0/SPRITE_RARITY[w.sprite];
+                    if (wand_rarity >= 1e6 && f.queryList.length > 0 && (f.queryList[0].toLowerCase() === 'rare' || f.queryList[0].toLowerCase() === 'raresprite' || f.queryList[0].toLowerCase() === 'rare sprite')) return true;
 					if (wand_rarity < 1e9) { // Always show extremely rare sprites... Threshold tbd
 						if (wand_rarity < Math.pow(10, f.minSpriteRarity)) return false;
 						if (f.maxSpriteRarity && wand_rarity > Math.pow(10, f.maxSpriteRarity)) return false;
