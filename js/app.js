@@ -2199,8 +2199,11 @@ export const app = {
 									else if (MATERIAL_CONTAINER_TYPES.includes(p.item)) {
 										poiColor = '#0000FFAA';
 									}
-									else if (p.item === 'portal') {
+									else if (p.item === 'portal' || p.item === 'meditation_cube' || p.item === 'buried_eye_teleporter') {
 										poiColor = '#800080AA';
+									}
+									else if (p.item === 'refresh_mimic' || p.item === 'heart_mimic' || p.item === 'mimic' || p.item === 'chest_leggy' || p.item === 'mimic_potion') {
+										poiColor = '#AAAAAAAA';
 									}
 									else {
 										poiColor = '#FFFF00AA';
