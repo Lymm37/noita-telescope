@@ -46,6 +46,7 @@ function checkWandMatch(w, f) {
         return false;
 	}
 	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
+    if (w.deck_capacity > 26 && f.queryList.length > 0 && (f.queryList[0].toLowerCase() === 'rare' || f.queryList[0].toLowerCase() === 'high capacity' || f.queryList[0].toLowerCase() === 'highcapacity')) return true;
 	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
 	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
 	if (w.actions_per_round < f.minSpells || w.actions_per_round > f.maxSpells) return false;
@@ -149,6 +150,8 @@ function checkMatch(poi, f) {
 	}
 	
 	else if (CONTAINER_TYPES.includes(data.type)) {
+        // Skip alchemist for rare search because it's in every PW
+        if (data.type === 'alchemist_boss' && f.queryList[0].toLowerCase() === 'rare') return false;
 		// Why was this necessary? Empty string search with other filters seems fine
 		//if (f.queryList.length === 0) return false;
 		// Check container name?

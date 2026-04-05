@@ -442,6 +442,15 @@ export const app = {
 			}
 		};
 
+		document.getElementById('search-rare-btn').onclick = () => {
+			cancelSearch();
+			this.draw(); // Clear highlights immediately on new search
+			document.getElementById('search-input').value = 'rare';
+			document.getElementById('search-all-pw').checked = false;
+			document.getElementById('search-vertical-pw').checked = false;
+			performSearch(true, false);
+		};
+
 
 		// Event Handlers
 
@@ -584,11 +593,11 @@ export const app = {
 				if (pwChange.x !== 0 || pwChange.y !== 0) {
 					// Clear highlighted PoIs *before* changing PW...
 					// TODO: Don't want to cancel search but not sure what to do differently
-					/*
-					if (isSearchActive()) {
+					
+					if (isSearchActive() && !document.getElementById('search-all-pw').checked) {
 						clearHighlights(); // Clear without canceling
 					}
-					*/
+					
 					this.pw += pwChange.x;
 					this.pwVertical += pwChange.y;
 					// Can I do this without triggering the change events?
@@ -596,11 +605,11 @@ export const app = {
 					document.getElementById('pw-vertical').value = this.pwVertical;
 					this.generate(false, false);
 					// Attempt to re-search in new PW
-					/*
-					if (isSearchActive()) {
+					
+					if (isSearchActive() && !document.getElementById('search-all-pw').checked) {
 						performSearch(false, false);
 					}
-					*/
+					
 				}
 				this.checkBounds();
 				this.draw();

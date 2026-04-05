@@ -12,7 +12,7 @@ const SEARCH_ENABLED = true;
 let searchActive = false; // Whether to display the search results
 let searchContinuing = false; // Whether the search is still ongoing
 let pendingAutoNavigate = false; // Whether to go to the next match when found
-let search = { results: [], index: -1, mode: null };
+let search = { results: [], index: -1, mode: null, autoNavigate: false };
 export let activeLocalSearchArea = null;
 
 let lastUpdateDrawTime = 0;
@@ -52,6 +52,7 @@ export function clearHighlights() {
 	search.results = [];
 	search.index = -1;
     search.mode = null;
+    search.autoNavigate = true; // Reset to default for next search
     document.getElementById('search-nav').style.display = 'none';
     activeLocalSearchArea = null;
     // Might not be necessary?
@@ -324,6 +325,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
     search.results = [];
     search.index = -1;
     search.mode = 'pw';
+    search.autoNavigate = autoNavigate;
     
     const filters = getSearchFilters();
     // Do some smarter filtering based on the type of search
@@ -433,6 +435,7 @@ export async function performLocalSearch(mode, startX, startY) {
     search.results = [];
     search.index = -1;
     search.mode = 'local';
+    search.autoNavigate = true; // Doesn't really mean the same thing
 
     const cancelBtn = document.getElementById('cancel-search');
     cancelBtn.style.display = 'block';
@@ -504,7 +507,14 @@ export async function navigateSearch(dir) {
     const suffix = searchContinuing ? " ..." : "";
     document.getElementById('search-count').innerText = `${search.index + 1} / ${search.results.length}${suffix}`;
     
-    app.gotoPOI(current.poi);
+    // Only actually autonavigate if it's enabled
+    if (search.autoNavigate) {
+        app.gotoPOI(current.poi);
+    }
+    else {
+        // Ensure the PoIs are still rendered
+        app.draw();
+    }
 }
 
 export function cancelSearch() {
