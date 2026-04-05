@@ -617,7 +617,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		/*
 		if (func === "spawn_boss") {
 			if (x < 16000 && x > -16000) {
-				return {type: 'enemy', enemy: 'kivi', x: x, y: y};
+				return {type: 'item', item: 'kivi', x: x, y: y};
 			}
 			else {
 				return null;
@@ -625,7 +625,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		}
 		else if (func === "spawn_boss_phase2_marker") {
 			if (x < 16000 && x > -16000) {
-				return {type: 'enemy', enemy: 'kummitus', x: x+7, y: y};
+				return {type: 'item', item: 'kummitus', x: x+7, y: y};
 			}
 			else {
 				return null;
@@ -633,7 +633,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		}
 		else if (func === "spawn_potion_mimic_empty") {
 			if (x < 16000 && x > -16000) {
-				return {type: 'enemy', enemy: 'potion_mimic_empty', x: x, y: y};
+				return {type: 'item', item: 'potion_mimic_empty', x: x, y: y};
 			}
 			else {
 				return null;

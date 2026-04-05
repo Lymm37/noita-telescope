@@ -39,10 +39,10 @@ export function spawnHeart(ws, ng, x, y, biome, perks={}, gameMode='normal') {
 				//hasSign = true;
 			}
 			if (rnd <= 95) {
-				return {type: 'enemy', enemy: 'mimic', x: x, y: y};
+				return {type: 'item', item: 'mimic', x: x, y: y};
 			}
 			else {
-				return {type: 'enemy', enemy: 'chest_leggy', x: x, y: y};
+				return {type: 'item', item: 'chest_leggy', x: x, y: y};
 			}
 		}
 	}

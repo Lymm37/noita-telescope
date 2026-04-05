@@ -371,7 +371,7 @@ export function generateChest(ws, ng, x, y, perks={}, gameMode='normal') {
 				items.push({type: 'item', item: 'spell_refresh', x: x, y: y});
 			}
 			else {
-				items.push({type: 'enemy', enemy: 'refresh_mimic', x: x, y: y});
+				items.push({type: 'item', item: 'refresh_mimic', x: x, y: y});
 			}
 		}
 		else if (rnd <= 60) {
@@ -478,7 +478,7 @@ export function generateChest(ws, ng, x, y, perks={}, gameMode='normal') {
 				items.push({type: 'item', item: 'heart', x: x, y: y});
 			}
 			else if (rnd <= 89) {
-				items.push({type: 'enemy', enemy: 'heart_mimic', x: x, y: y});
+				items.push({type: 'item', item: 'heart_mimic', x: x, y: y});
 			}
 			else if (rnd <= 99) {
 				items.push({type: 'item', item: 'heart_bigger', x: x, y: y});

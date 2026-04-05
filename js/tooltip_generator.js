@@ -511,6 +511,7 @@ export function updateTooltip(e, hit, tip) {
 			tip.innerHTML = `${hit.name.toUpperCase()}<br>${hit.name}<br><small>This shouldn't happen!</small><br>${generateFooterHtml(hit)}`;
 		}
 		else {
+			console.log(hit);
 			tip.innerHTML = `${hit.name.toUpperCase()}<br>${hit}<br>${generateFooterHtml(hit)}`;
 		}
 		// Debug info

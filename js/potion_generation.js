@@ -113,7 +113,7 @@ function generateItem(ws, ng, x, y, perks={}, gameMode = 'normal') {
 	prng.SetRandomSeed(ws + ng, x, y);
 	let rnd = prng.Random(1, 1000);
 	if (rnd > 995 && y >= 512 * 3) {
-		return {type: 'item', item: 'mimic_potion', x: x, y: y}; //{type: 'enemy', enemy: 'mimic_potion', x: x, y: y};
+		return {type: 'item', item: 'mimic_potion', x: x, y: y};
 	}
 	prng.SetRandomSeed(ws + ng, x + 425, y - 243);
 	rnd = prng.Random(1, 91);
