@@ -442,6 +442,12 @@ export const app = {
 			}
 		};
 
+		document.getElementById('search-vertical-pw').onchange = () => {
+			if (document.getElementById('search-vertical-pw').checked) {
+				document.getElementById('search-all-pw').checked = true;
+			}
+		}
+
 		document.getElementById('search-rare-btn').onclick = () => {
 			cancelSearch();
 			this.draw(); // Clear highlights immediately on new search

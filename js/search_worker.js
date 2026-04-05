@@ -46,7 +46,7 @@ function checkWandMatch(w, f) {
         return false;
 	}
 	if (w.mana_max < f.minMana || w.mana_max > f.maxMana) return false;
-    if (w.deck_capacity > 26 && f.queryList.length > 0 && (f.queryList[0].toLowerCase() === 'rare' || f.queryList[0].toLowerCase() === 'high capacity' || f.queryList[0].toLowerCase() === 'highcapacity')) return true;
+    if (w.deck_capacity > 26 && f.queryList.length > 0 && (f.queryList.some(q => isMatch('rare', q)) || f.queryList.some(q => isMatch('high capacity', q)) )) return true;
 	if (w.deck_capacity < f.minCap || w.deck_capacity > f.maxCap) return false;
 	if ((w.reload_time / 60) < f.minRech || (w.reload_time / 60) > f.maxRech) return false;
 	if (w.actions_per_round < f.minSpells || w.actions_per_round > f.maxSpells) return false;
@@ -59,12 +59,12 @@ function checkWandMatch(w, f) {
 	if (f.sprite && w.sprite !== `wand_${f.sprite.toString().padStart(4, '0')}`) return false;
 	// Not really sure a max threshold would even be useful here
     // Use defaults here instead
-	if (f.minSpriteRarity !== 1.0 || f.maxSpriteRarity !== 9.0 || (f.queryList.length > 0 && (f.queryList[0].toLowerCase() === 'rare' || f.queryList[0].toLowerCase() === 'raresprite' || f.queryList[0].toLowerCase() === 'rare sprite'))) {
+	if (f.minSpriteRarity !== 1.0 || f.maxSpriteRarity !== 9.0 || (f.queryList.length > 0 && (f.queryList.some(q => isMatch('rare', q)) || f.queryList.some(q => isMatch('rare sprite', q))))) {
 		if (SPRITE_RARITY !== undefined) {
 			if (SPRITE_RARITY[w.sprite] !== undefined) {
 				if (SPRITE_RARITY[w.sprite] > 0) {
 					const wand_rarity = 1.0/SPRITE_RARITY[w.sprite];
-                    if (wand_rarity >= 1e6 && f.queryList.length > 0 && (f.queryList[0].toLowerCase() === 'rare' || f.queryList[0].toLowerCase() === 'raresprite' || f.queryList[0].toLowerCase() === 'rare sprite')) return true;
+                    if (wand_rarity >= 1e6 && f.queryList.length > 0 && (f.queryList.some(q => isMatch('rare', q)) || f.queryList.some(q => isMatch('rare sprite', q)))) return true;
 					if (wand_rarity < 1e9) { // Always show extremely rare sprites... Threshold tbd
 						if (wand_rarity < Math.pow(10, f.minSpriteRarity)) return false;
 						if (f.maxSpriteRarity && wand_rarity > Math.pow(10, f.maxSpriteRarity)) return false;
@@ -98,7 +98,7 @@ function checkWandMatch(w, f) {
 	if (f.queryList.length > 0) {
 		// Include always casts in search by combining them with the wand cards
 		const combinedCards = w.cards ? w.cards.concat(w.always_casts || []) : (w.always_casts || []);
-		if (!f.queryList.every(q => combinedCards.some(s => isMatch(s, q)))) return false;
+		if (!f.queryList.some(q => combinedCards.some(s => isMatch(s, q)))) return false;
 	}
 	return true;
 }
@@ -111,7 +111,7 @@ function checkItemMatch(item, f) {
 	if (f.queryList.length === 0) return false; // Don't match items if no query is provided
     
     // 2. Spell Item search
-    if (item.item === 'spell' && f.queryList.every(q => isMatch(item.spell, q))) return true;
+    if (item.item === 'spell' && f.queryList.some(q => isMatch(item.spell, q))) return true;
 
 	// Enemies
 	if (item.type === 'enemy' && f.queryList.some(q => isMatch(item.enemy, q))) return true;
@@ -125,7 +125,7 @@ function checkItemMatch(item, f) {
     const combinedLabel = `${material}${itemName}`;
 
     // 4. Generic Item search (Matches against the combined label, material alone, or item alone)
-    if (f.queryList.every(q => isMatch(combinedLabel, q) || isMatch(item.material, q) || isMatch(item.item, q))) return true;
+    if (f.queryList.some(q => isMatch(combinedLabel, q) || isMatch(item.material, q) || isMatch(item.item, q))) return true;
 
     return false;
 };
@@ -151,7 +151,7 @@ function checkMatch(poi, f) {
 	
 	else if (CONTAINER_TYPES.includes(data.type)) {
         // Skip alchemist for rare search because it's in every PW
-        if (data.type === 'alchemist_boss' && f.queryList[0].toLowerCase() === 'rare') return false;
+        if (data.type === 'alchemist_boss' && f.queryList.some(q => isMatch('rare', q))) return false;
 		// Why was this necessary? Empty string search with other filters seems fine
 		//if (f.queryList.length === 0) return false;
 		// Check container name?

@@ -47,6 +47,11 @@ const ALIASES = {
 	'TOUCH_GRASS': ['touch of grass', 'touch grass', 'grass touch', 'rare'],
 	'TOUCH_OIL': ['touch of oil', 'touch oil', 'oil touch', 'rare'],
 	'TOUCH_ALCOHOL': ['touch of spirits', 'touch of alcohol', 'touch of whiskey', 'touch spirits', 'touch alcohol', 'touch whiskey', 'spirits touch', 'alcohol touch', 'whiskey touch', 'rare'],
+	// General rare search types
+	'rare': ['rare'],
+	'ldt': ['ldt'],
+	'high capacity': ['high capacity', 'highcapacity', 'highcap'],
+	'rare sprite': ['rare sprite', 'raresprite'],
 	// Item aliases
 	'great_chest': ['great treasure chest', 'great chest', 'gtc'],
 	'true_orb': ['34th orb', '34th', '34', 'orb 34', 'orb of true knowledge'],

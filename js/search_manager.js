@@ -316,6 +316,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
     const searchVerticalPW = document.getElementById('search-vertical-pw').checked;
     const pwVerticalLimit = parseInt(document.getElementById('search-pw-vertical-limit').value);
     const cancelBtn = document.getElementById('cancel-search');
+    const excludeNegativeVerticals = searchVerticalPW && (document.getElementById('exclude-negative-verticals')?.checked || false);
 
     clearHighlights();
     document.getElementById('search-nav').style.display = 'none';
@@ -347,17 +348,15 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
             for (let spellName of T10_SPELLS) {
                 if (isMatch(spellName, query)) {
                     searchTarget = 't10_spell';
-                    console.log(`Identified search for tier 10 spell: ${spellName}`);
+                    //console.log(`Identified search for tier 10 spell: ${spellName}`);
                     // Automatically override settings if it's unlikely to find anything maybe?
                     // Eh maybe only if it fails
                     break;
                 }
             }
-            if (!searchTarget) {
-                searchTarget = 'other';
-            }
         }
     }
+    if (!searchTarget) searchTarget = 'other';
 
     let currentSequence = [];
 
@@ -373,7 +372,7 @@ export async function performSearch(allowIterative = true, autoNavigate = true) 
         // Generate all valid coordinates within the rectangle
         for (let x = -pwLimit; x <= pwLimit; x++) {
             for (let y = -pwVerticalLimit; y <= pwVerticalLimit; y++) {
-                if (y < 0 && (searchTarget === 'wand' || searchTarget === 'other') && app.gameMode !== 'nightmare') continue; // Skip negative vertical PWs for wand searches since they can't spawn there
+                if (y < 0 && ((excludeNegativeVerticals && searchAllPW) || ((searchTarget === 'wand' || searchTarget === 'other') && app.gameMode !== 'nightmare'))) continue; // Skip negative vertical PWs for wand searches since they can't spawn there
                 // I would also exclude the other vertical PWs except that the infinite power plant exists
                 coords.push({ x, y, dist: Math.abs(x) + Math.abs(y) });
             }
