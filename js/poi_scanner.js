@@ -394,7 +394,7 @@ export function getSpecialPoIs(biomeData, worldSeed, ngPlusCount, pwIndex, pwInd
         }
 
         
-        if (pwIndex === 0 && ngPlusCount === 0) {
+        if (pwIndex === 0 && ngPlusCount === 0 && gameMode === 'normal') {
             if (GENERATOR_CONFIG['snowcastle_cavern'].enabled) {
                 // Generate hourglass shop
                 // TODO: Also check existence? Depends on the side though (side param is available)

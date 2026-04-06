@@ -20,24 +20,24 @@ const BIOME_TIERS = {
 	'coalmine_alt': 1,
 	'excavationsite': 2,
 	'snowcave': 3,
-	'snowcastle': 3,
-	'rainforest': 4,
-	'rainforest_open': 4,
-	'vault': 4,
-	'crypt': 5,
+	'meat': 3, // probably not likely to be used
+	//'snowcastle': 3, // No shop here
+	//'rainforest': 4, // No shop here
+	//'rainforest_open': 4, // No shop here
+	//'vault': 4, // Uses y coordinate for this one
+	//'crypt': 5, // Uses y coordinate here too
 	'the_end': 10,
 	'the_sky': 10,
 	// Unclear what the shop level for the tower is, seems like it can just spawn any spell, I thought it was tier 10 but maybe it's just depth-dependent (null)
-	/*
-	'tower_coalmine': 10,
-	'tower_excavationsite': 10,
-	'tower_snowcave': 10,
-	'tower_snowcastle': 10,
-	'tower_fungicave': 10,
-	'tower_rainforest': 10,
-	'tower_vault': 10,
-	'tower_crypt': 10,
-	*/
+	// File seems to indicate 6?
+	'tower_coalmine': 6,
+	'tower_excavationsite': 6,
+	'tower_snowcave': 6,
+	'tower_snowcastle': 6,
+	'tower_fungicave': 6,
+	'tower_rainforest': 6,
+	'tower_vault': 6,
+	'tower_crypt': 6,
 }
 
 // TODO: Might still need to block out rooms for some of these?
