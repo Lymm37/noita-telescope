@@ -25,7 +25,7 @@ chunk's biome from its biome-map color. Both sides go through the
 script's `KEY_OVERRIDES` table to reconcile cosmetic key differences
 (`the_end` ↔ `boss_victoryroom`, `fungiforest` ↔ `fun`, etc.).
 
-**Procedure:** `node scripts/compare_biomes.mjs data/dumps/biome_flags.ndjson`.
+**Procedure:** `node scripts/verify.mjs --only=biomes`.
 Loads `data/biome_maps/biome_map.png`; for each named chunk in the
 dump, looks up the pixel color in telescope's table and compares to
 the chunk's `name` from noitrainer.
@@ -45,7 +45,7 @@ chunk Noita's `ChunkGrid_ResolveChunkAtPosition` (noita.exe @
 0x0087d9a0) actually returns, captured by `noitrainer biome-at-many`
 into `data/dumps/biome_at_resolutions.ndjson.gz`.
 
-**Procedure:** `node scripts/compare_wobble.mjs`. The script reports
+**Procedure:** `node scripts/verify.mjs --only=wobble`. The script reports
 `agree / decided` where `decided` excludes positions where telescope
 returned null (the `BIOME_COLORS_WITH_TILES` rendering filter — these
 are intentional "telescope doesn't render this biome", not
@@ -64,7 +64,7 @@ name — telescope can resolve to a different `(cx, cy)` than Noita and
 still report the same biome name if that name happens to span both
 chunks.
 
-**Procedure:** `node scripts/compare_wobble.mjs`. The
+**Procedure:** `node scripts/verify.mjs --only=wobble`. The
 `chunk-index agreement` line counts positions where
 `telescope.pos.{x,y} === noita.resolved.{cx,cy}`.
 
@@ -85,7 +85,7 @@ biome must resolve to a non-null name OR a known catalogue color).
 PNG dimensions are read directly from the data.wak unpack so we can
 compute scene corners.
 
-**Procedure:** `node scripts/compare_pixel_scenes.mjs --top-left-only`
+**Procedure:** `node scripts/verify.mjs --only=pixel-scenes --top-left-only`
 for the after; the script also has a no-flag mode that simulates the
 legacy 4-corner check for the before number. `decided` excludes the 79
 scenes whose `materialsFile` PNG isn't on disk (auto-generated
@@ -114,7 +114,7 @@ receipts.
 Captured 2026-04-16 against telescope at the state immediately
 following the per-chunk wobble-flags work (`js/wobble_flags.js` + `data/biome_flags.json` wired via `js/utils.js`).
 
-### Wobble: `node scripts/compare_wobble.mjs`
+### Wobble: `node scripts/verify.mjs --only=wobble`
 
 ```
 coords processed:           79919
@@ -144,7 +144,7 @@ All 10 disagreements are `skipped-flags` cases at the HM entrance
 column (cx=35) where Noita short-circuits because the probed neighbor
 is wobble-ineligible but telescope wobbles into a different biome.
 
-### Biome catalogue: `node scripts/compare_biomes.mjs data/dumps/biome_flags.ndjson`
+### Biome catalogue: `node scripts/verify.mjs --only=biomes`
 
 ```
 telescope map: 70x48
@@ -163,16 +163,16 @@ a real biome assignment in this seed.
 
 ### Pixel scenes
 
-N/A — `compare_pixel_scenes.mjs` doesn't exist yet; created in Task C.
+N/A — the pixel-scenes verification section doesn't exist yet; added in Task C.
 
 ## After Task A (neighbor-probe eligibility check)
 
 `utils.js getBiomeAtWorldCoordinates` now also probes Noita's neighbor
 order; the first differing-color neighbor's eligibility is folded into
-`skipWobble`. Same change mirrored in `scripts/compare_wobble.mjs`'s
-inline copy.
+`skipWobble`. The Node-side copy lives in `scripts/_engine_shim.js` and
+is consumed by `scripts/verify.mjs`.
 
-### Wobble: `node scripts/compare_wobble.mjs`
+### Wobble: `node scripts/verify.mjs --only=wobble`
 
 ```
 coords processed:           79919
@@ -204,7 +204,7 @@ when no neighbor differs. Telescope happens to land in same-named
 neighbors, so biome name still agrees; the chunk-index discrepancy
 matters for pixel-scene placement (Task C territory).
 
-### Biome catalogue: `node scripts/compare_biomes.mjs data/dumps/biome_flags.ndjson`
+### Biome catalogue: `node scripts/verify.mjs --only=biomes`
 
 ```
 noita chunks dumped: 1868, _EMPTY_ skipped: 0, decided: 1868
@@ -344,7 +344,7 @@ wobbled color is in the catalogue, even if telescope doesn't have wang
 tiles for that biome — matching Noita's "biome_data_ptr != 0" gate
 without the rendering filter biasing the result.
 
-### Pixel scenes — `node scripts/compare_pixel_scenes.mjs --top-left-only`
+### Pixel scenes — `node scripts/verify.mjs --only=pixel-scenes --top-left-only`
 
 ```
 pixel scenes in fixture:    262
@@ -372,8 +372,7 @@ fallback only loosens the pixel-scene gate.
 ## After chunk-index parity fixes
 
 Two changes in `getBiomeAtWorldCoordinates` (mirrored in the inline
-copies in `scripts/compare_wobble.mjs` and
-`scripts/compare_pixel_scenes.mjs`):
+copy in `scripts/_engine_shim.js`):
 
 1. The neighbor-probe loop now also sets `skipWobble = true` when *no*
    probed neighbor's color differs from the original, mirroring Noita's
@@ -386,7 +385,7 @@ copies in `scripts/compare_wobble.mjs` and
    the bottom of the world even though the color lookup remapped to
    row 47).
 
-### Wobble — `node scripts/compare_wobble.mjs`
+### Wobble — `node scripts/verify.mjs --only=wobble`
 
 ```
 coords processed:           79919
@@ -408,7 +407,7 @@ are the legacy `BIOME_COLORS_WITH_TILES` rendering filter — telescope
 intentionally drops biomes it can't render — and don't represent
 disagreement with Noita's actual lookup.
 
-### Biome catalogue — `node scripts/compare_biomes.mjs data/dumps/biome_flags.ndjson`
+### Biome catalogue — `node scripts/verify.mjs --only=biomes`
 
 ```
 noita chunks dumped: 1868, decided: 1868
@@ -417,7 +416,7 @@ noita chunks dumped: 1868, decided: 1868
 
 No regression.
 
-### Pixel scenes — `node scripts/compare_pixel_scenes.mjs --top-left-only`
+### Pixel scenes — `node scripts/verify.mjs --only=pixel-scenes --top-left-only`
 
 ```
 pixel scenes in fixture:    262

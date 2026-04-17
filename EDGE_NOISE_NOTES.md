@@ -103,7 +103,7 @@ The `+0xC4` byte is set from the per-biome XML's `noise_biome_edges`
 attribute (`0` ⇒ ineligible, absent or `1` ⇒ eligible). The mapping from
 biome-map RGB color to biome XML is in `biome/_biomes_all.xml`.
 
-`scripts/build_biome_flags.mjs` walks both and emits
+`scripts/generate.mjs biome-flags` walks both and emits
 `data/biome_flags.json`: one entry per known biome color with
 `{color, biomeFilename, name, noiseBiomeEdges, wangTemplateFile?}`.
 Re-run after a Noita update with `--src=PATH --out=PATH`.
@@ -155,25 +155,22 @@ Inputs (`data/dumps/`, see that dir's README):
 - `pixel_scenes.ndjson.gz` — every scene Noita has actually placed in
   the snapshot session, from `noitrainer pixel-scenes`.
 
-Scripts (default to the in-repo dumps; `--input=PATH` overrides):
+Scripts (default to the in-repo dumps; per-section input flags override):
 
-- `scripts/build_biome_flags.mjs` — XML → JSON wobble flags table.
-- `scripts/sample_coords.mjs` — generate a coord fixture from a flags
-  dump (`--mode=centers|borders|edges|dense`).
-- `scripts/compare_wobble.mjs` — telescope's
-  `getBiomeAtWorldCoordinates` vs Noita's resolution per coord. Reports
-  name agreement and chunk-index agreement, bucketed by Noita's wobble
-  classification.
-- `scripts/compare_biomes.mjs` — telescope's biome-map color → name vs
-  Noita's chunk biome name (no wobble). Tests the catalogue.
-- `scripts/compare_pixel_scenes.mjs` — diffs telescope's
-  `loadPixelScene` placement gate against the noita pixel-scene
-  fixture. `--top-left-only` simulates the relaxed (current) check.
-- `scripts/dump_pixels.mjs` / `scripts/trace_wobble.mjs` — debug
-  utilities.
-- `scripts/_edge_noise_shim.js` — copy of `edge_noise.js` with the
-  `utils.js` import inlined, so Node can load it without dragging in
-  CDN-only dependencies.
+- `scripts/generate.mjs biome-flags` — XML → JSON wobble flags table.
+- `scripts/generate.mjs sample-coords` — generate a coord fixture from a
+  flags dump (`--mode=centers|borders|edges|dense`).
+- `scripts/verify.mjs` — runs all three agreement checks in one pass.
+  `--only=biomes` tests telescope's biome-map color → name table against
+  Noita's per-chunk name. `--only=wobble` runs
+  `getBiomeAtWorldCoordinates` against Noita's resolution per coord and
+  reports name + chunk-index agreement bucketed by wobble classification.
+  `--only=pixel-scenes` diffs telescope's `loadPixelScene` placement gate
+  against the noita pixel-scene fixture (`--top-left-only` for the
+  relaxed check).
+- `scripts/_engine_shim.js` — Node-compatible copy of `edge_noise.js` +
+  `getBiomeAtWorldCoordinates`, with CDN-only imports inlined. Must track
+  `js/edge_noise.js` and `js/utils.js` when either changes.
 
 To regenerate everything against a different Noita session, follow
 `data/dumps/README.md`.
