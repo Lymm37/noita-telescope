@@ -2,6 +2,7 @@ import { NollaPrng } from './nolla_prng.js';
 import { BLOCKED_COLORS, GENERAL_SCENES, PIXEL_SCENE_BIOME_MAP } from './pixel_scene_config.js';
 import { MATERIAL_COLOR_CONVERSION, MATERIAL_WANG_COLORS } from './potion_config.js';
 import { getBiomeAtWorldCoordinates } from './utils.js';
+import { colorWobbleVerdict } from './wobble_flags.js';
 import { loadPNG } from './png_sanitizer.js';
 import { prescanPixelScene } from './poi_scanner.js';
 import { BIOME_BACKGROUND_COLORS, TILE_OVERLAY_COLORS, makeBlackTransparent } from './image_processing.js';
@@ -231,32 +232,20 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		// If the scene is purely cosmetic and we're skipping cosmetic scenes, skip it
 		return null;
 	}
-	// Check whether it is actually in the right biome completely
-	// Need to check all corners I think, otherwise we get edge cases that break
+	// Top-left wobbled-biome check (mirrors Noita's
+	// PixelScene_PlaceEntryIfValid at noita.exe 0x0087d7e0: only the
+	// top-left corner is resolved, and the scene is placed iff that
+	// chunk's biome_data_ptr is non-null).
+	// We accept when either telescope resolved a tile-having biome name OR
+	// the wobbled-position color is in data/biome_flags.json (proxy for
+	// biome_data_ptr != 0). The second branch covers biomes telescope
+	// doesn't render wang tiles for — surface biomes, mountain entrance,
+	// temple altar tops — but where Noita does place scenes.
 	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_CORNERS && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
 		const boundsOffset = PIXEL_SCENE_BOUNDS_OFFSET[sceneName] || {x: 0, y: 0};
-		const topCornerCoords = {x: x + boundsOffset.x, y: y + boundsOffset.y};
-		const targetTopLeft = getBiomeAtWorldCoordinates(biomeData, topCornerCoords.x, topCornerCoords.y, ng > 0, gameMode);
-		const targetBiomeTopLeft = targetTopLeft ? targetTopLeft.biome : null;
-		if (!targetBiomeTopLeft || targetBiomeTopLeft !== biomeName) {
-			return null;
-		}
-		const topRightCoords = {x: x + pixelSceneData.width + boundsOffset.x, y: y + boundsOffset.y};
-		const targetTopRight = getBiomeAtWorldCoordinates(biomeData, topRightCoords.x, topRightCoords.y, ng > 0, gameMode);
-		const targetBiomeTopRight = targetTopRight ? targetTopRight.biome : null;
-		if (!targetBiomeTopRight || targetBiomeTopRight !== biomeName) {
-			return null;
-		}
-		const bottomLeftCoords = {x: x + boundsOffset.x, y: y + pixelSceneData.height + boundsOffset.y};
-		const targetBottomLeft = getBiomeAtWorldCoordinates(biomeData, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0, gameMode);
-		const targetBiomeBottomLeft = targetBottomLeft ? targetBottomLeft.biome : null;
-		if (!targetBiomeBottomLeft || targetBiomeBottomLeft !== biomeName) {
-			return null;
-		}
-		const bottomRightCoords = {x: x + pixelSceneData.width + boundsOffset.x, y: y + pixelSceneData.height + boundsOffset.y};
-		const targetBottomRight = getBiomeAtWorldCoordinates(biomeData, bottomRightCoords.x, bottomRightCoords.y, ng > 0, gameMode);
-		const targetBiomeBottomRight = targetBottomRight ? targetBottomRight.biome : null;
-		if (!targetBiomeBottomRight || targetBiomeBottomRight !== biomeName) {
+		const topLeft = getBiomeAtWorldCoordinates(biomeData, x + boundsOffset.x, y + boundsOffset.y, ng > 0, gameMode);
+		if (!topLeft) return null;
+		if (!topLeft.biome && colorWobbleVerdict(topLeft.colorInt) === 'unknown') {
 			return null;
 		}
 	}
@@ -336,31 +325,15 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				//spawnPoints: pixelSceneData.spawnPoints,
 				type: 'pixel_scene'
 			};
-			// Check whether it is actually in the right biome completely
-			// Need to check all corners I think, otherwise we get edge cases that break
+			// Top-left wobbled-biome check (mirrors Noita's
+			// PixelScene_PlaceEntryIfValid at noita.exe 0x0087d7e0).
+			// See loadPixelScene above for the full rationale, including
+			// the colorWobbleVerdict fallback for biomes telescope can't
+			// render but Noita places into.
 			if (CHECK_PIXEL_SCENE_CORNERS) {
-				const topCornerCoords = {x: x, y: y};
-				const targetTopLeft = getBiomeAtWorldCoordinates(biomeData, topCornerCoords.x, topCornerCoords.y, ng > 0, gameMode);
-				const targetBiomeTopLeft = targetTopLeft ? targetTopLeft.biome : null;
-				if (!targetBiomeTopLeft || targetBiomeTopLeft !== biomeName) {
-					return null;
-				}
-				const topRightCoords = {x: x + pixelSceneData.width, y: y};
-				const targetTopRight = getBiomeAtWorldCoordinates(biomeData, topRightCoords.x, topRightCoords.y, ng > 0, gameMode);
-				const targetBiomeTopRight = targetTopRight ? targetTopRight.biome : null;
-				if (!targetBiomeTopRight || targetBiomeTopRight !== biomeName) {
-					return null;
-				}
-				const bottomLeftCoords = {x: x, y: y + pixelSceneData.height};
-				const targetBottomLeft = getBiomeAtWorldCoordinates(biomeData, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0, gameMode);
-				const targetBiomeBottomLeft = targetBottomLeft ? targetBottomLeft.biome : null;
-				if (!targetBiomeBottomLeft || targetBiomeBottomLeft !== biomeName) {
-					return null;
-				}
-				const bottomRightCoords = {x: x + pixelSceneData.width, y: y + pixelSceneData.height};
-				const targetBottomRight = getBiomeAtWorldCoordinates(biomeData, bottomRightCoords.x, bottomRightCoords.y, ng > 0, gameMode);
-				const targetBiomeBottomRight = targetBottomRight ? targetBottomRight.biome : null;
-				if (!targetBiomeBottomRight || targetBiomeBottomRight !== biomeName) {
+				const topLeft = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
+				if (!topLeft) return null;
+				if (!topLeft.biome && colorWobbleVerdict(topLeft.colorInt) === 'unknown') {
 					return null;
 				}
 			}
