@@ -1,6 +1,7 @@
 import {CHUNK_SIZE, TILE_SIZE, WORLD_CHUNK_CENTER_X, WORLD_CHUNK_CENTER_Y, WORLD_CHUNK_CENTER_X_NGP, TILE_OFFSET_X, TILE_OFFSET_Y, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y} from './constants.js';
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES, BIOMES_WITHOUT_WAVY_EDGE } from './generator_config.js';
 import { GetBiomeOffset } from './edge_noise.js';
+import { colorWobbleVerdict } from './wobble_flags.js';
 import { MATERIAL_COLOR_LOOKUP } from './potion_config.js';
 import { PIXEL_SCENE_DATA } from './pixel_scene_generation.js';
 import { appSettings } from './settings.js';
@@ -180,7 +181,10 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     const worldCenter = worldSize / 2;
     // Not sure whether or not to use the tile offsets here
     const modX = ((worldX + worldCenter) % worldSize + worldSize) % worldSize;
-    const modY = ((worldY + 14*512) % 24570 + 24570) % 24570; 
+    // Biome grid is 48*512 = 24576 px tall. (24570 is used for vertical-PW
+    // spacing elsewhere but is wrong for the single-world biome lookup —
+    // wy in [17402..17407] would wrap to row 0.)
+    const modY = ((worldY + 14*512) % 24576 + 24576) % 24576;
     
     // Account for biome edge noise
     let highDetail = true; // Seems to be required to avoid false negatives...
@@ -198,35 +202,99 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     
     let biomePixelX = originalX + edgeOffset.x;
     let biomePixelY = originalY + edgeOffset.y;
-    
-    let idx = biomePixelY * mapWidth + biomePixelX;
 
-    // Fix for heaven/hell? or at least map edge cases
-    if (idx < 0) idx = biomePixelX % mapWidth;
-    if (idx >= biomeMap.length) idx = mapWidth * 47 + biomePixelX % mapWidth;
+    // Mirror Noita's BiomeGrid_GetChunkAt (noita.exe @ 0x0087d870):
+    // wrap X mod width, clamp Y into [0, height-1]. Doing it on (x, y)
+    // instead of just on idx keeps the returned `pos` consistent with
+    // the lookup — important so callers using `pos` agree with the
+    // in-game chunk coordinate.
+    biomePixelX = ((biomePixelX % mapWidth) + mapWidth) % mapWidth;
+    biomePixelY = Math.max(0, Math.min(47, biomePixelY));
+
+    const idx = biomePixelY * mapWidth + biomePixelX;
 
     const colorInt = biomeMap[idx] & 0xffffff; 
     let biomeName = BIOME_COLOR_TO_NAME[colorInt];
     if (!BIOME_COLORS_WITH_TILES.has(colorInt)) biomeName = null; // Only return biomes with tiles, otherwise it's just noise that causes false positives
     
-    // This is actually annoyingly expensive for such a minor fix.
-    //if (document.getElementById('debug-fix-holy-mountain-edge-noise').checked) {
     if (appSettings.fixHolyMountainEdgeNoise) {
         const origIdx = originalY * mapWidth + originalX;
         const origColorInt = biomeMap[origIdx] & 0xffffff;
         const origBiomeName = BIOME_COLOR_TO_NAME[origColorInt];
-        //if (origBiomeName === "temple_altar" || biomeName === "temple_altar") {
-        // There are kind of a lot of biomes that need to be excluded for this
-        if (BIOMES_WITHOUT_WAVY_EDGE.has(origColorInt) || BIOMES_WITHOUT_WAVY_EDGE.has(colorInt)) {
-            // Don't apply edge noise for these biomes, it just causes false positives and they don't have the wavy edge anyway
+        // Skip the wobble when the source, the wobbled-into chunk, or the
+        // first differing-color neighbor (in Noita's probe order) is
+        // wobble-ineligible. Verdicts come from each biome XML's
+        // `noise_biome_edges` attribute via data/biome_flags.json; for
+        // colors not in the table (mostly NG+ palette swaps), fall back to
+        // BIOMES_WITHOUT_WAVY_EDGE.
+        const colorIneligible = (color) => {
+            const v = colorWobbleVerdict(color);
+            return v === 'ineligible' || (v === 'unknown' && BIOMES_WITHOUT_WAVY_EDGE.has(color));
+        };
+        let skipWobble = colorIneligible(origColorInt) || colorIneligible(colorInt);
+
+        if (!skipWobble) {
+            // Replicate Noita's step-2/step-6 neighbor-probe gate from
+            // ChunkGrid_ResolveChunkAtPosition (noita.exe @ 0x0087d9a0).
+            // Probe directions in the exact order the engine uses. The
+            // first probed neighbor whose
+            // biome-map color differs from the original determines the
+            // wobble decision; if THAT neighbor is wobble-ineligible, skip.
+            // If NO probed neighbor differs at all, also skip — Noita
+            // returns the original chunk in that case rather than running
+            // the wobble math.
+            const subWX = ((worldX % 512) + 512) % 512;
+            const subWY = ((worldY % 512) + 512) % 512;
+            const probes = [];
+            if (subWX < 42) probes.push([originalX - 1, originalY]);
+            if (subWY < 42) probes.push([originalX, originalY - 1]);
+            if (subWX > 470) probes.push([originalX + 1, originalY]);
+            if (subWY > 470) probes.push([originalX, originalY + 1]);
+            if (subWX < 42) {
+                if (subWY < 42) probes.push([originalX - 1, originalY - 1]);
+                if (subWY > 470) probes.push([originalX - 1, originalY + 1]);
+            }
+            if (subWX > 470) {
+                if (subWY < 42) probes.push([originalX + 1, originalY - 1]);
+                if (subWY > 470) probes.push([originalX + 1, originalY + 1]);
+            }
+            let foundDifferingNeighbor = false;
+            for (const [pcx, pcy] of probes) {
+                const ncx = ((pcx % mapWidth) + mapWidth) % mapWidth;
+                const ncy = Math.max(0, Math.min(47, pcy));
+                const nIdx = ncy * mapWidth + ncx;
+                if (nIdx < 0 || nIdx >= biomeMap.length) continue;
+                const ncolor = biomeMap[nIdx] & 0xffffff;
+                if (ncolor === origColorInt) continue; // not a differing neighbor
+                foundDifferingNeighbor = true;
+                if (colorIneligible(ncolor)) skipWobble = true;
+                break; // only the FIRST differing neighbor counts
+            }
+            if (probes.length > 0 && !foundDifferingNeighbor) {
+                skipWobble = true;
+            }
+        }
+
+        if (skipWobble) {
             biomePixelX = originalX;
             biomePixelY = originalY;
             biomeName = origBiomeName;
         }
     }
     
+    // Re-read the (post-fixHM) wobbled color so callers can check it
+    // against the biome XML catalogue (data/biome_flags.json) without
+    // having to recompute the wobble themselves. Useful for places like
+    // pixel-scene placement that need the raw "is this a real biome?"
+    // verdict rather than the BIOME_COLORS_WITH_TILES-filtered name.
+    const finalIdx = biomePixelY * mapWidth + biomePixelX;
+    const finalColorInt = (finalIdx >= 0 && finalIdx < biomeMap.length)
+        ? biomeMap[finalIdx] & 0xffffff
+        : 0;
+
     return {
         biome: biomeName || null,
+        colorInt: finalColorInt,
         pos: {x: biomePixelX, y: biomePixelY},
         originalPos: {x: originalX, y: originalY},
         mightBeEdgeCase: edgeOffset.x !== 0 || edgeOffset.y !== 0
