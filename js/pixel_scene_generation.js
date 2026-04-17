@@ -203,7 +203,7 @@ export function blockOutRooms(pixels, width, height) {
 	return rooms;
 }
 
-const CHECK_PIXEL_SCENE_CORNERS = true;
+const CHECK_PIXEL_SCENE_BIOME = true;
 const PIXEL_SCENES_WITHOUT_BOUNDS_CHECK = [
 	//"trailer_altar", // Nope this doesn't work
 ]
@@ -241,10 +241,9 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 	// biome_data_ptr != 0). The second branch covers biomes telescope
 	// doesn't render wang tiles for — surface biomes, mountain entrance,
 	// temple altar tops — but where Noita does place scenes.
-	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_CORNERS && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
+	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_BIOME && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
 		const boundsOffset = PIXEL_SCENE_BOUNDS_OFFSET[sceneName] || {x: 0, y: 0};
 		const topLeft = getBiomeAtWorldCoordinates(biomeData, x + boundsOffset.x, y + boundsOffset.y, ng > 0, gameMode);
-		if (!topLeft) return null;
 		if (!topLeft.biome && colorWobbleVerdict(topLeft.colorInt) === 'unknown') {
 			return null;
 		}
@@ -330,9 +329,8 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 			// See loadPixelScene above for the full rationale, including
 			// the colorWobbleVerdict fallback for biomes telescope can't
 			// render but Noita places into.
-			if (CHECK_PIXEL_SCENE_CORNERS) {
+			if (CHECK_PIXEL_SCENE_BIOME) {
 				const topLeft = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
-				if (!topLeft) return null;
 				if (!topLeft.biome && colorWobbleVerdict(topLeft.colorInt) === 'unknown') {
 					return null;
 				}
