@@ -2475,10 +2475,33 @@ export const app = {
 				for (const unlock of Object.keys(UNLOCKABLES)) {
 					document.getElementById(`unlock-${unlock}`).checked = settings[`unlock_${unlock}`];
 				}
-				// Region settings
+				// Region settings. Migrate pre-rename keys into their current XML-filename
+				// equivalents so users who had enabled/disabled biomes under the old names
+				// don't silently lose those biomes from rendering after the rename.
+				const REGION_KEY_MIGRATIONS = {
+					tower_coalmine: 'solid_wall_tower_1',
+					tower_excavationsite: 'solid_wall_tower_2',
+					tower_snowcave: 'solid_wall_tower_3',
+					tower_snowcastle: 'solid_wall_tower_4',
+					tower_fungicave: 'solid_wall_tower_5',
+					tower_rainforest: 'solid_wall_tower_6',
+					tower_vault: 'solid_wall_tower_7',
+					tower_crypt: 'solid_wall_tower_8',
+					tower_end: 'solid_wall_tower_9',
+					snowchasm: 'winter_caves',
+				};
+				for (const [oldKey, newKey] of Object.entries(REGION_KEY_MIGRATIONS)) {
+					if (settings[`region_${newKey}`] === undefined && settings[`region_${oldKey}`] !== undefined) {
+						settings[`region_${newKey}`] = settings[`region_${oldKey}`];
+					}
+				}
 				for (const region of Object.keys(GENERATOR_CONFIG)) {
-					document.getElementById(`region-${region}`).checked = settings[`region_${region}`];
-					GENERATOR_CONFIG[region].enabled = settings[`region_${region}`];
+					// Missing saved value (e.g. a biome added since the settings were last
+					// saved) keeps the code-default enabled state from generator_config.js.
+					const saved = settings[`region_${region}`];
+					if (saved === undefined) continue;
+					document.getElementById(`region-${region}`).checked = saved;
+					GENERATOR_CONFIG[region].enabled = saved;
 				}
 				this.perks = {
 					noMoreShuffle: settings.noMoreShuffle || false,
