@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { createCanvas, loadImage } from 'canvas';
-import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from '../js/generator_config.js';
+import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES, GENERATOR_CONFIG } from '../js/generator_config.js';
 import { colorWobbleVerdict } from '../js/wobble_flags.js';
 
 // ----- world-size constants (from js/utils.js getWorldSize/getWorldCenter) -----
@@ -266,40 +266,22 @@ export function readDump(path) {
 
 // ----- telescope key ↔ noita XML-name canonicalization -----
 
-// Most telescope biome keys match noita's XML filename 1:1 (coalmine,
-// snowcave, the_end, the_sky, lake_deep, temple_altar, …). This helper
-// collapses the remaining mismatches so the two sides compare cleanly.
-//
-// Source of mismatches: noita has multiple XMLs where telescope's biome-map
-// encodes a single key — tower solid_wall_tower_N, orbroom_NN, temple_altar
-// left/right variants. We canonicalize all of those to telescope's coarser
-// key. The function is idempotent: feed it either a telescope key or a noita
-// xmlName and it returns the same token for equivalent biomes.
+// Derive alias-XML → primary-key from GENERATOR_CONFIG. Any biome that groups
+// multiple noita XMLs under one telescope render target declares the extras
+// in `aliasXMLs`; canonicalBiome folds each alias to its primary so
+// verify.mjs compares telescope's biome-map key against noita's xmlName on
+// the same footing.
+const ALIAS_TO_PRIMARY = (() => {
+    const out = Object.create(null);
+    for (const [primary, conf] of Object.entries(GENERATOR_CONFIG)) {
+        if (Array.isArray(conf.aliasXMLs)) {
+            for (const xml of conf.aliasXMLs) out[xml] = primary;
+        }
+    }
+    return out;
+})();
+
 export function canonicalBiome(name) {
     if (name == null) return null;
-    // Towers: telescope has per-origin keys (tower_coalmine, tower_vault, …);
-    // noita numbers them (solid_wall_tower_1…9). Fold both to 'tower'.
-    if (/^solid_wall_tower_\d+$/.test(name)) return 'tower';
-    if (name.startsWith('tower_')) return 'tower';
-    // Orbrooms: noita has orbroom_NN XMLs; telescope has a single orbroom_marker key.
-    if (/^orbroom_\d+$/.test(name)) return 'orbroom_marker';
-    // Holy-mountain XMLs noita splits into: the wang-tiled interior
-    // (temple_altar + L/R/snowcastle variants) and the stone frame
-    // (temple_wall, temple_wall_ending, solid_wall_temple) — which telescope
-    // does not render as biomes. Collapse all to 'temple_altar'.
-    if (name.startsWith('temple_altar')) return 'temple_altar';
-    if (name === 'temple_wall' || name === 'temple_wall_ending' || name === 'solid_wall_temple') return 'temple_altar';
-    // Pyramid side-rooms (noita has pyramid + pyramid_hallway + pyramid_right).
-    if (name === 'pyramid_right' || name === 'pyramid_hallway') return 'pyramid';
-    // Sub-biomes telescope doesn't distinguish but noita does.
-    if (name === 'lava_90percent') return 'lava';
-    if (name === 'scale') return 'desert';
-    if (name === 'meatroom') return 'meat';
-    if (name === 'roboroom') return 'robobase';
-    if (name === 'boss_arena_top') return 'boss_arena';
-    // Hell victory-room: noita's boss_victoryroom.xml aligns with telescope's the_end key.
-    if (name === 'boss_victoryroom') return 'the_end';
-    // Telescope's 'snowchasm' biome-map color is actually served by noita's winter_caves.xml.
-    if (name === 'snowchasm') return 'winter_caves';
-    return name;
+    return ALIAS_TO_PRIMARY[name] || name;
 }

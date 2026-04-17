@@ -1,12 +1,11 @@
 import biomeFlagsData from '../data/biome_flags.json' with { type: 'json' };
 
-// Each biome may declare how to find its alias colors from data/biome_flags.json:
-//   aliasGroup:     string — include every biome_flags entry whose `name` matches
-//                   (e.g. `$biome_holymountain` gathers all 14 temple variants).
-//   aliasFilenames: string[] — include entries by biome XML basename. Used for
-//                   `_EMPTY_`-named XML entries (which have no usable `name`).
-// If a color is another biome's declared primary, that primary wins — aliases
-// never overwrite primaries.
+// Telescope biome keys align with noita's XML basenames (the xmlName noitrainer
+// reports per chunk). Most are 1:1; a few telescope "biomes" group multiple
+// noita XMLs under one render target — those list the extra XMLs in
+// `aliasXMLs` so BIOME_COLOR_TO_NAME picks up all the variant colors AND
+// canonicalBiome knows how to fold them. Primary wins: if an alias XML is
+// itself another biome's primary, that primary keeps the color.
 export const GENERATOR_CONFIG = {
     'coalmine': { color: 0xffd57917, wangFile: '../data/wang_tiles/coalmine.png', name: "Mines" },
     'coalmine_alt': { color: 0xffD56517, wangFile: '../data/wang_tiles/coalmine_alt.png', name: "Collapsed Mines" },
@@ -23,35 +22,31 @@ export const GENERATOR_CONFIG = {
     'wizardcave': { color: 0xff726186, wangFile: '../data/wang_tiles/wizardcave.png', name: "Wizard's Den" },
     'liquidcave': { color: 0xff89a04b, wangFile: '../data/wang_tiles/liquidcave.png', name: "Ancient Laboratory", randomColors: {0x01CFEE: [0xF86868,0x7FCEEA,0xA3569F,0xC23055,0x0BFFE5]} }, /* 0x12BBEE: [0x000000,0xFFFFFF]} */
     'robobase': { color: 0xff4e5267, wangFile: '../data/wang_tiles/robobase.png', name: "Power Plant",
-        aliasGroup: '$biome_robobase' },
+        aliasXMLs: ['roboroom'] },
     'vault_frozen': { color: 0xff0080a8, wangFile: '../data/wang_tiles/vault_frozen.png', name: "Frozen Vault" },
     'meat': { color: 0xff572828, wangFile: '../data/wang_tiles/meat.png', name: "Meat Realm",
-        aliasGroup: '$biome_meat' },
+        aliasXMLs: ['meatroom'] },
     'wandcave': { color: 0xff006C42, hasStuff: false, wangFile: '../data/wang_tiles/wand.png', name: "Magical Temple" },
     'pyramid': { color: 0xff967f11, hasStuff: false, wangFile: '../data/wang_tiles/pyramid.png', optional: true, name: "Pyramid",
-        aliasGroup: '$biome_pyramid',
-        aliasFilenames: ['pyramid_entrance.xml', 'pyramid_left.xml'] },
+        aliasXMLs: ['pyramid_hallway', 'pyramid_right', 'pyramid_entrance', 'pyramid_left'] },
     'sandcave': { color: 0xffE1CD32, hasStuff: false, wangFile: '../data/wang_tiles/sandcave.png', optional: true, name: "Sandcave" },
     // Surface biomes (cy < 14). No spawns; declared so biome-map lookups
     // return a name instead of null.
     'desert': { color: 0xffCC9944, hasStuff: false, optional: true, name: "Desert",
-        aliasGroup: '$biome_desert' },
+        aliasXMLs: ['scale'] },
     'winter': { color: 0xffD6D8E3, hasStuff: false, optional: true, name: "Winter Surface" },
     'lake':   { color: 0xff1133F1, hasStuff: false, optional: true, name: "Lake (Surface)",
-        // $biome_lake also includes lake_deep.xml (0x1158f1) but that's
-        // declared as its own biome below; the primary-wins rule keeps it
-        // separate.
-        aliasGroup: '$biome_lake',
-        aliasFilenames: ['lake_statue.xml'] },
+        // lake_deep.xml is also in $biome_lake but has its own entry below;
+        // the primary-wins rule keeps it separate.
+        aliasXMLs: ['lake_blood', 'lake_statue'] },
     'lava':   { color: 0xffFF6A02, hasStuff: false, optional: true, name: "Lava",
-        aliasGroup: '$biome_lava' },
+        aliasXMLs: ['lava_90percent'] },
     'clouds': { color: 0xff36d5c9, hasStuff: false, wangFile: '../data/wang_tiles/clouds.png', optional: true, name: "Cloudscape" },
     'the_sky': { color: 0xffD3E6F0, hasStuff: false, wangFile: '../data/wang_tiles/the_sky.png', optional: true, name: "The Work (Sky)" },
     'the_end': { color: 0xff3C0F0A, hasStuff: false, wangFile: '../data/wang_tiles/the_end.png', name: "The Work (Hell)",
-        // $biome_boss_victoryroom covers the_end + the_sky + boss_victoryroom.
-        // the_sky is its own biome (primary wins), so only boss_victoryroom
-        // (0x50EED7) aliases here.
-        aliasGroup: '$biome_boss_victoryroom' },
+        // the_sky.xml also shares the $biome_boss_victoryroom translation, but
+        // telescope renders it separately (primary-wins keeps its color distinct).
+        aliasXMLs: ['boss_victoryroom'] },
     'winter_caves': { color: 0xff77A5BD, hasStuff: false, wangFile: '../data/wang_tiles/snowchasm.png', optional: true, name: "Snowy Chasm" },
     'mountain_floating_island': { color: 0xffC08082, hasStuff: false, optional: true, name: "Floating Island" },
     'solid_wall_tower_1': { color: 0xff3d3e37, wangFile: '../data/wang_tiles/coalmine.png', name: "Tower (Mines)" },
@@ -74,23 +69,33 @@ export const GENERATOR_CONFIG = {
     'secret_lab': { color: 0xffbaa345, name: "Alchemist Boss" },
     'wizardcave_entrance': { color: 0xff804169, name: "Triangle Boss"},
     'dragoncave': { color: 0xff364d24, name: "Dragoncave" },
-    // aliasGroup pulls all 14 holy mountain variants (altar_*, wall_*, empty_*).
+    // Aliases pull every holy-mountain variant (altar_*, wall_*, empty_*).
     // 0x93cb4c is the entrance and is wobble-eligible; the rest are
     // filler/sides and are not. See data/biome_flags.json for the per-XML
     // noise_biome_edges flags.
     'temple_altar': { color: 0xff93cb4c, name: "Holy Mountain",
-        aliasGroup: '$biome_holymountain' },
+        aliasXMLs: [
+            'temple_altar_left', 'temple_altar_right', 'temple_altar_right_snowcave',
+            'temple_altar_right_snowcastle', 'temple_altar_secret',
+            'temple_altar_empty', 'temple_altar_left_empty', 'temple_altar_right_empty',
+            'temple_altar_right_snowcave_empty', 'temple_altar_right_snowcastle_empty',
+            'temple_wall', 'temple_wall_ending', 'solid_wall_temple',
+        ] },
     'boss_arena': { color: 0xff14EED7, name: "Boss Arena",
-        aliasGroup: '$biome_boss_arena' },
+        aliasXMLs: ['boss_arena_top'] },
     // Pure markers: no wang tiles or content, just biome-map paint.
     'gold': { color: 0xffFFFF00, hasStuff: false, optional: true, name: "Gold Vein" },
     'water': { color: 0xff0000FF, hasStuff: false, optional: true, name: "Water Pocket" },
     'ghost_secret': { color: 0xff1F3B64, hasStuff: false, optional: true, name: "Ghost Secret" },
     'mestari_secret': { color: 0xff1F3B62, hasStuff: false, optional: true, name: "Mestari Secret" },
-    // 12 orb rooms: colors jump from 0xFFD109 to 0xFFD110 (decimal-counted
-    // room index, not hex-sequential).
+    // 12 orb rooms: colors jump from 0xFFD100 to 0xFFD10B (matching
+    // orbrooms/orbroom_00.xml … orbroom_11.xml).
     'orbroom_marker': { color: 0xffFFD100, hasStuff: false, optional: true, name: "Orb Room",
-        aliasGroup: '$biome_orbroom' },
+        aliasXMLs: [
+            'orbroom_00', 'orbroom_01', 'orbroom_02', 'orbroom_03',
+            'orbroom_04', 'orbroom_05', 'orbroom_06', 'orbroom_07',
+            'orbroom_08', 'orbroom_09', 'orbroom_10', 'orbroom_11',
+        ] },
 
     // Static tile
     'biome_watchtower': { color: 0xffb70000, wangFile: '../data/wang_tiles/static/watchtower_fg.png', optional: true, name: "Watchtower" },
@@ -106,28 +111,24 @@ Object.values(GENERATOR_CONFIG).forEach(conf => {
     conf.pois = conf.pois || []; // No longer used... Overlaps made PoIs not really work per-biome
 });
 
-// Index biome_flags.json for alias resolution.
-const biomeFlagsByName = new Map();
-const biomeFlagsByFilename = new Map();
+// Index biome_flags.json by XML basename (the xmlName noitrainer emits per
+// chunk). Basenames are unique across noita's biome tree — any collisions
+// are the same XML appearing under multiple biome-map colors, which we want
+// to gather.
+const biomeFlagsByBasename = new Map();
 for (const b of biomeFlagsData.biomes) {
-    if (b.name && b.name !== '_EMPTY_') {
-        if (!biomeFlagsByName.has(b.name)) biomeFlagsByName.set(b.name, []);
-        biomeFlagsByName.get(b.name).push(b);
-    }
-    biomeFlagsByFilename.set(b.biomeFilename, b);
+    const basename = b.biomeFilename.replace(/\.xml$/, '').split('/').pop();
+    if (!biomeFlagsByBasename.has(basename)) biomeFlagsByBasename.set(basename, []);
+    biomeFlagsByBasename.get(basename).push(b);
 }
 
 function resolveAliasColors(conf) {
     const result = new Set();
-    if (conf.aliasGroup) {
-        for (const entry of (biomeFlagsByName.get(conf.aliasGroup) || [])) {
-            result.add(parseInt(entry.color, 16) & 0xffffff);
-        }
-    }
-    if (Array.isArray(conf.aliasFilenames)) {
-        for (const f of conf.aliasFilenames) {
-            const entry = biomeFlagsByFilename.get('data/biome/' + f);
-            if (entry) result.add(parseInt(entry.color, 16) & 0xffffff);
+    if (Array.isArray(conf.aliasXMLs)) {
+        for (const xml of conf.aliasXMLs) {
+            for (const entry of (biomeFlagsByBasename.get(xml) || [])) {
+                result.add(parseInt(entry.color, 16) & 0xffffff);
+            }
         }
     }
     result.delete(conf.color & 0xffffff);
