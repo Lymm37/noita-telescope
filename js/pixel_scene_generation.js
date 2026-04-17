@@ -232,15 +232,17 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		// If the scene is purely cosmetic and we're skipping cosmetic scenes, skip it
 		return null;
 	}
-	// Top-left wobbled-biome check (mirrors Noita's
-	// PixelScene_PlaceEntryIfValid at noita.exe 0x0087d7e0: only the
-	// top-left corner is resolved, and the scene is placed iff that
-	// chunk's biome_data_ptr is non-null).
-	// We accept when either telescope resolved a tile-having biome name OR
-	// the wobbled-position color is in data/biome_flags.json (proxy for
-	// biome_data_ptr != 0). The second branch covers biomes telescope
-	// doesn't render wang tiles for — surface biomes, mountain entrance,
-	// temple altar tops — but where Noita does place scenes.
+	// Top-left wobbled-biome check for direct/Lua-placed scenes
+	// (skip_biome_checks=true in the engine — e.g. snowcave.lua's
+	// `LoadPixelScene(..., true)` for wand_altar / snowperson / statue_hand).
+	// Mirrors Noita's PixelScene_PlaceEntryIfValid at noita.exe 0x0087d7e0
+	// which only resolves the top-left chunk and places iff that chunk's
+	// biome_data_ptr is non-null. Accept when telescope resolved a
+	// tile-having biome name OR the color is in data/biome_flags.json
+	// (proxy for biome_data_ptr != 0, covers desert/lava/HM-side shades).
+	// Random picks (via loadRandomPixelScene below) use skip=false and get
+	// a stricter 4-corner check — see scripts/director_helpers.lua:218 which
+	// always passes skip_biome_checks=false for g_pixel_scene_* rolls.
 	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_BIOME && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
 		const boundsOffset = PIXEL_SCENE_BOUNDS_OFFSET[sceneName] || {x: 0, y: 0};
 		const topLeft = getBiomeAtWorldCoordinates(biomeData, x + boundsOffset.x, y + boundsOffset.y, ng > 0, gameMode);
@@ -324,15 +326,33 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				//spawnPoints: pixelSceneData.spawnPoints,
 				type: 'pixel_scene'
 			};
-			// Top-left wobbled-biome check (mirrors Noita's
-			// PixelScene_PlaceEntryIfValid at noita.exe 0x0087d7e0).
-			// See loadPixelScene above for the full rationale, including
-			// the colorWobbleVerdict fallback for biomes telescope can't
-			// render but Noita places into.
+			// Strict 4-corner biome check for random picks. The engine
+			// calls these with skip_biome_checks=false (see
+			// scripts/director_helpers.lua:218 —
+			// `LoadPixelScene(..., false, ...)`), and at paint time drops
+			// any whose footprint straddles biome boundaries. Modeling
+			// only the top-left like PixelScene_PlaceEntryIfValid does
+			// would miss that paint-time cull and produce phantoms
+			// (e.g. a snowcave verticalobservatory whose bottom corners
+			// spill into the Holy Mountain chunk below).
 			if (CHECK_PIXEL_SCENE_BIOME) {
-				const topLeft = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
-				if (!topLeft.biome && colorWobbleVerdict(topLeft.colorInt) === 'unknown') {
-					return null;
+				const w = pixelSceneData.width;
+				const h = pixelSceneData.height;
+				const corners = [
+					[x,       y      ],
+					[x + w-1, y      ],
+					[x,       y + h-1],
+					[x + w-1, y + h-1],
+				];
+				for (const [cx, cy] of corners) {
+					const res = getBiomeAtWorldCoordinates(biomeData, cx, cy, ng > 0, gameMode);
+					// Reject if the corner's wobbled biome is anything
+					// other than the target. Null (no-tile) counts as a
+					// mismatch — random picks only originate inside
+					// wang-tiled biomes, so all corners must land in one.
+					if (res.biome !== biomeName) {
+						return null;
+					}
 				}
 			}
 			// Recolor random materials first so material lookups still work
