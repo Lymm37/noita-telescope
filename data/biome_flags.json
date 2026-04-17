@@ -47,7 +47,7 @@
     {
       "color": "0x085b77",
       "xmlName": "boss_limbs_arena",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x0a95a4",
@@ -56,7 +56,7 @@
     {
       "color": "0x0da899",
       "xmlName": "boss_arena_top",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x1133f1",
@@ -85,7 +85,7 @@
     {
       "color": "0x14eed7",
       "xmlName": "boss_arena",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x157cb0",
@@ -178,7 +178,7 @@
     {
       "color": "0x364d24",
       "xmlName": "dragoncave",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x36d517",
@@ -195,22 +195,22 @@
     {
       "color": "0x39401a",
       "xmlName": "niilo_testroom",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x39401b",
       "xmlName": "niilo_testroom_b",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x39401c",
       "xmlName": "niilo_testroom_c",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x39401d",
       "xmlName": "niilo_testroom_d",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x39a760",
@@ -271,12 +271,12 @@
     {
       "color": "0x3d5a3d",
       "xmlName": "lavalake",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x3d5a4f",
       "xmlName": "lavalake_pit",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x3d5a50",
@@ -313,7 +313,7 @@
     {
       "color": "0x4118d6",
       "xmlName": "lavalake_racing",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x418080",
@@ -342,7 +342,7 @@
     {
       "color": "0x50eed7",
       "xmlName": "boss_victoryroom",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x567cb0",
@@ -363,7 +363,7 @@
     {
       "color": "0x5a9628",
       "xmlName": "temple_wall_ending",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x5a9629",
@@ -412,12 +412,12 @@
     {
       "color": "0x6dcb28",
       "xmlName": "temple_wall",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x6dcba2",
       "xmlName": "end_wall",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x726186",
@@ -442,7 +442,7 @@
     {
       "color": "0x7be311",
       "xmlName": "snowcave_tunnel",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x804169",
@@ -459,22 +459,22 @@
     {
       "color": "0x93cb4c",
       "xmlName": "temple_altar",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x93cb4d",
       "xmlName": "temple_altar_left",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x93cb4e",
       "xmlName": "temple_altar_right",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x93cb4f",
       "xmlName": "temple_altar_right_snowcave",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x93cb5a",
@@ -483,7 +483,7 @@
     {
       "color": "0x93cb5c",
       "xmlName": "temple_altar_secret",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x967f11",
@@ -504,22 +504,22 @@
     {
       "color": "0x99cb4c",
       "xmlName": "temple_altar_empty",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x99cb4d",
       "xmlName": "temple_altar_left_empty",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x99cb4e",
       "xmlName": "temple_altar_right_empty",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x99cb4f",
       "xmlName": "temple_altar_right_snowcave_empty",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0x99cb5a",
@@ -540,7 +540,7 @@
     {
       "color": "0x9e4302",
       "xmlName": "robot_egg",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0xa08400",
@@ -665,7 +665,7 @@
     {
       "color": "0xff6a02",
       "xmlName": "lava",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0xff8080",
@@ -674,7 +674,7 @@
     {
       "color": "0xffa717",
       "xmlName": "lava_90percent",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0xffd100",
@@ -723,12 +723,12 @@
     {
       "color": "0xffd111",
       "xmlName": "orbroom_11",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0xffe42c",
       "xmlName": "lava",
-      "ineligible": true
+      "wobbleIneligible": true
     },
     {
       "color": "0xffff00",

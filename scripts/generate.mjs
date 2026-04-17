@@ -2,11 +2,11 @@
 //
 //   node scripts/generate.mjs biome-flags [--src=PATH] [--out=PATH] [-v]
 //     Walk a Noita data.wak unpack and emit `data/biome_flags.json`
-//     — one `{color, xmlName, ineligible?}` entry per biome-map color,
+//     — one `{color, xmlName, wobbleIneligible?}` entry per biome-map color,
 //     consumed by `js/wobble_flags.js` and `js/generator_config.js`.
-//     `ineligible: true` means the biome XML has `noise_biome_edges="0"`;
-//     absent means eligible (the default). Re-run after each Noita
-//     update; check the regenerated JSON in.
+//     `wobbleIneligible: true` means the biome XML has
+//     `noise_biome_edges="0"`; absent means eligible (the default).
+//     Re-run after each Noita update; check the regenerated JSON in.
 //
 //   node scripts/generate.mjs sample-coords [--input=PATH] [--mode=MODE] [--step=16]
 //     Read a `noitrainer biome-flags` NDJSON dump (default
@@ -110,12 +110,12 @@ function runBiomeFlags(argv) {
         const xml = parseBiomeXml(xmlText);
         const xmlName = basename(biomeFilename).replace(/\.xml$/, '');
         const entry = { color: '0x' + color, xmlName };
-        if (!xml.noiseBiomeEdges) entry.ineligible = true;
+        if (!xml.noiseBiomeEdges) entry.wobbleIneligible = true;
         if (colorIndex.has(color)) {
             const existing = biomes[colorIndex.get(color)];
-            if (!!existing.ineligible !== !xml.noiseBiomeEdges) {
+            if (!!existing.wobbleIneligible !== !xml.noiseBiomeEdges) {
                 warnings++;
-                console.warn(`[warn] color 0x${color}: ${existing.xmlName} (e=${!existing.ineligible}) vs ${xmlName} (e=${xml.noiseBiomeEdges})`);
+                console.warn(`[warn] color 0x${color}: ${existing.xmlName} (e=${!existing.wobbleIneligible}) vs ${xmlName} (e=${xml.noiseBiomeEdges})`);
             }
             continue;
         }
@@ -129,7 +129,7 @@ function runBiomeFlags(argv) {
         generated: 'scripts/generate.mjs biome-flags',
         source: basename(opts.src),
         biomeCount: biomes.length,
-        ineligibleCount: biomes.filter((b) => b.ineligible).length,
+        ineligibleCount: biomes.filter((b) => b.wobbleIneligible).length,
         biomes,
     };
 

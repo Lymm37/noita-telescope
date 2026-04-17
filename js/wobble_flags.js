@@ -10,7 +10,7 @@ const INELIGIBLE_BIOME_COLORS = new Set();
 for (const b of biomeFlagsData.biomes) {
     const rgb = parseInt(b.color, 16) & 0xffffff;
     KNOWN_BIOME_COLORS.add(rgb);
-    if (b.ineligible) INELIGIBLE_BIOME_COLORS.add(rgb);
+    if (b.wobbleIneligible) INELIGIBLE_BIOME_COLORS.add(rgb);
 }
 
 // Returns the eligibility verdict for a biome-map RGB color:
