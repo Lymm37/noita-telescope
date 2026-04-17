@@ -264,44 +264,42 @@ export function readDump(path) {
     return path.endsWith('.gz') ? gunzipSync(buf).toString('utf8') : buf.toString('utf8');
 }
 
-// ----- telescope key → Noita $biome_<name> translation -----
+// ----- telescope key ↔ noita XML-name canonicalization -----
 
-// Noita's biome XML names. Telescope's internal keys mostly match by just
-// prepending `$biome_`, but a handful of them were coined independently or
-// group sub-biomes differently. This table captures just the overrides;
-// anything absent falls through to the identity map, plus a `biome_` prefix
-// strip so telescope keys like `biome_barren` don't turn into
-// `$biome_biome_barren`.
-export const KEY_OVERRIDES = {
-    'temple_altar': 'holymountain',
-    'lake_deep': 'lake',
-    'rainforest_open': 'rainforest',
-    'fungiforest': 'fun',
-    // Telescope splits boss_victoryroom into the_end / the_sky by world half;
-    // Noita uses the same name for both.
-    'the_end': 'boss_victoryroom',
-    'the_sky': 'boss_victoryroom',
-    // Telescope has per-origin "tower_X" keys; Noita uses the single
-    // `$biome_tower` name for all of them.
-    'tower_coalmine': 'tower',
-    'tower_excavationsite': 'tower',
-    'tower_snowcave': 'tower',
-    'tower_snowcastle': 'tower',
-    'tower_fungicave': 'tower',
-    'tower_rainforest': 'tower',
-    'tower_vault': 'tower',
-    'tower_crypt': 'tower',
-    'tower_end': 'tower',
-    'snowchasm': 'winter_caves',
-    'orbroom_marker': 'orbroom',
-    'snowcastle_cavern': 'snowcastle',
-};
-
-const NOITA_BIOME_PREFIX = '$biome_';
-
-export function telescopeKeyToNoitaName(key) {
-    if (key == null) return null;
-    let mapped = KEY_OVERRIDES[key] || key;
-    if (mapped.startsWith('biome_')) mapped = mapped.slice('biome_'.length);
-    return NOITA_BIOME_PREFIX + mapped;
+// Most telescope biome keys match noita's XML filename 1:1 (coalmine,
+// snowcave, the_end, the_sky, lake_deep, temple_altar, …). This helper
+// collapses the remaining mismatches so the two sides compare cleanly.
+//
+// Source of mismatches: noita has multiple XMLs where telescope's biome-map
+// encodes a single key — tower solid_wall_tower_N, orbroom_NN, temple_altar
+// left/right variants. We canonicalize all of those to telescope's coarser
+// key. The function is idempotent: feed it either a telescope key or a noita
+// xmlName and it returns the same token for equivalent biomes.
+export function canonicalBiome(name) {
+    if (name == null) return null;
+    // Towers: telescope has per-origin keys (tower_coalmine, tower_vault, …);
+    // noita numbers them (solid_wall_tower_1…9). Fold both to 'tower'.
+    if (/^solid_wall_tower_\d+$/.test(name)) return 'tower';
+    if (name.startsWith('tower_')) return 'tower';
+    // Orbrooms: noita has orbroom_NN XMLs; telescope has a single orbroom_marker key.
+    if (/^orbroom_\d+$/.test(name)) return 'orbroom_marker';
+    // Holy-mountain XMLs noita splits into: the wang-tiled interior
+    // (temple_altar + L/R/snowcastle variants) and the stone frame
+    // (temple_wall, temple_wall_ending, solid_wall_temple) — which telescope
+    // does not render as biomes. Collapse all to 'temple_altar'.
+    if (name.startsWith('temple_altar')) return 'temple_altar';
+    if (name === 'temple_wall' || name === 'temple_wall_ending' || name === 'solid_wall_temple') return 'temple_altar';
+    // Pyramid side-rooms (noita has pyramid + pyramid_hallway + pyramid_right).
+    if (name === 'pyramid_right' || name === 'pyramid_hallway') return 'pyramid';
+    // Sub-biomes telescope doesn't distinguish but noita does.
+    if (name === 'lava_90percent') return 'lava';
+    if (name === 'scale') return 'desert';
+    if (name === 'meatroom') return 'meat';
+    if (name === 'roboroom') return 'robobase';
+    if (name === 'boss_arena_top') return 'boss_arena';
+    // Hell victory-room: noita's boss_victoryroom.xml aligns with telescope's the_end key.
+    if (name === 'boss_victoryroom') return 'the_end';
+    // Telescope's 'snowchasm' biome-map color is actually served by noita's winter_caves.xml.
+    if (name === 'snowchasm') return 'winter_caves';
+    return name;
 }

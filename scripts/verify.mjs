@@ -24,21 +24,23 @@
 //   node scripts/verify.mjs --no-edge-noise              # wobble: disable telescope's wobble entirely
 //   node scripts/verify.mjs --no-fix-hm-edge-noise       # wobble: disable holy-mountain wobble gate
 //   node scripts/verify.mjs --top-left-only              # pixel-scenes: alternate (relaxed) check
+//   node scripts/verify.mjs --images[=DIR]               # also emit per-section PNGs (default data/verify_out/)
 
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
     appSettings,
+    canonicalBiome,
     getBiomeAtWorldCoordinates,
     loadBiomeData,
     readDump,
-    telescopeKeyToNoitaName,
 } from './_engine_shim.js';
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from '../js/generator_config.js';
 import { colorWobbleVerdict } from '../js/wobble_flags.js';
+import { renderBiomesDiff, renderPixelScenes, renderWobbleHeatmap } from './_visual.mjs';
 
 const DEFAULTS = {
-    flags: 'data/dumps/biome_flags.ndjson',
+    flags: 'data/dumps/biome_flags.ndjson.gz',
     resolutions: 'data/dumps/biome_at_resolutions.ndjson.gz',
     scenes: 'data/dumps/pixel_scenes.ndjson.gz',
     dataWak: `${process.env.HOME}/reverse/noita/noita_Jan_25_2025_15:55:41/data/data.wak.unpacked`,
@@ -59,6 +61,7 @@ function parseArgs(argv) {
         enableEdgeNoise: true,
         fixHM: true,
         topLeftOnly: false,
+        images: null,
     };
     for (const a of argv) {
         if (a.startsWith('--only=')) opts.only = a.slice('--only='.length);
@@ -73,6 +76,8 @@ function parseArgs(argv) {
         else if (a === '--no-edge-noise') opts.enableEdgeNoise = false;
         else if (a === '--no-fix-hm-edge-noise') opts.fixHM = false;
         else if (a === '--top-left-only') opts.topLeftOnly = true;
+        else if (a === '--images') opts.images = 'data/verify_out';
+        else if (a.startsWith('--images=')) opts.images = a.slice('--images='.length);
         else {
             console.error(`unknown arg: ${a}`);
             process.exit(1);
@@ -84,23 +89,16 @@ function parseArgs(argv) {
 // ========== biomes section ==========
 
 function parseBiomeFlagsDump(path) {
-    const text = readFileSync(path, 'utf8');
+    const text = readDump(path);
     const out = new Map();
     for (const line of text.split('\n')) {
         if (!line || line.startsWith('#') || line.startsWith('Looking') || line.startsWith('Found')) continue;
-        if (line.startsWith('{')) {
-            try {
-                const o = JSON.parse(line);
-                if (o.cx == null || o.cy == null || !o.name) continue;
-                out.set(`${o.cx},${o.cy}`, { cx: o.cx, cy: o.cy, name: o.name });
-            } catch {}
-            continue;
-        }
-        // Legacy human-readable biome-dump fallback.
-        const m = line.match(/^\s*(\d+)\s+(\d+)\s+0x[0-9A-Fa-f]+\s+0x[0-9A-Fa-f]+\s+(\$?\S+)\s+e=(\d)\s+w=(\d)\s+f=(\d)/);
-        if (!m) continue;
-        const [, cx, cy, name] = m;
-        out.set(`${cx},${cy}`, { cx: +cx, cy: +cy, name });
+        if (!line.startsWith('{')) continue;
+        try {
+            const o = JSON.parse(line);
+            if (o.cx == null || o.cy == null || !o.xmlName) continue;
+            out.set(`${o.cx},${o.cy}`, { cx: o.cx, cy: o.cy, name: o.name, xmlName: o.xmlName });
+        } catch {}
     }
     return out;
 }
@@ -132,21 +130,22 @@ function runBiomesSection(biomeData, opts) {
         if (noita.name === '_EMPTY_' || noita.name === '???') { skippedEmpty++; continue; }
         const tel = telescopeGrid.get(key);
         if (!tel) { notInTelescope++; continue; }
-        const expected = tel.biomeName ? telescopeKeyToNoitaName(tel.biomeName) : null;
-        if (!expected) {
+        const telCanon = canonicalBiome(tel.biomeName);
+        const noitaCanon = canonicalBiome(noita.xmlName);
+        if (!telCanon) {
             telescopeUnknown++;
             rows.push({
-                cx: noita.cx, cy: noita.cy, noita: noita.name,
+                cx: noita.cx, cy: noita.cy, noita: noita.xmlName,
                 telescope: '(no key for color 0x' + tel.color.toString(16).padStart(6, '0') + ')',
                 color: '0x' + tel.color.toString(16).padStart(6, '0'),
             });
             continue;
         }
-        if (expected === noita.name) agree++;
+        if (telCanon === noitaCanon) agree++;
         else {
             disagreeName++;
             rows.push({
-                cx: noita.cx, cy: noita.cy, noita: noita.name, telescope: expected,
+                cx: noita.cx, cy: noita.cy, noita: noita.xmlName, telescope: tel.biomeName,
                 color: '0x' + tel.color.toString(16).padStart(6, '0'),
             });
         }
@@ -177,6 +176,12 @@ function runBiomesSection(biomeData, opts) {
             console.log(`  [${String(b.count).padStart(4)}]  ${k}    (e.g. cx=${b.sample.cx} cy=${b.sample.cy} color=${b.sample.color})`);
         }
     }
+
+    if (opts.images) {
+        const outPath = join(opts.images, 'biomes.png');
+        renderBiomesDiff(biomeData, noitaMap, telescopeGrid, outPath);
+        console.log(`wrote ${outPath}`);
+    }
 }
 
 // ========== wobble section ==========
@@ -189,25 +194,38 @@ function runWobbleSection(biomeData, opts) {
     const chunkSample = [];
     const buckets = new Map();
     const wobbleTypeStats = new Map();
+    const W = biomeData.width, H = biomeData.height;
+    const nameStats  = { agree: new Uint32Array(W * H), disagree: new Uint32Array(W * H) };
+    const chunkStats = { agree: new Uint32Array(W * H), disagree: new Uint32Array(W * H) };
 
     for (const line of text.split('\n')) {
         if (!line) continue;
         let n;
         try { n = JSON.parse(line); } catch { continue; }
         if (!n || !n.original) { skippedNoOriginal++; continue; }
-        const noitaName = (n.resolved && n.resolved.name) || n.original.name;
-        if (noitaName === '_EMPTY_' || noitaName === '???') { skippedEmpty++; continue; }
+        const noitaXml = (n.resolved && n.resolved.xmlName) || n.original.xmlName;
+        const noitaNameRaw = (n.resolved && n.resolved.name) || n.original.name;
+        if (noitaNameRaw === '_EMPTY_' || noitaNameRaw === '???' || !noitaXml) { skippedEmpty++; continue; }
+        const noitaCanon = canonicalBiome(noitaXml);
         total++;
 
         const tRes = getBiomeAtWorldCoordinates(biomeData, n.wx, n.wy, false, 'normal');
-        const tName = tRes && tRes.biome ? telescopeKeyToNoitaName(tRes.biome) : null;
-        if (!tName) telescopeNull++;
+        const telCanon = tRes && tRes.biome ? canonicalBiome(tRes.biome) : null;
+        if (!telCanon) telescopeNull++;
+
+        const inGrid = n.origCX >= 0 && n.origCX < W && n.origCY >= 0 && n.origCY < H;
+        const cellIdx = inGrid ? n.origCY * W + n.origCX : -1;
 
         if (tRes && tRes.pos && n.resolved) {
             chunkDecided++;
-            if (tRes.pos.x === n.resolved.cx && tRes.pos.y === n.resolved.cy) {
+            const chunkOk = tRes.pos.x === n.resolved.cx && tRes.pos.y === n.resolved.cy;
+            if (inGrid) {
+                if (chunkOk) chunkStats.agree[cellIdx]++;
+                else chunkStats.disagree[cellIdx]++;
+            }
+            if (chunkOk) {
                 chunkAgree++;
-            } else if (tName === noitaName && chunkSample.length < (opts.dumpChunk || 0)) {
+            } else if (telCanon === noitaCanon && chunkSample.length < (opts.dumpChunk || 0)) {
                 chunkSample.push({
                     wx: n.wx, wy: n.wy, subX: n.subX, subY: n.subY, wt: n.wobbleType,
                     orig: [n.origCX, n.origCY],
@@ -225,13 +243,15 @@ function runWobbleSection(biomeData, opts) {
             if (tRes.pos.x === n.resolved.cx && tRes.pos.y === n.resolved.cy) wstat.chunkAgree++;
         }
 
-        if (tName === noitaName) {
+        if (telCanon === noitaCanon) {
             agree++;
             wstat.agree++;
-        } else if (tName == null) {
+            if (inGrid) nameStats.agree[cellIdx]++;
+        } else if (telCanon == null) {
             wstat.telescopeNull++;
         } else {
-            const k = `${noitaName} ↔ ${tName}`;
+            if (inGrid) nameStats.disagree[cellIdx]++;
+            const k = `${noitaXml} ↔ ${tRes.biome}`;
             const b = buckets.get(k) || { count: 0, sample: null, byWobbleType: new Map() };
             b.count++;
             if (!b.sample) b.sample = { wx: n.wx, wy: n.wy, wobbleType: wt };
@@ -241,13 +261,13 @@ function runWobbleSection(biomeData, opts) {
             if (disagreements.length < opts.dump && (!opts.filterWt || opts.filterWt === wt)) {
                 disagreements.push({
                     wx: n.wx, wy: n.wy, wt,
-                    noita: noitaName, telescope: tName,
+                    noita: noitaXml, telescope: tRes.biome,
                     origCX: n.origCX, origCY: n.origCY, subX: n.subX, subY: n.subY,
                     neighborDir: n.neighborDir,
                     neighborCX: n.neighborCX, neighborCY: n.neighborCY,
                     origEligible: n.original && n.original.wobbleEligible,
                     origWavy: n.original && n.original.wavyEdge,
-                    resolvedName: n.resolved && n.resolved.name,
+                    resolvedName: n.resolved && n.resolved.xmlName,
                 });
             }
         }
@@ -301,6 +321,12 @@ function runWobbleSection(biomeData, opts) {
             console.log(`  (${c.wx}, ${c.wy}) sub=(${c.subX}, ${c.subY}) wt=${c.wt} neighborDir=${c.neighborDir}`);
             console.log(`     orig=(${c.orig[0]}, ${c.orig[1]})  noita=(${c.noita[0]}, ${c.noita[1]})  telescope=(${c.tele[0]}, ${c.tele[1]})`);
         }
+    }
+
+    if (opts.images) {
+        const outPath = join(opts.images, 'wobble.png');
+        renderWobbleHeatmap(biomeData, nameStats, chunkStats, outPath);
+        console.log(`wrote ${outPath}`);
     }
 }
 
@@ -359,6 +385,7 @@ function runPixelScenesSection(biomeData, opts) {
     const rejectsByReason = new Map();
     const rejectsByBiome = new Map();
     const sample = [];
+    const sceneResults = [];
 
     for (const line of text.split('\n')) {
         if (!line || line.startsWith('#') || !line.startsWith('{')) continue;
@@ -373,6 +400,8 @@ function runPixelScenesSection(biomeData, opts) {
         const verdict = opts.topLeftOnly
             ? checkBoundsTopLeftOnly(biomeData, scene.x, scene.y)
             : checkBoundsFourCorners(biomeData, scene.x, scene.y, size.width, size.height);
+
+        sceneResults.push({ x: scene.x, y: scene.y, w: size.width, h: size.height, ok: verdict.ok });
 
         if (verdict.ok) accepted++;
         else {
@@ -419,6 +448,12 @@ function runPixelScenesSection(biomeData, opts) {
             console.log(`     reason: ${s.reason}`);
         }
     }
+
+    if (opts.images) {
+        const outPath = join(opts.images, 'pixel-scenes.png');
+        renderPixelScenes(biomeData, sceneResults, outPath);
+        console.log(`wrote ${outPath}`);
+    }
 }
 
 // ========== main ==========
@@ -429,6 +464,7 @@ async function main() {
     appSettings.fixHolyMountainEdgeNoise = opts.fixHM;
 
     const biomeData = await loadBiomeData(opts.biomeMap);
+    if (opts.images) mkdirSync(opts.images, { recursive: true });
     const run = (section) => !opts.only || opts.only === section;
 
     let printedAny = false;
