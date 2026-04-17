@@ -136,10 +136,10 @@ remaining divergences are upstream of the math:
    zones. Affects spawn placement, not biome name resolution.
 
 3. **NG+ palette gaps.** `js/wobble_flags.js` is sourced from the
-   static biome XML data (NG-tier-independent), but NG+ palette swaps
-   may introduce colors not in the catalogue. Those colors fall back
-   to the legacy `BIOMES_WITHOUT_WAVY_EDGE` color set in
-   `generator_config.js`.
+   static biome XML data (NG-tier-independent). If an NG+ palette swap
+   ever introduces a color not in `_biomes_all.xml`, `colorWobbleVerdict`
+   returns `'unknown'` and the wobble runs normally — regenerate
+   `data/biome_flags.json` from the new unpack to fix.
 
 ## Verification harness
 

@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { createCanvas, loadImage } from 'canvas';
-import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES, BIOMES_WITHOUT_WAVY_EDGE } from '../js/generator_config.js';
+import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from '../js/generator_config.js';
 import { GetBiomeOffset } from './_edge_noise_shim.js';
 import { colorWobbleVerdict } from '../js/wobble_flags.js';
 
@@ -66,10 +66,7 @@ function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false, ga
         const origIdx = originalY * mapWidth + originalX;
         const origColorInt = biomeMap[origIdx] & 0xffffff;
         const origBiomeName = BIOME_COLOR_TO_NAME[origColorInt];
-        const colorIneligible = (color) => {
-            const v = colorWobbleVerdict(color);
-            return v === 'ineligible' || (v === 'unknown' && BIOMES_WITHOUT_WAVY_EDGE.has(color));
-        };
+        const colorIneligible = (color) => colorWobbleVerdict(color) === 'ineligible';
         let skipWobble = colorIneligible(origColorInt) || colorIneligible(colorInt);
         if (!skipWobble) {
             const subWX = ((worldX % 512) + 512) % 512;

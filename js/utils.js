@@ -1,5 +1,5 @@
 import {CHUNK_SIZE, TILE_SIZE, WORLD_CHUNK_CENTER_X, WORLD_CHUNK_CENTER_Y, WORLD_CHUNK_CENTER_X_NGP, TILE_OFFSET_X, TILE_OFFSET_Y, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y} from './constants.js';
-import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES, BIOMES_WITHOUT_WAVY_EDGE } from './generator_config.js';
+import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from './generator_config.js';
 import { GetBiomeOffset } from './edge_noise.js';
 import { colorWobbleVerdict } from './wobble_flags.js';
 import { MATERIAL_COLOR_LOOKUP } from './potion_config.js';
@@ -224,13 +224,8 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
         // Skip the wobble when the source, the wobbled-into chunk, or the
         // first differing-color neighbor (in Noita's probe order) is
         // wobble-ineligible. Verdicts come from each biome XML's
-        // `noise_biome_edges` attribute via data/biome_flags.json; for
-        // colors not in the table (mostly NG+ palette swaps), fall back to
-        // BIOMES_WITHOUT_WAVY_EDGE.
-        const colorIneligible = (color) => {
-            const v = colorWobbleVerdict(color);
-            return v === 'ineligible' || (v === 'unknown' && BIOMES_WITHOUT_WAVY_EDGE.has(color));
-        };
+        // `noise_biome_edges` attribute via data/biome_flags.json.
+        const colorIneligible = (color) => colorWobbleVerdict(color) === 'ineligible';
         let skipWobble = colorIneligible(origColorInt) || colorIneligible(colorInt);
 
         if (!skipWobble) {
@@ -287,10 +282,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     // having to recompute the wobble themselves. Useful for places like
     // pixel-scene placement that need the raw "is this a real biome?"
     // verdict rather than the BIOME_COLORS_WITH_TILES-filtered name.
-    const finalIdx = biomePixelY * mapWidth + biomePixelX;
-    const finalColorInt = (finalIdx >= 0 && finalIdx < biomeMap.length)
-        ? biomeMap[finalIdx] & 0xffffff
-        : 0;
+    const finalColorInt = biomeMap[biomePixelY * mapWidth + biomePixelX] & 0xffffff;
 
     return {
         biome: biomeName || null,

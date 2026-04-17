@@ -1,3 +1,12 @@
+import biomeFlagsData from '../data/biome_flags.json' with { type: 'json' };
+
+// Each biome may declare how to find its alias colors from data/biome_flags.json:
+//   aliasGroup:     string — include every biome_flags entry whose `name` matches
+//                   (e.g. `$biome_holymountain` gathers all 14 temple variants).
+//   aliasFilenames: string[] — include entries by biome XML basename. Used for
+//                   `_EMPTY_`-named XML entries (which have no usable `name`).
+// If a color is another biome's declared primary, that primary wins — aliases
+// never overwrite primaries.
 export const GENERATOR_CONFIG = {
     'coalmine': { color: 0xffd57917, wangFile: '../data/wang_tiles/coalmine.png', name: "Mines" },
     'coalmine_alt': { color: 0xffD56517, wangFile: '../data/wang_tiles/coalmine_alt.png', name: "Collapsed Mines" },
@@ -14,29 +23,37 @@ export const GENERATOR_CONFIG = {
     'wizardcave': { color: 0xff726186, wangFile: '../data/wang_tiles/wizardcave.png', name: "Wizard's Den" },
     'liquidcave': { color: 0xff89a04b, wangFile: '../data/wang_tiles/liquidcave.png', name: "Ancient Laboratory", randomColors: {0x01CFEE: [0xF86868,0x7FCEEA,0xA3569F,0xC23055,0x0BFFE5]} }, /* 0x12BBEE: [0x000000,0xFFFFFF]} */
     'robobase': { color: 0xff4e5267, wangFile: '../data/wang_tiles/robobase.png', name: "Power Plant",
-        colorAliases: [0xff9D893D] },
+        aliasGroup: '$biome_robobase' },
     'vault_frozen': { color: 0xff0080a8, wangFile: '../data/wang_tiles/vault_frozen.png', name: "Frozen Vault" },
     'meat': { color: 0xff572828, wangFile: '../data/wang_tiles/meat.png', name: "Meat Realm",
-        colorAliases: [0xff796620] },
+        aliasGroup: '$biome_meat' },
     'wandcave': { color: 0xff006C42, hasStuff: false, wangFile: '../data/wang_tiles/wand.png', name: "Magical Temple" },
     'pyramid': { color: 0xff967f11, hasStuff: false, wangFile: '../data/wang_tiles/pyramid.png', optional: true, name: "Pyramid",
-        colorAliases: [0xff968F96, 0xff167F5F, 0xff967F5F, 0xff968F5F] },
+        aliasGroup: '$biome_pyramid',
+        aliasFilenames: ['pyramid_entrance.xml', 'pyramid_left.xml'] },
     'sandcave': { color: 0xffE1CD32, hasStuff: false, wangFile: '../data/wang_tiles/sandcave.png', optional: true, name: "Sandcave" },
     // Surface biomes (cy < 14). No spawns; declared so biome-map lookups
     // return a name instead of null.
     'desert': { color: 0xffCC9944, hasStuff: false, optional: true, name: "Desert",
-        colorAliases: [0xffEBA500] },
+        aliasGroup: '$biome_desert' },
     'winter': { color: 0xffD6D8E3, hasStuff: false, optional: true, name: "Winter Surface" },
     'lake':   { color: 0xff1133F1, hasStuff: false, optional: true, name: "Lake (Surface)",
-        colorAliases: [0xff11A3FC] },
+        // $biome_lake also includes lake_deep.xml (0x1158f1) but that's
+        // declared as its own biome below; the primary-wins rule keeps it
+        // separate.
+        aliasGroup: '$biome_lake',
+        aliasFilenames: ['lake_statue.xml'] },
     'lava':   { color: 0xffFF6A02, hasStuff: false, optional: true, name: "Lava",
-        colorAliases: [0xffFFA717] },
+        aliasGroup: '$biome_lava' },
     'clouds': { color: 0xff36d5c9, hasStuff: false, wangFile: '../data/wang_tiles/clouds.png', optional: true, name: "Cloudscape" },
     'the_sky': { color: 0xffD3E6F0, hasStuff: false, wangFile: '../data/wang_tiles/the_sky.png', optional: true, name: "The Work (Sky)" },
     'the_end': { color: 0xff3C0F0A, hasStuff: false, wangFile: '../data/wang_tiles/the_end.png', name: "The Work (Hell)",
-        // 0x50EED7 is a boss-victoryroom variant in The Work (Hell).
-        colorAliases: [0xff50EED7] },
+        // $biome_boss_victoryroom covers the_end + the_sky + boss_victoryroom.
+        // the_sky is its own biome (primary wins), so only boss_victoryroom
+        // (0x50EED7) aliases here.
+        aliasGroup: '$biome_boss_victoryroom' },
     'snowchasm': { color: 0xff77A5BD, hasStuff: false, wangFile: '../data/wang_tiles/snowchasm.png', optional: true, name: "Snowy Chasm" },
+    'mountain_floating_island': { color: 0xffC08082, hasStuff: false, optional: true, name: "Floating Island" },
     'tower_coalmine': { color: 0xff3d3e37, wangFile: '../data/wang_tiles/coalmine.png', name: "Tower (Mines)" },
     'tower_excavationsite': { color: 0xff3d3e38, wangFile: '../data/wang_tiles/excavationsite.png', name: "Tower (Coal Mines)" },
     'tower_snowcave': { color: 0xff3d3e39, wangFile: '../data/wang_tiles/snowcave.png', name: "Tower (Snowy Depths)" },
@@ -57,26 +74,23 @@ export const GENERATOR_CONFIG = {
     'secret_lab': { color: 0xffbaa345, name: "Alchemist Boss" },
     'wizardcave_entrance': { color: 0xff804169, name: "Triangle Boss"},
     'dragoncave': { color: 0xff364d24, name: "Dragoncave" },
-    // All variant shades resolve to "$biome_holymountain". 0x93cb4c is the
-    // entrance and is wobble-eligible; the others are filler/sides and are
-    // not (per each variant's biome XML — see data/biome_flags.json).
+    // aliasGroup pulls all 14 holy mountain variants (altar_*, wall_*, empty_*).
+    // 0x93cb4c is the entrance and is wobble-eligible; the rest are
+    // filler/sides and are not. See data/biome_flags.json for the per-XML
+    // noise_biome_edges flags.
     'temple_altar': { color: 0xff93cb4c, name: "Holy Mountain",
-        colorAliases: [0xff93cb4d, 0xff93cb4e, 0xff93cb4f, 0xff93cb5a, 0xff6dcb28, 0xff5a9628, 0xffb8a928] },
+        aliasGroup: '$biome_holymountain' },
     'boss_arena': { color: 0xff14EED7, name: "Boss Arena",
-        colorAliases: [0xff0DA899, 0xff57DACE] },
+        aliasGroup: '$biome_boss_arena' },
     // Pure markers: no wang tiles or content, just biome-map paint.
     'gold': { color: 0xffFFFF00, hasStuff: false, optional: true, name: "Gold Vein" },
     'water': { color: 0xff0000FF, hasStuff: false, optional: true, name: "Water Pocket" },
     'ghost_secret': { color: 0xff1F3B64, hasStuff: false, optional: true, name: "Ghost Secret" },
     'mestari_secret': { color: 0xff1F3B62, hasStuff: false, optional: true, name: "Mestari Secret" },
-    // 0xFFD100 with the low byte encoding the orb index (0xFFD101..0xFFD110).
+    // 12 orb rooms: colors jump from 0xFFD109 to 0xFFD110 (decimal-counted
+    // room index, not hex-sequential).
     'orbroom_marker': { color: 0xffFFD100, hasStuff: false, optional: true, name: "Orb Room",
-        colorAliases: [
-            0xffFFD101, 0xffFFD102, 0xffFFD103, 0xffFFD104,
-            0xffFFD105, 0xffFFD106, 0xffFFD107, 0xffFFD108,
-            0xffFFD109, 0xffFFD10A, 0xffFFD10B, 0xffFFD10C,
-            0xffFFD10D, 0xffFFD10E, 0xffFFD10F, 0xffFFD110,
-        ] },
+        aliasGroup: '$biome_orbroom' },
 
     // Static tile
     'biome_watchtower': { color: 0xffb70000, wangFile: '../data/wang_tiles/static/watchtower_fg.png', optional: true, name: "Watchtower" },
@@ -92,14 +106,48 @@ Object.values(GENERATOR_CONFIG).forEach(conf => {
     conf.pois = conf.pois || []; // No longer used... Overlaps made PoIs not really work per-biome
 });
 
+// Index biome_flags.json for alias resolution.
+const biomeFlagsByName = new Map();
+const biomeFlagsByFilename = new Map();
+for (const b of biomeFlagsData.biomes) {
+    if (b.name && b.name !== '_EMPTY_') {
+        if (!biomeFlagsByName.has(b.name)) biomeFlagsByName.set(b.name, []);
+        biomeFlagsByName.get(b.name).push(b);
+    }
+    biomeFlagsByFilename.set(b.biomeFilename, b);
+}
+
+function resolveAliasColors(conf) {
+    const result = new Set();
+    if (conf.aliasGroup) {
+        for (const entry of (biomeFlagsByName.get(conf.aliasGroup) || [])) {
+            result.add(parseInt(entry.color, 16) & 0xffffff);
+        }
+    }
+    if (Array.isArray(conf.aliasFilenames)) {
+        for (const f of conf.aliasFilenames) {
+            const entry = biomeFlagsByFilename.get('data/biome/' + f);
+            if (entry) result.add(parseInt(entry.color, 16) & 0xffffff);
+        }
+    }
+    result.delete(conf.color & 0xffffff);
+    return result;
+}
+
 export const BIOME_COLOR_TO_NAME = {};
+
+// Pass 1: primaries (canonical biome → color).
 Object.entries(GENERATOR_CONFIG).forEach(([biomeName, conf]) => {
     BIOME_COLOR_TO_NAME[conf.color & 0xffffff] = biomeName;
-    // Allow biomes to declare alternate biome-map colors that should resolve
-    // to the same biome (e.g. holy mountain entrance vs side/filler shades).
-    if (Array.isArray(conf.colorAliases)) {
-        for (const alias of conf.colorAliases) {
-            BIOME_COLOR_TO_NAME[alias & 0xffffff] = biomeName;
+});
+
+// Pass 2: aliases. A color that's already a primary stays pointing at that
+// primary's biome — this is how the_sky stays distinct from the_end despite
+// sharing the $biome_boss_victoryroom group.
+Object.entries(GENERATOR_CONFIG).forEach(([biomeName, conf]) => {
+    for (const alias of resolveAliasColors(conf)) {
+        if (BIOME_COLOR_TO_NAME[alias] === undefined) {
+            BIOME_COLOR_TO_NAME[alias] = biomeName;
         }
     }
 });
@@ -107,11 +155,11 @@ Object.entries(GENERATOR_CONFIG).forEach(([biomeName, conf]) => {
 // Only the ones with wang tiles
 export const BIOME_COLORS_WITH_TILES = new Set(Object.values(GENERATOR_CONFIG).filter(conf => conf.wangFile != null).map(conf => conf.color & 0xffffff));
 
-// Fallback set of wobble-ineligible biome-map colors, used by utils.js
-// when data/biome_flags.json doesn't cover a color (e.g. NG+ palette
-// swaps). Color-only is approximate — for biomes whose XML varies across
-// shades of the "same" color, prefer the JSON. See EDGE_NOISE_NOTES.md.
-export const BIOMES_WITHOUT_WAVY_EDGE = new Set([
+// Holy-mountain-region chunk colors used by static_spawns.js as a proxy
+// for "this column is a holy mountain basin" when placing altar_top pixel
+// scenes. Not a wobble-eligibility source — use colorWobbleVerdict in
+// wobble_flags.js (backed by data/biome_flags.json) for that.
+export const HOLY_MOUNTAIN_REGION_COLORS = new Set([
     0x93cb4c, 0x93cb4d, 0x93cb4e, 0x93cb4f, 0x93cb5a, // temple_altar variants
     0x6dcb28, 0xB8A928, 0x5a9628,                       // temple_wall variants
     0x14EED7, 0x0DA899,                                 // boss_arena variants
