@@ -6247,7 +6247,7 @@ export const BIOME_ENEMY_MAP = {
 	lake_deep: LAKE_ENEMIES,
 	the_end: HELL_ENEMIES,
 	the_sky: HEAVEN_ENEMIES,
-	snowchasm: SNOWCHASM_ENEMIES,
+	winter_caves: SNOWCHASM_ENEMIES,
 	biome_watchtower: WATCHTOWER_ENEMIES,
 	fungiforest: FUNGIFOREST_ENEMIES,
 	sandcave: SANDCAVE_ENEMIES,

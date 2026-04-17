@@ -30,14 +30,14 @@ const BIOME_TIERS = {
 	'the_sky': 10,
 	// Unclear what the shop level for the tower is, seems like it can just spawn any spell, I thought it was tier 10 but maybe it's just depth-dependent (null)
 	// File seems to indicate 6?
-	'tower_coalmine': 6,
-	'tower_excavationsite': 6,
-	'tower_snowcave': 6,
-	'tower_snowcastle': 6,
-	'tower_fungicave': 6,
-	'tower_rainforest': 6,
-	'tower_vault': 6,
-	'tower_crypt': 6,
+	'solid_wall_tower_1': 6,
+	'solid_wall_tower_2': 6,
+	'solid_wall_tower_3': 6,
+	'solid_wall_tower_4': 6,
+	'solid_wall_tower_5': 6,
+	'solid_wall_tower_6': 6,
+	'solid_wall_tower_7': 6,
+	'solid_wall_tower_8': 6,
 }
 
 // TODO: Might still need to block out rooms for some of these?
@@ -677,7 +677,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 	// Default functions come after biome-specific ones
 	if (func === "spawn_shopitem") {
 		// TODO: The default version of this assumes tier 10, but it's not clear which biomes that would apply to.
-		// Also this behavior is overwritten in some weird places like snowchasm
+		// Also this behavior is overwritten in some weird places like winter_caves
 		return generateShopItem(ws, ng, x, y, BIOME_TIERS[biomeName], 0);
 	}
 	// Enemies (TODO: At minimum need taikasauva)
