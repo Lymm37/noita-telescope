@@ -105,7 +105,8 @@ biome-map RGB color to biome XML is in `biome/_biomes_all.xml`.
 
 `scripts/generate.mjs biome-flags` walks both and emits
 `data/biome_flags.json`: one entry per known biome color with
-`{color, biomeFilename, name, noiseBiomeEdges, wangTemplateFile?}`.
+`{color, xmlName, ineligible?}` (`ineligible: true` when the XML sets
+`noise_biome_edges="0"`; absent means the default/eligible case).
 Re-run after a Noita update with `--src=PATH --out=PATH`.
 
 `js/wobble_flags.js` consumes that JSON and exposes

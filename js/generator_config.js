@@ -111,15 +111,14 @@ Object.values(GENERATOR_CONFIG).forEach(conf => {
     conf.pois = conf.pois || []; // No longer used... Overlaps made PoIs not really work per-biome
 });
 
-// Index biome_flags.json by XML basename (the xmlName noitrainer emits per
+// Index biome_flags.json by xmlName (the basename noitrainer emits per
 // chunk). Basenames are unique across noita's biome tree — any collisions
 // are the same XML appearing under multiple biome-map colors, which we want
 // to gather.
 const biomeFlagsByBasename = new Map();
 for (const b of biomeFlagsData.biomes) {
-    const basename = b.biomeFilename.replace(/\.xml$/, '').split('/').pop();
-    if (!biomeFlagsByBasename.has(basename)) biomeFlagsByBasename.set(basename, []);
-    biomeFlagsByBasename.get(basename).push(b);
+    if (!biomeFlagsByBasename.has(b.xmlName)) biomeFlagsByBasename.set(b.xmlName, []);
+    biomeFlagsByBasename.get(b.xmlName).push(b);
 }
 
 function resolveAliasColors(conf) {
