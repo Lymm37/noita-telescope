@@ -194,7 +194,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_coalmine': {
+    'solid_wall_tower_1': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -205,7 +205,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_excavationsite': {
+    'solid_wall_tower_2': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -216,7 +216,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_snowcave': {
+    'solid_wall_tower_3': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -227,7 +227,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_snowcastle': {
+    'solid_wall_tower_4': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -238,7 +238,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_fungicave': {
+    'solid_wall_tower_5': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -249,7 +249,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_rainforest': {
+    'solid_wall_tower_6': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -260,7 +260,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_vault': {
+    'solid_wall_tower_7': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -271,7 +271,7 @@ export const ALTAR_SPAWN_DATA = {
         px: 5,
         py: -4
     },
-    'tower_crypt': {
+    'solid_wall_tower_8': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -283,7 +283,7 @@ export const ALTAR_SPAWN_DATA = {
         py: -4
     },
     // This one is broken for some reason? Maybe
-    'tower_end': {
+    'solid_wall_tower_9': {
         r0: 0.47,
         rl: 0.755,
         x: 5,
@@ -400,39 +400,39 @@ export const WAND_SPAWN_DATA = {
         types: ['wand_level_05', 'wand_level_06', 'wand_unshuffle_04', 'wand_unshuffle_05'], 
         weights: [5, 5, 5, 5] 
     },
-    'tower_coalmine': {
+    'solid_wall_tower_1': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_excavationsite': {
+    'solid_wall_tower_2': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_snowcave': {
+    'solid_wall_tower_3': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_snowcastle': {
+    'solid_wall_tower_4': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_fungicave': {
+    'solid_wall_tower_5': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_rainforest': {
+    'solid_wall_tower_6': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_vault': {
+    'solid_wall_tower_7': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_crypt': {
+    'solid_wall_tower_8': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
-    'tower_end': {
+    'solid_wall_tower_9': {
         types: ['premade_1', 'premade_2', 'premade_3', 'premade_4', 'premade_5', 'premade_6', 'premade_7', 'premade_8', 'premade_9', 'wand_level_01'],
         weights: [1,1,1,1,1,1,1,1,1,1]
     },
@@ -472,17 +472,17 @@ export const BIOME_WAND_ALTAR_OFFSET_MAP = {
     vault_frozen: {x: -5, y: -10},
     robobase: {x: -5, y: -10},
     meat: {x: -15, y: -17},
-    tower_coalmine: {x: -5, y: -12},
-    tower_excavationsite: {x: -5, y: -12},
-    tower_snowcave: {x: -5, y: -12},
-    tower_snowcastle: {x: -5, y: -12},
-    tower_fungicave: {x: -5, y: -12},
-    tower_rainforest: {x: -5, y: -12},
-    tower_vault: {x: -5, y: -12},
-    tower_crypt: {x: -5, y: -12},
-    tower_end: {x: -5, y: -12},
+    solid_wall_tower_1: {x: -5, y: -12},
+    solid_wall_tower_2: {x: -5, y: -12},
+    solid_wall_tower_3: {x: -5, y: -12},
+    solid_wall_tower_4: {x: -5, y: -12},
+    solid_wall_tower_5: {x: -5, y: -12},
+    solid_wall_tower_6: {x: -5, y: -12},
+    solid_wall_tower_7: {x: -5, y: -12},
+    solid_wall_tower_8: {x: -5, y: -12},
+    solid_wall_tower_9: {x: -5, y: -12},
     // Note: pyramid and liquidcave explcitly *disable* this spawn...
-    // So does meditation cube, snowchasm, probably some other ones too
+    // So does meditation cube, winter_caves, probably some other ones too
     // Normal side biomes with wand altars don't though.
 }
 

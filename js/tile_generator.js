@@ -114,7 +114,7 @@ function generateRawTileBuffer(regionPoints, bbox, wangData, worldSeed, ngPlus, 
         applyMainBiomeHack(bbox[0], rawBuffer, mapW, outH, biomeName, ngPlus > 0, gameMode);
     }
     // Nightmare doesn't have coalmine hack
-    if ((biomeName === 'coalmine' || biomeName === 'tower_coalmine') && gameMode !== 'nightmare') {
+    if ((biomeName === 'coalmine' || biomeName === 'solid_wall_tower_1') && gameMode !== 'nightmare') {
         applyCoalmineHack(rawBuffer, mapW, outH, 'coalmine');
     }
 
@@ -355,7 +355,7 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
                 }
 
                 // Replace coalmine hack blocked area with air
-                if ((biomeName === 'coalmine' || biomeName === 'tower_coalmine') && gameMode !== 'nightmare') {
+                if ((biomeName === 'coalmine' || biomeName === 'solid_wall_tower_1') && gameMode !== 'nightmare') {
                     undoCoalmineHack(rawResult.buffer, rawResult.width, rawResult.height, 'coalmine');
                 }
 

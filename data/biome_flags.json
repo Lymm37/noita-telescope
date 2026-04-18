@@ -1,1100 +1,763 @@
 {
-  "generated": "scripts/build_biome_flags.mjs",
+  "generated": "scripts/generate.mjs biome-flags",
   "source": "data.wak.unpacked",
   "biomeCount": 175,
-  "ineligibleCount": 30,
+  "xmlSetCounts": {
+    "noise_biome_edges": 39,
+    "fat_biome_edges": 13
+  },
   "biomes": [
     {
       "color": "0x0000ff",
-      "biomeFilename": "data/biome/water.xml",
-      "name": "$biome_water",
-      "noiseBiomeEdges": true
+      "xmlName": "water"
     },
     {
       "color": "0x0046ff",
-      "biomeFilename": "data/biome/snowcastle.xml",
-      "name": "$biome_snowcastle",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/snowcastle.png"
+      "xmlName": "snowcastle"
     },
     {
       "color": "0x006b1e",
-      "biomeFilename": "data/biome/forest.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "forest"
     },
     {
       "color": "0x006c42",
-      "biomeFilename": "data/biome/wandcave.xml",
-      "name": "$biome_wandcave",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/wand.png"
+      "xmlName": "wandcave"
     },
     {
       "color": "0x008000",
-      "biomeFilename": "data/biome/vault.xml",
-      "name": "$biome_vault",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/vault.png"
+      "xmlName": "vault"
     },
     {
       "color": "0x008040",
-      "biomeFilename": "data/biome/vault_entrance.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "vault_entrance"
     },
     {
       "color": "0x008080",
-      "biomeFilename": "data/biome/mountain_left.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_left"
     },
     {
       "color": "0x0080a8",
-      "biomeFilename": "data/biome/vault_frozen.xml",
-      "name": "$biome_vault_frozen",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/vault_frozen.png"
+      "xmlName": "vault_frozen"
     },
     {
       "color": "0x018080",
-      "biomeFilename": "data/biome/mountain_left_2.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_left_2"
     },
     {
       "color": "0x028080",
-      "biomeFilename": "data/biome/mountain_left_3.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_left_3"
     },
     {
       "color": "0x085b77",
-      "biomeFilename": "data/biome/boss_limbs_arena.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "boss_limbs_arena",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x0a95a4",
-      "biomeFilename": "data/biome/funroom.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "funroom"
     },
     {
       "color": "0x0da899",
-      "biomeFilename": "data/biome/boss_arena_top.xml",
-      "name": "$biome_boss_arena",
-      "noiseBiomeEdges": false
+      "xmlName": "boss_arena_top",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x1133f1",
-      "biomeFilename": "data/biome/lake.xml",
-      "name": "$biome_lake",
-      "noiseBiomeEdges": true
+      "xmlName": "lake"
     },
     {
       "color": "0x1133f3",
-      "biomeFilename": "data/biome/lake_blood.xml",
-      "name": "$biome_lake",
-      "noiseBiomeEdges": true
+      "xmlName": "lake_blood"
     },
     {
       "color": "0x1158f1",
-      "biomeFilename": "data/biome/lake_deep.xml",
-      "name": "$biome_lake",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/water.png"
+      "xmlName": "lake_deep"
     },
     {
       "color": "0x11a3fc",
-      "biomeFilename": "data/biome/lake_statue.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "lake_statue"
     },
     {
       "color": "0x124445",
-      "biomeFilename": "data/biome/excavationsite.xml",
-      "name": "$biome_excavationsite",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/excavationsite.png"
+      "xmlName": "excavationsite",
+      "noise_biome_edges": 1
     },
     {
       "color": "0x14e1d7",
-      "biomeFilename": "data/biome/mountain_tree.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_tree"
     },
     {
       "color": "0x14eed7",
-      "biomeFilename": "data/biome/boss_arena.xml",
-      "name": "$biome_boss_arena",
-      "noiseBiomeEdges": false
+      "xmlName": "boss_arena",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x157cb0",
-      "biomeFilename": "data/biome/essenceroom.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "essenceroom"
     },
     {
       "color": "0x157cb5",
-      "biomeFilename": "data/biome/essenceroom_hell.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "essenceroom_hell"
     },
     {
       "color": "0x157cb6",
-      "biomeFilename": "data/biome/essenceroom_alc.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "essenceroom_alc"
     },
     {
       "color": "0x157cb7",
-      "biomeFilename": "data/biome/mystery_teleport.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "mystery_teleport"
     },
     {
       "color": "0x157cb8",
-      "biomeFilename": "data/biome/essenceroom_air.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "essenceroom_air"
     },
     {
       "color": "0x167f5f",
-      "biomeFilename": "data/biome/pyramid_hallway.xml",
-      "name": "$biome_pyramid",
-      "noiseBiomeEdges": true
+      "xmlName": "pyramid_hallway"
     },
     {
       "color": "0x1775d5",
-      "biomeFilename": "data/biome/snowcave.xml",
-      "name": "$biome_snowcave",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/snowcave.png"
+      "xmlName": "snowcave"
     },
     {
       "color": "0x18a0d6",
-      "biomeFilename": "data/biome/snowcave_secret_chamber.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "snowcave_secret_chamber"
     },
     {
       "color": "0x18d6d6",
-      "biomeFilename": "data/biome/snowcastle_hourglass_chamber.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "snowcastle_hourglass_chamber"
     },
     {
       "color": "0x1f3b62",
-      "biomeFilename": "data/biome/mestari_secret.xml",
-      "name": "$biome_mestari_secret",
-      "noiseBiomeEdges": true
+      "xmlName": "mestari_secret"
     },
     {
       "color": "0x1f3b64",
-      "biomeFilename": "data/biome/ghost_secret.xml",
-      "name": "$biome_ghost_secret",
-      "noiseBiomeEdges": true
+      "xmlName": "ghost_secret"
     },
     {
       "color": "0x204060",
-      "biomeFilename": "data/biome/mountain_hall.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_hall"
     },
     {
       "color": "0x208080",
-      "biomeFilename": "data/biome/mountain_left_entrance.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_left_entrance"
     },
     {
       "color": "0x214060",
-      "biomeFilename": "data/biome/mountain_hall_2.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_hall_2"
     },
     {
       "color": "0x224060",
-      "biomeFilename": "data/biome/mountain_hall_trailer.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_hall_trailer"
     },
     {
       "color": "0x234060",
-      "biomeFilename": "data/biome/mountain_hall_4.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_hall_4"
     },
     {
       "color": "0x24888a",
-      "biomeFilename": "data/biome/excavationsite_cube_chamber.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "excavationsite_cube_chamber"
     },
     {
       "color": "0x2dc010",
-      "biomeFilename": "data/biome/hills_flat.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "hills_flat"
     },
     {
       "color": "0x2e99d1",
-      "biomeFilename": "data/biome/gourd_room.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "gourd_room"
     },
     {
       "color": "0x3046c1",
-      "biomeFilename": "data/biome/watercave.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "watercave"
     },
     {
       "color": "0x326655",
-      "biomeFilename": "data/biome/rock_room.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "rock_room"
     },
     {
       "color": "0x33e311",
-      "biomeFilename": "data/biome/hills2.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "hills2"
     },
     {
       "color": "0x364d24",
-      "biomeFilename": "data/biome/dragoncave.xml",
-      "name": "$biome_dragoncave",
-      "noiseBiomeEdges": false
+      "xmlName": "dragoncave",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x36d517",
-      "biomeFilename": "data/biome/hills.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "hills"
     },
     {
       "color": "0x36d5c9",
-      "biomeFilename": "data/biome/clouds.xml",
-      "name": "$biome_clouds",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/clouds.png"
+      "xmlName": "clouds",
+      "noise_biome_edges": 1
     },
     {
       "color": "0x375c00",
-      "biomeFilename": "data/biome/rainforest_dark.xml",
-      "name": "$biome_rainforest_dark",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/rainforest_dark.png"
+      "xmlName": "rainforest_dark"
     },
     {
       "color": "0x39401a",
-      "biomeFilename": "data/biome/niilo_testroom.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "niilo_testroom",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x39401b",
-      "biomeFilename": "data/biome/niilo_testroom_b.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "niilo_testroom_b",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x39401c",
-      "biomeFilename": "data/biome/niilo_testroom_c.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "niilo_testroom_c",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x39401d",
-      "biomeFilename": "data/biome/niilo_testroom_d.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "niilo_testroom_d",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x39a760",
-      "biomeFilename": "data/biome/gun_room.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "gun_room"
     },
     {
       "color": "0x3c0f0a",
-      "biomeFilename": "data/biome/the_end.xml",
-      "name": "$biome_boss_victoryroom",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/the_end.png"
+      "xmlName": "the_end"
     },
     {
       "color": "0x3d3d3d",
-      "biomeFilename": "data/biome/solid_wall.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "solid_wall",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x3d3e37",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_1.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/coalmine.png"
+      "xmlName": "solid_wall_tower_1",
+      "noise_biome_edges": 1
     },
     {
       "color": "0x3d3e38",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_2.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/excavationsite.png"
+      "xmlName": "solid_wall_tower_2",
+      "noise_biome_edges": 1
     },
     {
       "color": "0x3d3e39",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_3.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/snowcave.png"
+      "xmlName": "solid_wall_tower_3"
     },
     {
       "color": "0x3d3e3a",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_4.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/snowcastle.png"
+      "xmlName": "solid_wall_tower_4"
     },
     {
       "color": "0x3d3e3b",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_5.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/fungicave.png"
+      "xmlName": "solid_wall_tower_5"
     },
     {
       "color": "0x3d3e3c",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_6.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/rainforest.png"
+      "xmlName": "solid_wall_tower_6"
     },
     {
       "color": "0x3d3e3d",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_7.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/vault.png"
+      "xmlName": "solid_wall_tower_7"
     },
     {
       "color": "0x3d3e3e",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_8.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/crypt.png"
+      "xmlName": "solid_wall_tower_8"
     },
     {
       "color": "0x3d3e3f",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_9.xml",
-      "name": "$biome_tower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/the_end.png"
+      "xmlName": "solid_wall_tower_9"
     },
     {
       "color": "0x3d3e40",
-      "biomeFilename": "data/biome/hills.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "hills"
     },
     {
       "color": "0x3d3e41",
-      "biomeFilename": "data/biome/tower/solid_wall_tower_10.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "solid_wall_tower_10"
     },
     {
       "color": "0x3d5a3d",
-      "biomeFilename": "data/biome/lavalake.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "lavalake",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x3d5a4f",
-      "biomeFilename": "data/biome/lavalake_pit.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "lavalake_pit",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x3d5a50",
-      "biomeFilename": "data/biome/smokecave_right.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "smokecave_right"
     },
     {
       "color": "0x3d5a51",
-      "biomeFilename": "data/biome/smokecave_middle.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "smokecave_middle"
     },
     {
       "color": "0x3d5a52",
-      "biomeFilename": "data/biome/smokecave_left.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "smokecave_left"
     },
     {
       "color": "0x3d5a5b",
-      "biomeFilename": "data/biome/sandroom.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "sandroom"
     },
     {
       "color": "0x3d5ab2",
-      "biomeFilename": "data/biome/shop_room.xml",
-      "name": "$biome_shop_room",
-      "noiseBiomeEdges": true
+      "xmlName": "shop_room"
     },
     {
       "color": "0x3f3d3e",
-      "biomeFilename": "data/biome/tower/solid_wall_tower.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "solid_wall_tower",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x3f55d1",
-      "biomeFilename": "data/biome/greed_room.xml",
-      "name": "$biome_greed_room",
-      "noiseBiomeEdges": true
+      "xmlName": "greed_room"
     },
     {
       "color": "0x408080",
-      "biomeFilename": "data/biome/mountain_right.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_right"
     },
     {
       "color": "0x4118d6",
-      "biomeFilename": "data/biome/lavalake_racing.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "lavalake_racing",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x418080",
-      "biomeFilename": "data/biome/mountain_right_entrance.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_right_entrance"
     },
     {
       "color": "0x42244d",
-      "biomeFilename": "data/biome/solid_wall_hidden_cavern.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "solid_wall_hidden_cavern",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x428080",
-      "biomeFilename": "data/biome/mountain_right_entrance_2.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_right_entrance_2"
     },
     {
       "color": "0x438080",
-      "biomeFilename": "data/biome/mountain_right_2.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_right_2"
     },
     {
       "color": "0x48e311",
-      "biomeFilename": "data/biome/empty.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "empty"
     },
     {
       "color": "0x4e5267",
-      "biomeFilename": "data/biome/robobase.xml",
-      "name": "$biome_robobase",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/robobase.png"
+      "xmlName": "robobase"
     },
     {
       "color": "0x50eed7",
-      "biomeFilename": "data/biome/boss_victoryroom.xml",
-      "name": "$biome_boss_victoryroom",
-      "noiseBiomeEdges": false
+      "xmlName": "boss_victoryroom",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x567cb0",
-      "biomeFilename": "data/biome/moon_room.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "moon_room"
     },
     {
       "color": "0x572828",
-      "biomeFilename": "data/biome/meat.xml",
-      "name": "$biome_meat",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/meat.png"
+      "xmlName": "meat"
     },
     {
       "color": "0x57cace",
-      "biomeFilename": "data/biome/ocarina.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "ocarina"
     },
     {
       "color": "0x57dace",
-      "biomeFilename": "data/biome/alchemist_secret.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "alchemist_secret"
     },
     {
       "color": "0x5a9628",
-      "biomeFilename": "data/biome/temple_wall_ending.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_wall_ending",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x5a9629",
-      "biomeFilename": "data/biome/ending_placeholder.xml",
-      "name": "$biome_ending_placeholder",
-      "noiseBiomeEdges": true
+      "xmlName": "ending_placeholder"
     },
     {
       "color": "0x5f8fab",
-      "biomeFilename": "data/biome/teleroom.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "teleroom",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x608080",
-      "biomeFilename": "data/biome/mountain_left_stub.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_left_stub"
     },
     {
       "color": "0x684c4c",
-      "biomeFilename": "data/biome/solid_wall_damage.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "solid_wall_damage",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x6ba04b",
-      "biomeFilename": "data/biome/town_under.xml",
-      "name": "$biome_town_under",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/town_under.png"
+      "xmlName": "town_under"
     },
     {
       "color": "0x6db55a",
-      "biomeFilename": "data/biome/friend_1.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "friend_1",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x6db55b",
-      "biomeFilename": "data/biome/friend_2.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "friend_2",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x6db55c",
-      "biomeFilename": "data/biome/friend_3.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "friend_3",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x6db55d",
-      "biomeFilename": "data/biome/friend_4.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "friend_4",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x6db55e",
-      "biomeFilename": "data/biome/friend_5.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "friend_5",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x6db55f",
-      "biomeFilename": "data/biome/friend_6.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "friend_6",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x6dcb28",
-      "biomeFilename": "data/biome/temple_wall.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_wall",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x6dcba2",
-      "biomeFilename": "data/biome/end_wall.xml",
-      "name": "$biome_end_wall",
-      "noiseBiomeEdges": false
+      "xmlName": "end_wall",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x726186",
-      "biomeFilename": "data/biome/wizardcave.xml",
-      "name": "$biome_wizardcave",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/wizardcave.png"
+      "xmlName": "wizardcave"
     },
     {
       "color": "0x775ddb",
-      "biomeFilename": "data/biome/snowcastle_cavern.xml",
-      "name": "$biome_snowcastle",
-      "noiseBiomeEdges": true
+      "xmlName": "snowcastle_cavern",
+      "fat_biome_edges": 0
     },
     {
       "color": "0x77a5bd",
-      "biomeFilename": "data/biome/winter_caves.xml",
-      "name": "$biome_winter_caves",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/snowchasm.png"
+      "xmlName": "winter_caves",
+      "noise_biome_edges": 1
     },
     {
       "color": "0x786c42",
-      "biomeFilename": "data/biome/crypt.xml",
-      "name": "$biome_crypt",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/crypt.png"
+      "xmlName": "crypt"
     },
     {
       "color": "0x796620",
-      "biomeFilename": "data/biome/meatroom.xml",
-      "name": "$biome_meat",
-      "noiseBiomeEdges": true
+      "xmlName": "meatroom"
     },
     {
       "color": "0x7be311",
-      "biomeFilename": "data/biome/snowcave_tunnel.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "snowcave_tunnel",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x804169",
-      "biomeFilename": "data/biome/wizardcave_entrance.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "wizardcave_entrance"
     },
     {
       "color": "0x808000",
-      "biomeFilename": "data/biome/rainforest.xml",
-      "name": "$biome_rainforest",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/rainforest.png"
+      "xmlName": "rainforest"
     },
     {
       "color": "0x89a04b",
-      "biomeFilename": "data/biome/liquidcave.xml",
-      "name": "$biome_liquidcave",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/liquidcave.png"
+      "xmlName": "liquidcave"
     },
     {
       "color": "0x93cb4c",
-      "biomeFilename": "data/biome/temple_altar.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x93cb4d",
-      "biomeFilename": "data/biome/temple_altar_left.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_left",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x93cb4e",
-      "biomeFilename": "data/biome/temple_altar_right.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_right",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x93cb4f",
-      "biomeFilename": "data/biome/temple_altar_right_snowcave.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_right_snowcave",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x93cb5a",
-      "biomeFilename": "data/biome/temple_altar_right_snowcastle.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": true
+      "xmlName": "temple_altar_right_snowcastle",
+      "noise_biome_edges": 1
     },
     {
       "color": "0x93cb5c",
-      "biomeFilename": "data/biome/temple_altar_secret.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_secret",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x967f11",
-      "biomeFilename": "data/biome/pyramid.xml",
-      "name": "$biome_pyramid",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/pyramid.png"
+      "xmlName": "pyramid"
     },
     {
       "color": "0x967f5f",
-      "biomeFilename": "data/biome/pyramid_entrance.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "pyramid_entrance"
     },
     {
       "color": "0x968f5f",
-      "biomeFilename": "data/biome/pyramid_left.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "pyramid_left"
     },
     {
       "color": "0x968f96",
-      "biomeFilename": "data/biome/pyramid_right.xml",
-      "name": "$biome_pyramid",
-      "noiseBiomeEdges": true
+      "xmlName": "pyramid_right"
     },
     {
       "color": "0x99cb4c",
-      "biomeFilename": "data/biome/temple_altar_empty.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_empty",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x99cb4d",
-      "biomeFilename": "data/biome/temple_altar_left_empty.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_left_empty",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x99cb4e",
-      "biomeFilename": "data/biome/temple_altar_right_empty.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_right_empty",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x99cb4f",
-      "biomeFilename": "data/biome/temple_altar_right_snowcave_empty.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": false
+      "xmlName": "temple_altar_right_snowcave_empty",
+      "noise_biome_edges": 0
     },
     {
       "color": "0x99cb5a",
-      "biomeFilename": "data/biome/temple_altar_right_snowcastle_empty.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": true
+      "xmlName": "temple_altar_right_snowcastle_empty",
+      "noise_biome_edges": 1
     },
     {
       "color": "0x9c6c42",
-      "biomeFilename": "data/biome/magic_gate.xml",
-      "name": "$biome_magic_gate",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/the_end.png"
+      "xmlName": "magic_gate"
     },
     {
       "color": "0x9d893d",
-      "biomeFilename": "data/biome/roboroom.xml",
-      "name": "$biome_robobase",
-      "noiseBiomeEdges": true
+      "xmlName": "roboroom"
     },
     {
       "color": "0x9d99d1",
-      "biomeFilename": "data/biome/song_room.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "song_room"
     },
     {
       "color": "0x9e4302",
-      "biomeFilename": "data/biome/robot_egg.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": false
+      "xmlName": "robot_egg",
+      "noise_biome_edges": 0
     },
     {
       "color": "0xa08400",
-      "biomeFilename": "data/biome/rainforest_open.xml",
-      "name": "$biome_rainforest",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/rainforest_open.png"
+      "xmlName": "rainforest_open"
     },
     {
       "color": "0xa861ff",
-      "biomeFilename": "data/biome/fungiforest.xml",
-      "name": "$biome_fun",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/fungiforest.png"
+      "xmlName": "fungiforest"
     },
     {
       "color": "0xad8111",
-      "biomeFilename": "data/biome/bridge.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "bridge"
     },
     {
       "color": "0xb70000",
-      "biomeFilename": "data/biome_impl/static_tile/biome_watchtower.xml",
-      "name": "$biome_watchtower",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/biome_impl/static_tile/temples-assets/watchtower_fg.png"
+      "xmlName": "biome_watchtower"
     },
     {
       "color": "0xb8a928",
-      "biomeFilename": "data/biome/solid_wall_temple.xml",
-      "name": "$biome_holymountain",
-      "noiseBiomeEdges": true
+      "xmlName": "solid_wall_temple",
+      "fat_biome_edges": 0
     },
     {
       "color": "0xbaa345",
-      "biomeFilename": "data/biome/secret_lab.xml",
-      "name": "$biome_secret_lab",
-      "noiseBiomeEdges": true
+      "xmlName": "secret_lab"
     },
     {
       "color": "0xc00020",
-      "biomeFilename": "data/biome/secret_entrance.xml",
-      "name": "$biome_secret_entrance",
-      "noiseBiomeEdges": true
+      "xmlName": "secret_entrance"
     },
     {
       "color": "0xc02020",
-      "biomeFilename": "data/biome/secret_altar.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "secret_altar"
     },
     {
       "color": "0xc08080",
-      "biomeFilename": "data/biome/mountain_top.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_top"
     },
     {
       "color": "0xc08082",
-      "biomeFilename": "data/biome/mountain_floating_island.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_floating_island"
     },
     {
       "color": "0xc88f5f",
-      "biomeFilename": "data/biome/pyramid_top.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "pyramid_top"
     },
     {
       "color": "0xcc9944",
-      "biomeFilename": "data/biome/desert.xml",
-      "name": "$biome_desert",
-      "noiseBiomeEdges": true
+      "xmlName": "desert"
     },
     {
       "color": "0xd3e6f0",
-      "biomeFilename": "data/biome/the_sky.xml",
-      "name": "$biome_boss_victoryroom",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/the_sky.png"
+      "xmlName": "the_sky"
     },
     {
       "color": "0xd56517",
-      "biomeFilename": "data/biome/coalmine_alt.xml",
-      "name": "$biome_coalmine_alt",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/coalmine_alt.png"
+      "xmlName": "coalmine_alt"
     },
     {
       "color": "0xd57917",
-      "biomeFilename": "data/biome/coalmine.xml",
-      "name": "$biome_coalmine",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/coalmine.png"
+      "xmlName": "coalmine",
+      "noise_biome_edges": 1
     },
     {
       "color": "0xd6d8e3",
-      "biomeFilename": "data/biome/winter.xml",
-      "name": "$biome_winter",
-      "noiseBiomeEdges": true
+      "xmlName": "winter"
     },
     {
       "color": "0xe08080",
-      "biomeFilename": "data/biome/mountain_right_stub.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_right_stub",
+      "noise_biome_edges": 1
     },
     {
       "color": "0xe17e32",
-      "biomeFilename": "data/biome/null_room.xml",
-      "name": "???",
-      "noiseBiomeEdges": true
+      "xmlName": "null_room"
     },
     {
       "color": "0xe1cd32",
-      "biomeFilename": "data/biome/sandcave.xml",
-      "name": "$biome_sandcave",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/sandcave.png"
+      "xmlName": "sandcave"
     },
     {
       "color": "0xe861f0",
-      "biomeFilename": "data/biome/fungicave.xml",
-      "name": "$biome_fungicave",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/fungicave.png"
+      "xmlName": "fungicave"
     },
     {
       "color": "0xeba500",
-      "biomeFilename": "data/biome/scale.xml",
-      "name": "$biome_desert",
-      "noiseBiomeEdges": true
+      "xmlName": "scale"
     },
     {
       "color": "0xf0d517",
-      "biomeFilename": "data/biome/roadblock.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "roadblock"
     },
     {
       "color": "0xf6cfad",
-      "biomeFilename": "data/biome/laboratory.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "laboratory"
     },
     {
       "color": "0xf7cf8d",
-      "biomeFilename": "data/biome/mountain_lake.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "mountain_lake"
     },
     {
       "color": "0xfe0000",
-      "biomeFilename": "data/biome/sky_light_injector.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true
+      "xmlName": "sky_light_injector"
     },
     {
       "color": "0xff00fb",
-      "biomeFilename": "data/biome_impl/static_tile/biome_barren.xml",
-      "name": "$biome_barren",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/biome_impl/static_tile/temples-assets/barren_fg.png"
+      "xmlName": "biome_barren"
     },
     {
       "color": "0xff00fc",
-      "biomeFilename": "data/biome_impl/static_tile/biome_boss_sky.xml",
-      "name": "$biome_boss_sky",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/biome_impl/static_tile/temples-assets/boss_fg.png"
+      "xmlName": "biome_boss_sky"
     },
     {
       "color": "0xff00fd",
-      "biomeFilename": "data/biome_impl/static_tile/biome_darkness.xml",
-      "name": "$biome_darkness",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/biome_impl/static_tile/temples-assets/darkness_fg.png"
+      "xmlName": "biome_darkness"
     },
     {
       "color": "0xff00fe",
-      "biomeFilename": "data/biome_impl/static_tile/biome_potion_mimics.xml",
-      "name": "$biome_potion_mimics",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/biome_impl/static_tile/temples-assets/potion_mimics_fg.png"
+      "xmlName": "biome_potion_mimics"
     },
     {
       "color": "0xff00ff",
-      "biomeFilename": "data/biome/null.xml",
-      "name": "unknown",
-      "noiseBiomeEdges": true
+      "xmlName": "null"
     },
     {
       "color": "0xff6a02",
-      "biomeFilename": "data/biome/lava.xml",
-      "name": "$biome_lava",
-      "noiseBiomeEdges": false
+      "xmlName": "lava",
+      "noise_biome_edges": 0
     },
     {
       "color": "0xff8080",
-      "biomeFilename": "data/biome/mountain_center.xml",
-      "name": "_EMPTY_",
-      "noiseBiomeEdges": true,
-      "wangTemplateFile": "data/wang_tiles/coalmine.png"
+      "xmlName": "mountain_center"
     },
     {
       "color": "0xffa717",
-      "biomeFilename": "data/biome/lava_90percent.xml",
-      "name": "$biome_lava",
-      "noiseBiomeEdges": false
+      "xmlName": "lava_90percent",
+      "noise_biome_edges": 0
     },
     {
       "color": "0xffd100",
-      "biomeFilename": "data/biome/orbrooms/orbroom_00.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_00"
     },
     {
       "color": "0xffd101",
-      "biomeFilename": "data/biome/orbrooms/orbroom_01.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_01"
     },
     {
       "color": "0xffd102",
-      "biomeFilename": "data/biome/orbrooms/orbroom_02.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_02"
     },
     {
       "color": "0xffd103",
-      "biomeFilename": "data/biome/orbrooms/orbroom_03.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_03"
     },
     {
       "color": "0xffd104",
-      "biomeFilename": "data/biome/orbrooms/orbroom_04.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_04"
     },
     {
       "color": "0xffd105",
-      "biomeFilename": "data/biome/orbrooms/orbroom_05.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_05"
     },
     {
       "color": "0xffd106",
-      "biomeFilename": "data/biome/orbrooms/orbroom_06.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_06"
     },
     {
       "color": "0xffd107",
-      "biomeFilename": "data/biome/orbrooms/orbroom_07.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_07"
     },
     {
       "color": "0xffd108",
-      "biomeFilename": "data/biome/orbrooms/orbroom_08.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_08"
     },
     {
       "color": "0xffd109",
-      "biomeFilename": "data/biome/orbrooms/orbroom_09.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_09"
     },
     {
       "color": "0xffd110",
-      "biomeFilename": "data/biome/orbrooms/orbroom_10.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": true
+      "xmlName": "orbroom_10"
     },
     {
       "color": "0xffd111",
-      "biomeFilename": "data/biome/orbrooms/orbroom_11.xml",
-      "name": "$biome_orbroom",
-      "noiseBiomeEdges": false
+      "xmlName": "orbroom_11",
+      "noise_biome_edges": 0
     },
     {
       "color": "0xffe42c",
-      "biomeFilename": "data/biome/lava.xml",
-      "name": "$biome_lava",
-      "noiseBiomeEdges": false
+      "xmlName": "lava",
+      "noise_biome_edges": 0
     },
     {
       "color": "0xffff00",
-      "biomeFilename": "data/biome/gold.xml",
-      "name": "$biome_gold",
-      "noiseBiomeEdges": true
+      "xmlName": "gold"
     }
   ]
 }

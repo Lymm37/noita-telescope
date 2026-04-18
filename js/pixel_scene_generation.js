@@ -2,7 +2,7 @@ import { NollaPrng } from './nolla_prng.js';
 import { BLOCKED_COLORS, GENERAL_SCENES, PIXEL_SCENE_BIOME_MAP } from './pixel_scene_config.js';
 import { MATERIAL_COLOR_CONVERSION, MATERIAL_WANG_COLORS } from './potion_config.js';
 import { getBiomeAtWorldCoordinates } from './utils.js';
-import { colorWobbleVerdict } from './wobble_flags.js';
+import { biomeEdgeNoiseFlag } from './wobble_flags.js';
 import { loadPNG } from './png_sanitizer.js';
 import { prescanPixelScene } from './poi_scanner.js';
 import { BIOME_BACKGROUND_COLORS, TILE_OVERLAY_COLORS, makeBlackTransparent } from './image_processing.js';
@@ -246,7 +246,7 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_BIOME && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
 		const boundsOffset = PIXEL_SCENE_BOUNDS_OFFSET[sceneName] || {x: 0, y: 0};
 		const topLeft = getBiomeAtWorldCoordinates(biomeData, x + boundsOffset.x, y + boundsOffset.y, ng > 0, gameMode);
-		if (!topLeft.biome && colorWobbleVerdict(topLeft.colorInt) === 'unknown') {
+		if (!topLeft.biome && biomeEdgeNoiseFlag(topLeft.colorInt, 'noise_biome_edges') === null) {
 			return null;
 		}
 	}
