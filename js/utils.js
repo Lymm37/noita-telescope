@@ -185,13 +185,11 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     let highDetail = true; // Seems to be required to avoid false negatives...
     const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail);
 
-    // Apparently these app settings were not being updated correctly, but now we'll just enable edge noise since it seems to be working
-    /*
+    // Apparently these app settings were not being updated correctly
     if (!appSettings.enableEdgeNoise) {
         edgeOffset.x = 0;
         edgeOffset.y = 0;
     }
-    */
 
     const originalX = Math.floor(modX / 512);
     const originalY = Math.floor(modY / 512);

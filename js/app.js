@@ -307,7 +307,7 @@ export const app = {
 			this.saveSettings();
 			this.generate(false, true);
 		};
-		document.getElementById('debug-enable-edge-noise').onchange = () => {
+		document.getElementById('enable-edge-noise').onchange = () => {
 			this.tileOverlaysByPW = {}; // Clear cached overlays so they will be regenerated with the new mode
 			this.saveSettings();
 			// Do full regen to sync worker threads
@@ -1933,7 +1933,7 @@ export const app = {
 						const overlay = this.tileOverlaysByPW[`${pwX},${pwY}`][i];
 						
 						if (overlay) {
-							if (document.getElementById('debug-enable-edge-noise').checked && biomeOverlayMode === 'expanded') {
+							if (appSettings.enableEdgeNoise && biomeOverlayMode === 'expanded') {
 								this.ctx.drawImage(
 									overlay, 
 									layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - 40, 
@@ -2394,7 +2394,7 @@ export const app = {
 			enableStaticPixelScenes: document.getElementById('enable-static-pixel-scenes').value,
 			hidePois: document.getElementById('debug-hide-pois').checked,
 			originalBiomeMap: document.getElementById('debug-original-biome-map').checked,
-			enableEdgeNoise: document.getElementById('debug-enable-edge-noise').checked,
+			enableEdgeNoise: document.getElementById('enable-edge-noise').checked,
 			edgeNoiseDebug: document.getElementById('debug-edge-noise').checked,
 			overlayMode: document.getElementById('debug-biome-overlay-mode').value,
 			showTileBounds: document.getElementById('debug-show-tile-bounds').checked,
@@ -2464,7 +2464,7 @@ export const app = {
 				document.getElementById('enable-static-pixel-scenes').value = settings.enableStaticPixelScenes || 'none';
 				document.getElementById('debug-hide-pois').checked = settings.hidePois || false;
 				document.getElementById('debug-original-biome-map').checked = settings.originalBiomeMap || false;
-				document.getElementById('debug-enable-edge-noise').checked = settings.enableEdgeNoise || false;
+				document.getElementById('enable-edge-noise').checked = settings.enableEdgeNoise || false;
 				document.getElementById('debug-edge-noise').checked = settings.edgeNoiseDebug || false;
 				document.getElementById('debug-biome-overlay-mode').value = settings.overlayMode || 'none';
 				document.getElementById('debug-show-tile-bounds').checked = settings.showTileBounds || false;

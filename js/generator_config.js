@@ -44,7 +44,7 @@ export const GENERATOR_CONFIG = {
     'pyramid_right': { color: 0xff968f96, hasStuff: false, name: "Pyramid (Right)" },
     'pyramid_entrance': { color: 0xff967f5f, hasStuff: false, name: "Pyramid (Entrance)" },
     'pyramid_left': { color: 0xff968f5f, hasStuff: false, name: "Pyramid (Left)" },
-    'pyramid_top': { color: 0xffc88f5f, name: "Pyramid Boss"},
+    'pyramid_top': { color: 0xffc88f5f, name: "Pyramid (Top)"},
     'secret_lab': { color: 0xffbaa345, name: "Abandoned Alchemy Lab" },
     'wizardcave_entrance': { color: 0xff804169, name: "Triangle Boss"},
     'dragoncave': { color: 0xff364d24, name: "Dragoncave" },

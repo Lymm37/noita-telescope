@@ -144,8 +144,7 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
 
 export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP, gameMode='normal') {
 	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
-    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
-	
+    
     let biomeMap = biomeData.pixels;
     if (pwIndexVertical < 0) {
         biomeMap = biomeData.heavenPixels;
@@ -259,7 +258,6 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
 // TODO: This is both currently broken and very slow, but the idea is that it covers some outer edges of the biome in order to fill in the wavy chunk edges
 export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, pwIndex, pwIndexVertical, isNGP, gameMode='normal') {
 	if (!appSettings.enableEdgeNoise) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
-    //if (!document.getElementById('debug-enable-edge-noise').checked) return createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVertical, isNGP, gameMode); // Edge noise is the main reason this is so expensive, so if it's disabled just do the cheap version which also skips the seam filling logic
     
     let biomeMap = biomeData.pixels;
     if (pwIndexVertical < 0) {
