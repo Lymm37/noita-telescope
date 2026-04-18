@@ -728,15 +728,16 @@ export const PIXEL_SCENE_BIOME_MAP = {
 	"the_sky": THE_SKY_SCENES,
 	"the_end": THE_END_SCENES,
 	"temple_altar": TEMPLE_ALTAR_SCENES,
-	"solid_wall_tower_1": TOWER_SCENES,
-	"solid_wall_tower_2": TOWER_SCENES,
-	"solid_wall_tower_3": TOWER_SCENES,
-	"solid_wall_tower_4": TOWER_SCENES,
-	"solid_wall_tower_5": TOWER_SCENES,
-	"solid_wall_tower_6": TOWER_SCENES,
-	"solid_wall_tower_7": TOWER_SCENES,
-	"solid_wall_tower_8": TOWER_SCENES,
-	"solid_wall_tower_9": TOWER_SCENES,
+	// (Note that the tower biomes do not have pixel scenes, aside from the general ones like wand/potion pedestals)
+	"solid_wall_tower_1": TOWER_SCENES, // Mines
+	"solid_wall_tower_2": TOWER_SCENES, // Coal Pits
+	"solid_wall_tower_3": TOWER_SCENES, // Snowy Depths
+	"solid_wall_tower_4": TOWER_SCENES, // Hiisi Base
+	"solid_wall_tower_5": TOWER_SCENES, // Fungal Caverns
+	"solid_wall_tower_6": TOWER_SCENES, // Underground Jungle
+	"solid_wall_tower_7": TOWER_SCENES, // The Vault
+	"solid_wall_tower_8": TOWER_SCENES, // Temple of the Art
+	"solid_wall_tower_9": TOWER_SCENES, // Hell
 	"excavationsite_cube_chamber": EXCAVATIONSITE_CUBE_CHAMBER_SCENES,
 	"snowcave_secret_chamber": SNOWCAVE_SECRET_CHAMBER_SCENES,
 	"snowcastle_cavern": SNOWCASTLE_CAVERN_SCENES,

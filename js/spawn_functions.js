@@ -30,14 +30,15 @@ const BIOME_TIERS = {
 	'the_sky': 10,
 	// Unclear what the shop level for the tower is, seems like it can just spawn any spell, I thought it was tier 10 but maybe it's just depth-dependent (null)
 	// File seems to indicate 6?
-	'solid_wall_tower_1': 6,
-	'solid_wall_tower_2': 6,
-	'solid_wall_tower_3': 6,
-	'solid_wall_tower_4': 6,
-	'solid_wall_tower_5': 6,
-	'solid_wall_tower_6': 6,
-	'solid_wall_tower_7': 6,
-	'solid_wall_tower_8': 6,
+	'solid_wall_tower_1': 6, // Mines
+	'solid_wall_tower_2': 6, // Coal Pits
+	'solid_wall_tower_3': 6, // Snowy Depths
+	'solid_wall_tower_4': 6, // Hiisi Base
+	'solid_wall_tower_5': 6, // Fungal Caverns
+	'solid_wall_tower_6': 6, // Underground Jungle
+	'solid_wall_tower_7': 6, // The Vault
+	'solid_wall_tower_8': 6, // Temple of the Art
+	'solid_wall_tower_9': 6, // Hell, not actually reachable in overlaps because it doesn't exist in NG+, but probably worth including for completeness
 }
 
 // TODO: Might still need to block out rooms for some of these?

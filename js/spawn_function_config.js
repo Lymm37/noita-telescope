@@ -474,22 +474,22 @@ export const BIOME_SPAWN_FUNCTION_MAP = {
 	"liquidcave": [...DEFAULT_SPAWNS, ...LIQUIDCAVE_SPAWNS],
 	"robobase": [...DEFAULT_SPAWNS, ...ROBOBASE_SPAWNS],
 	"sandcave": [...DEFAULT_SPAWNS, ...SANDCAVE_SPAWNS],
-	"winter_caves": [...DEFAULT_SPAWNS, ...SNOWCHASM_SPAWNS],
+	"winter_caves": [...DEFAULT_SPAWNS, ...SNOWCHASM_SPAWNS], // Snowy Chasm
 	"clouds": [...DEFAULT_SPAWNS, ...CLOUDS_SPAWNS],
 	"the_sky": [...DEFAULT_SPAWNS, ...THE_SKY_SPAWNS],
 	"the_end": [...DEFAULT_SPAWNS, ...THE_END_SPAWNS],
 	"temple_altar": [...DEFAULT_SPAWNS, ...TEMPLE_ALTAR_SPAWNS],
 	"meat": [...DEFAULT_SPAWNS, ...MEAT_SPAWNS],
 	"lake_deep": [...DEFAULT_SPAWNS, ...LAKE_DEEP_SPAWNS],
-	"solid_wall_tower_1": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_2": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_3": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_4": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_5": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_6": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_7": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_8": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
-	"solid_wall_tower_9": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS],
+	"solid_wall_tower_1": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Mines
+	"solid_wall_tower_2": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Coal Pits
+	"solid_wall_tower_3": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Snowy Depths
+	"solid_wall_tower_4": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Hiisi Base
+	"solid_wall_tower_5": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Fungal Caverns
+	"solid_wall_tower_6": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Underground Jungle
+	"solid_wall_tower_7": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // The Vault
+	"solid_wall_tower_8": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Temple of the Art
+	"solid_wall_tower_9": [...DEFAULT_SPAWNS, ...TOWER_SPAWNS], // Hell
 	"snowcastle_cavern": [...DEFAULT_SPAWNS, ...SNOWCASTLE_CAVERN_SPAWNS],
 	"excavationsite_cube_chamber": [...DEFAULT_SPAWNS, ...EXCAVATIONSITE_CUBE_CHAMBER_SPAWNS],
 	"robot_egg": [...DEFAULT_SPAWNS, ...ROBOT_EGG_SPAWNS],
