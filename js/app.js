@@ -1072,7 +1072,9 @@ export const app = {
 			// Get biome
 			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP, this.gameMode);
 			if (biomeResult && biomeResult.biome) {
-				biomeName = `<br>Biome: ${getDisplayName(biomeResult.biome)}`;
+				// For the display name, let's just use the generator config
+				const biomeDisplayName = GENERATOR_CONFIG[biomeResult.biome]?.name || biomeResult.biome;
+				biomeName = `<br>Biome: ${biomeDisplayName}`;
 				if (this.biomeModifiers && this.biomeModifiers[biomeResult.biome]) {
 					const biomeModifier = this.biomeModifiers[biomeResult.biome];
 					const biomeModifierName = getDisplayName(biomeModifier.id);

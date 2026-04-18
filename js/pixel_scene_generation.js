@@ -204,18 +204,10 @@ export function blockOutRooms(pixels, width, height) {
 }
 
 const CHECK_PIXEL_SCENE_BIOME = true;
-const PIXEL_SCENES_WITHOUT_BOUNDS_CHECK = [
-	//"trailer_altar", // Nope this doesn't work
-]
-// TODO: This offset apparently works but I don't think it makes sense, so I am probably still misunderstanding exactly how it checks the bounds for pixel scenes
-// Seed for debug: 119164939
+
+// Trailer altar example for validating that the bounds check is working correctly:
+// Seed: 119164939, NG+1
 // Appears in PW 0, disappears in PW -1, second one appears in PW 9
-// Without the offset they don't appear until PW 8 / 17
-// Visually the main world one is nearly split down the middle between biomes even with the edge noise,
-// which seemingly contradicts my assumption that the bounds check looks for all 4 corners being in the same biome
-const PIXEL_SCENE_BOUNDS_OFFSET = {
-	"trailer_altar": {x: -67, y: 0},
-}
 
 // TODO: Refactoring pixel scenes to not do the image manipulation here at all
 // Instead do it in the overlay worker when generating for display
@@ -232,21 +224,13 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		// If the scene is purely cosmetic and we're skipping cosmetic scenes, skip it
 		return null;
 	}
-	// Top-left wobbled-biome check for direct/Lua-placed scenes
-	// (skip_biome_checks=true in the engine — e.g. snowcave.lua's
-	// `LoadPixelScene(..., true)` for wand_altar / snowperson / statue_hand).
-	// Mirrors Noita's PixelScene_PlaceEntryIfValid at noita.exe 0x0087d7e0
-	// which only resolves the top-left chunk and places iff that chunk's
-	// biome_data_ptr is non-null. Accept when telescope resolved a
-	// tile-having biome name OR the color is in data/biome_flags.json
-	// (proxy for biome_data_ptr != 0, covers desert/lava/HM-side shades).
-	// Random picks (via loadRandomPixelScene below) use skip=false and get
-	// a stricter 4-corner check — see scripts/director_helpers.lua:218 which
-	// always passes skip_biome_checks=false for g_pixel_scene_* rolls.
-	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_BIOME && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
-		const boundsOffset = PIXEL_SCENE_BOUNDS_OFFSET[sceneName] || {x: 0, y: 0};
-		const topLeft = getBiomeAtWorldCoordinates(biomeData, x + boundsOffset.x, y + boundsOffset.y, ng > 0, gameMode);
+	// checkBounds matches the skip_biome_checks parameter and only checks the top-left corner, while randomly placed pixel scenes check all corners
+	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_BIOME) {
+		const topLeft = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
+		// Check wobbled biome based on edge noise
 		if (!topLeft.biome && biomeEdgeNoiseFlag(topLeft.colorInt, 'noise_biome_edges') === null) {
+			// This does not appear to ever trigger?
+			console.log(`Rejected spawn for pixel scene ${sceneName} at (${x}, ${y}) with unknown biome color ${topLeft.colorInt.toString(16)} in original biome ${biomeName}. This likely means the biome map is missing colors from the data.wak unpack, such as NG+ palette swaps. Accepting spawn but returning null biome so it can be recolored without a biome-specific variant.`);
 			return null;
 		}
 	}
@@ -326,30 +310,19 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				//spawnPoints: pixelSceneData.spawnPoints,
 				type: 'pixel_scene'
 			};
-			// Strict 4-corner biome check for random picks. The engine
-			// calls these with skip_biome_checks=false (see
-			// scripts/director_helpers.lua:218 —
-			// `LoadPixelScene(..., false, ...)`), and at paint time drops
-			// any whose footprint straddles biome boundaries. Modeling
-			// only the top-left like PixelScene_PlaceEntryIfValid does
-			// would miss that paint-time cull and produce phantoms
-			// (e.g. a snowcave verticalobservatory whose bottom corners
-			// spill into the Holy Mountain chunk below).
+			// Check all four corners to make sure they are in the same biome
 			if (CHECK_PIXEL_SCENE_BIOME) {
 				const w = pixelSceneData.width;
 				const h = pixelSceneData.height;
 				const corners = [
-					[x,       y      ],
-					[x + w-1, y      ],
-					[x,       y + h-1],
+					[x, y],
+					[x + w-1, y],
+					[x, y + h-1],
 					[x + w-1, y + h-1],
 				];
 				for (const [cx, cy] of corners) {
 					const res = getBiomeAtWorldCoordinates(biomeData, cx, cy, ng > 0, gameMode);
-					// Reject if the corner's wobbled biome is anything
-					// other than the target. Null (no-tile) counts as a
-					// mismatch — random picks only originate inside
-					// wang-tiled biomes, so all corners must land in one.
+					// Reject if the corner's wobbled biome is different (including null)
 					if (res.biome !== biomeName) {
 						return null;
 					}

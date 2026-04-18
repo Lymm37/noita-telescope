@@ -238,20 +238,24 @@ export function GetTrueChunkPosIdAt(x, y, isNGP = false, highDetail=true, gameMo
 	*/
 }
 
-// Mirrors the sincos+simplex branch of Noita's
-// ChunkGrid_ResolveChunkAtPosition @ 0x0087d9a0 step 7. The engine has a
-// separate simplex-only branch for `big_noise_biome_edges == 0` on either
-// side of the edge, but no biome in the known data.wak declares that
-// attribute — so telescope only models this branch.
-function GetWobbledBiome(shifted_x, shifted_y, highDetail = true) {
+// Assuming all biomes have the sincos wobble
+// Note that in the future, if any biomes have `big_noise_biome_edges == 0` on either side of the edge, they will have sincosWobble false
+function GetWobbledBiome(shifted_x, shifted_y, highDetail = true, sincosWobble = true) {
 	let x2 = 0;
 	let y2 = 0;
-	if (highDetail)
-		y2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
-	let dVar1 = Math.sin(shifted_y * 0.005);
-	x2 = Math.cos(shifted_x * 0.005);
-	x2 = x2 * 30.0 + y2 * 11.0;
-	y2 = dVar1 * 30.0 + y2 * 11.0;
+	if (!sincosWobble) {
+		if (highDetail)
+			x2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
+		x2 = x2 * 2.5;
+		y2 = x2;
+	} else {
+		if (highDetail)
+			y2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
+		let dVar1 = Math.sin(shifted_y * 0.005);
+		x2 = Math.cos(shifted_x * 0.005);
+		x2 = x2 * 30.0 + y2 * 11.0;
+		y2 = dVar1 * 30.0 + y2 * 11.0;
+	}
 	return SampleBiome(Math.floor(y2 + shifted_x) >> 9, Math.floor(x2 + shifted_y) >> 9);
 }
 
