@@ -11,8 +11,6 @@ const sqrt336 = (3 - Math.sqrt(3)) / 6;
 const BASE_Y = 512*14;
 //const BIOME_W = 70; // TODO: Change for world size?
 const BIOME_H = 48;
-const SINCOS_WOBBLE = true; // If false, just use noise part, no sin/cos wobble
-
 const EDGE_NOISE_2 = [];
 const EDGE_NOISE_M12 = [];
 
@@ -240,25 +238,20 @@ export function GetTrueChunkPosIdAt(x, y, isNGP = false, highDetail=true, gameMo
 	*/
 }
 
-// Originally had unused biome, new_x, and new_y..?
+// Mirrors the sincos+simplex branch of Noita's
+// ChunkGrid_ResolveChunkAtPosition @ 0x0087d9a0 step 7. The engine has a
+// separate simplex-only branch for `big_noise_biome_edges == 0` on either
+// side of the edge, but no biome in the known data.wak declares that
+// attribute — so telescope only models this branch.
 function GetWobbledBiome(shifted_x, shifted_y, highDetail = true) {
-	//let newBiome = SampleBiome(new_x, new_y); // Unused
 	let x2 = 0;
 	let y2 = 0;
-	if (!SINCOS_WOBBLE) {
-		if (highDetail)
-			x2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
-		x2 = x2 * 2.5;
-		y2 = x2;
-	} else {
-		if (highDetail)
-			y2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
-		let dVar1 = Math.sin(shifted_y * 0.005);
-		x2 = Math.cos(shifted_x * 0.005);
-		x2 = x2 * 30.0 + y2 * 11.0;
-		y2 = dVar1 * 30.0 + y2 * 11.0;
-	}
-	// let oldBiome = biome;
+	if (highDetail)
+		y2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
+	let dVar1 = Math.sin(shifted_y * 0.005);
+	x2 = Math.cos(shifted_x * 0.005);
+	x2 = x2 * 30.0 + y2 * 11.0;
+	y2 = dVar1 * 30.0 + y2 * 11.0;
 	return SampleBiome(Math.floor(y2 + shifted_x) >> 9, Math.floor(x2 + shifted_y) >> 9);
 }
 

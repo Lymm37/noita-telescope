@@ -427,3 +427,55 @@ decided:                    183
 ```
 
 No regression.
+
+## After XML-attribute passthrough
+
+`scripts/generate.mjs biome-flags` now emits edge-noise attributes under
+their verbatim XML names (`noise_biome_edges`, `fat_biome_edges`), and
+`js/wobble_flags.js` exposes them via `biomeEdgeNoiseFlag(color, attr)`.
+The old `colorWobbleVerdict` three-valued API is gone, along with the
+invented `wobbleIneligible` field in `data/biome_flags.json`.
+`big_noise_biome_edges` (+0xC5) would switch the resolver to its
+simplex-only branch, but no biome in the Jan 25 2025 unpack declares it
+— so the generator skips it and `GetWobbledBiome` keeps its single
+sincos+simplex path. `fat_biome_edges` is passed through (13 biomes
+declare it) but has no consumer yet.
+
+### Wobble — `node scripts/verify.mjs --only=wobble`
+
+```
+coords processed:           79919
+telescope returned null:    8734
+decided (both have name):   71185
+  agree:                    71185  (100.00% of decided)
+  wrong biome:              0
+chunk-index agreement:      79919/79919  (100.00%)
+
+By wobble decision (Noita's classification):
+  no-differing-neighbor     46082 total,    625 null,  45457/45457 name (100.0%),  46082/46082 chunk (100.0%)
+  sin-cos+simplex           23493 total,   8109 null,  15384/15384 name (100.0%),  23493/23493 chunk (100.0%)
+  skipped-flags             10344 total,      0 null,  10344/10344 name (100.0%),  10344/10344 chunk (100.0%)
+```
+
+No regression — the offset-branch switch is exactly a no-op for this
+fixture, as expected.
+
+### Biome catalogue — `node scripts/verify.mjs --only=biomes`
+
+```
+noita chunks dumped: 1868, decided: 1868
+  agree:                 1868  (100.0%)
+```
+
+### Pixel scenes — `node scripts/verify.mjs --only=pixel-scenes --top-left-only`
+
+```
+pixel scenes in fixture:    503
+size missing (skip):        79
+decided:                    424
+  telescope ACCEPT:         424  (100.00%)
+  telescope REJECT:         0  (0.00%)
+```
+
+Fixture has grown since the Task C receipt (183 → 424 decided) as new
+noitrainer dumps have been added; 100% acceptance holds.

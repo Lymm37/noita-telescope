@@ -157,8 +157,9 @@ export const BIOME_COLORS_WITH_TILES = new Set(Object.values(GENERATOR_CONFIG).f
 
 // Holy-mountain-region chunk colors used by static_spawns.js as a proxy
 // for "this column is a holy mountain basin" when placing altar_top pixel
-// scenes. Not a wobble-eligibility source — use colorWobbleVerdict in
-// wobble_flags.js (backed by data/biome_flags.json) for that.
+// scenes. Not a wobble-eligibility source — use
+// biomeEdgeNoiseFlag(color, 'noise_biome_edges') in wobble_flags.js (backed
+// by data/biome_flags.json) for that.
 export const HOLY_MOUNTAIN_REGION_COLORS = new Set([
     0x93cb4c, 0x93cb4d, 0x93cb4e, 0x93cb4f, 0x93cb5a, // temple_altar variants
     0x6dcb28, 0xB8A928, 0x5a9628,                       // temple_wall variants

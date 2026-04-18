@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { createCanvas, loadImage } from 'canvas';
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES, GENERATOR_CONFIG } from '../js/generator_config.js';
-import { colorWobbleVerdict } from '../js/wobble_flags.js';
+import { biomeEdgeNoiseFlag } from '../js/wobble_flags.js';
 
 // ----- world-size constants (from js/utils.js getWorldSize/getWorldCenter) -----
 
@@ -38,7 +38,6 @@ const sqrt312 = (Math.sqrt(3) - 1) / 2;
 const sqrt336 = (3 - Math.sqrt(3)) / 6;
 const BASE_Y = 512 * 14;
 const BIOME_H = 48;
-const SINCOS_WOBBLE = true;
 
 const EDGE_NOISE_2 = [];
 const EDGE_NOISE_M12 = [];
@@ -126,17 +125,11 @@ export function GetTrueChunkPosIdAt(x, y, isNGP = false, highDetail = true, game
 function GetWobbledBiome(shifted_x, shifted_y, highDetail = true) {
     let x2 = 0;
     let y2 = 0;
-    if (!SINCOS_WOBBLE) {
-        if (highDetail) x2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
-        x2 = x2 * 2.5;
-        y2 = x2;
-    } else {
-        if (highDetail) y2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
-        const dVar1 = Math.sin(shifted_y * 0.005);
-        x2 = Math.cos(shifted_x * 0.005);
-        x2 = x2 * 30.0 + y2 * 11.0;
-        y2 = dVar1 * 30.0 + y2 * 11.0;
-    }
+    if (highDetail) y2 = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
+    const dVar1 = Math.sin(shifted_y * 0.005);
+    x2 = Math.cos(shifted_x * 0.005);
+    x2 = x2 * 30.0 + y2 * 11.0;
+    y2 = dVar1 * 30.0 + y2 * 11.0;
     return SampleBiome(Math.floor(y2 + shifted_x) >> 9, Math.floor(x2 + shifted_y) >> 9);
 }
 
@@ -187,7 +180,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
         const origIdx = originalY * mapWidth + originalX;
         const origColorInt = biomeMap[origIdx] & 0xffffff;
         const origBiomeName = BIOME_COLOR_TO_NAME[origColorInt];
-        const colorIneligible = (color) => colorWobbleVerdict(color) === 'ineligible';
+        const colorIneligible = (color) => biomeEdgeNoiseFlag(color, 'noise_biome_edges') === 0;
         let skipWobble = colorIneligible(origColorInt) || colorIneligible(colorInt);
         if (!skipWobble) {
             const subWX = ((worldX % 512) + 512) % 512;

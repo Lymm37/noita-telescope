@@ -36,7 +36,7 @@ import {
     readDump,
 } from './_engine_shim.js';
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from '../js/generator_config.js';
-import { colorWobbleVerdict } from '../js/wobble_flags.js';
+import { biomeEdgeNoiseFlag } from '../js/wobble_flags.js';
 import { renderBiomesDiff, renderPixelScenes, renderWobbleHeatmap } from './_visual.mjs';
 
 const DEFAULTS = {
@@ -374,8 +374,8 @@ function checkBoundsTopLeftOnly(biomeData, x, y) {
     const tl = getBiomeAtWorldCoordinates(biomeData, x, y, false, 'normal');
     if (!tl) return { ok: false, biomeName: null, reason: 'top-left unresolved' };
     if (tl.biome) return { ok: true, biomeName: tl.biome };
-    const verdict = colorWobbleVerdict(tl.colorInt);
-    if (verdict !== 'unknown') return { ok: true, biomeName: '(no-tile biome)' };
+    const known = biomeEdgeNoiseFlag(tl.colorInt, 'noise_biome_edges') !== null;
+    if (known) return { ok: true, biomeName: '(no-tile biome)' };
     return { ok: false, biomeName: null, reason: `top-left null, color 0x${tl.colorInt.toString(16).padStart(6, '0')} not in catalogue` };
 }
 

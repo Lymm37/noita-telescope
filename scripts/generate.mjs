@@ -1,11 +1,15 @@
 // Generate data used by the verification pipeline.
 //
 //   node scripts/generate.mjs biome-flags [--src=PATH] [--out=PATH] [-v]
-//     Walk a Noita data.wak unpack and emit `data/biome_flags.json`
-//     — one `{color, xmlName, wobbleIneligible?}` entry per biome-map color,
-//     consumed by `js/wobble_flags.js` and `js/generator_config.js`.
-//     `wobbleIneligible: true` means the biome XML has
-//     `noise_biome_edges="0"`; absent means eligible (the default).
+//     Walk a Noita data.wak unpack and emit `data/biome_flags.json` — one
+//     `{color, xmlName, noise_biome_edges?, fat_biome_edges?}` entry per
+//     biome-map color, consumed by `js/wobble_flags.js` and
+//     `js/generator_config.js`. The listed edge-noise attributes are
+//     passed through verbatim from the biome XML (registered in
+//     Biome_ConstructorAndRegisterFields @ noita.exe; +0xC4 / +0xC6 on
+//     BiomeChunk). Each is only emitted when the biome's XML declares it.
+//     `big_noise_biome_edges` (+0xC5) isn't declared on any biome in the
+//     known unpack, so it's omitted here too.
 //     Re-run after each Noita update; check the regenerated JSON in.
 //
 //   node scripts/generate.mjs sample-coords [--input=PATH] [--mode=MODE] [--step=16]
@@ -70,10 +74,23 @@ function readBiomeXml(srcRoot, biomeFilename) {
     return readFileSync(path, 'utf8');
 }
 
+// Edge-noise-related biome XML attributes, listed in their per-chunk
+// struct offset order (+0xC4, +0xC6) as registered by
+// Biome_ConstructorAndRegisterFields in noita.exe. Each is passed through
+// verbatim when the XML sets it; consumers (js/wobble_flags.js) supply the
+// per-attribute default when the XML is silent. `big_noise_biome_edges`
+// (+0xC5) is registered by the engine but no biome declares it, so it's
+// omitted here.
+const EDGE_NOISE_ATTRS = ['noise_biome_edges', 'fat_biome_edges'];
+
 function parseBiomeXml(xml) {
-    const noise = xmlAttr(xml, 'noise_biome_edges');
-    // Default is eligible when the attribute is absent.
-    return { noiseBiomeEdges: noise === null ? true : noise !== '0' };
+    const out = {};
+    for (const attr of EDGE_NOISE_ATTRS) {
+        const raw = xmlAttr(xml, attr);
+        if (raw === null) continue;
+        out[attr] = raw === '0' ? 0 : 1;
+    }
+    return out;
 }
 
 function normalizeColor(raw) {
@@ -109,13 +126,14 @@ function runBiomeFlags(argv) {
         }
         const xml = parseBiomeXml(xmlText);
         const xmlName = basename(biomeFilename).replace(/\.xml$/, '');
-        const entry = { color: '0x' + color, xmlName };
-        if (!xml.noiseBiomeEdges) entry.wobbleIneligible = true;
+        const entry = { color: '0x' + color, xmlName, ...xml };
         if (colorIndex.has(color)) {
             const existing = biomes[colorIndex.get(color)];
-            if (!!existing.wobbleIneligible !== !xml.noiseBiomeEdges) {
-                warnings++;
-                console.warn(`[warn] color 0x${color}: ${existing.xmlName} (e=${!existing.wobbleIneligible}) vs ${xmlName} (e=${xml.noiseBiomeEdges})`);
+            for (const attr of EDGE_NOISE_ATTRS) {
+                if (existing[attr] !== xml[attr]) {
+                    warnings++;
+                    console.warn(`[warn] color 0x${color}: ${existing.xmlName} ${attr}=${existing[attr] ?? '(absent)'} vs ${xmlName} ${attr}=${xml[attr] ?? '(absent)'}`);
+                }
             }
             continue;
         }
@@ -125,16 +143,21 @@ function runBiomeFlags(argv) {
 
     biomes.sort((a, b) => a.color.localeCompare(b.color));
 
+    const setCounts = Object.fromEntries(
+        EDGE_NOISE_ATTRS.map((a) => [a, biomes.filter((b) => a in b).length])
+    );
+
     const out = {
         generated: 'scripts/generate.mjs biome-flags',
         source: basename(opts.src),
         biomeCount: biomes.length,
-        ineligibleCount: biomes.filter((b) => b.wobbleIneligible).length,
+        xmlSetCounts: setCounts,
         biomes,
     };
 
     writeFileSync(opts.out, JSON.stringify(out, null, 2) + '\n');
-    console.log(`wrote ${biomes.length} biomes (${out.ineligibleCount} ineligible) to ${opts.out}`);
+    const summary = EDGE_NOISE_ATTRS.map((a) => `${a}: ${setCounts[a]}`).join(', ');
+    console.log(`wrote ${biomes.length} biomes (XML-set counts — ${summary}) to ${opts.out}`);
     if (warnings) console.log(`(${warnings} warnings; run with -v for detail)`);
 }
 

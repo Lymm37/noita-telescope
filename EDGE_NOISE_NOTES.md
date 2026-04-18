@@ -18,15 +18,18 @@ The biome chunk grid lives at `WorldManager + 0x48` (a.k.a.
 the chunk pointers are stored at `BiomeGrid + 0x68` indexed by
 `cy * width + cx`.
 
-Per-chunk fields used by edge resolution:
+Per-chunk fields used by edge resolution. The three edge-noise bytes
+(+0xC4/+0xC5/+0xC6) are set from biome XML attributes registered by
+`Biome_ConstructorAndRegisterFields` via `ConfigBase_RegisterField`; the
+metadata comment strings below are verbatim from the engine.
 
-| offset | type | meaning |
-| --- | --- | --- |
-| `+0x08` | `MsvcString` | biome name, e.g. `$biome_holymountain` |
-| `+0xC4` | `u8`         | wobble eligible. `0` ⇒ never wobble at this chunk. Sourced from the biome XML's `noise_biome_edges` attribute (default `1`). |
-| `+0xC5` | `u8`         | wavy edge. With `0` on either side of an edge, only the simplex part of the wobble is applied. |
-| `+0xC6` | `u8`         | force-original. Non-zero short-circuits to original. |
-| `+0x2A4` | `ptr`       | biome data pointer. Non-null gates pixel-scene placement. |
+| offset | type | XML attribute | meaning |
+| --- | --- | --- | --- |
+| `+0x08`  | `MsvcString` | — | biome name, e.g. `$biome_holymountain` |
+| `+0xC4`  | `u8` | `noise_biome_edges` | *"does the noisy edge for biomes, if either of biomes has this set to 0 will do a straight edge"* — default `1`, gates the whole wobble. |
+| `+0xC5`  | `u8` | `big_noise_biome_edges` | *"if true, will leak onto other biomes and not be carveable"* — default `1`. When `0` on either side of an edge, the resolver drops the sin/cos term and uses simplex-only (`dx = dy = s * 2.5`). No biome in the Jan 25 2025 unpack declares this attribute, so the simplex-only branch is unreached in practice. |
+| `+0xC6`  | `u8` | `fat_biome_edges` | *"if true, will leak onto other biomes and not be carveable"* — default `0`. Non-zero short-circuits to the original chunk. Twelve solid-wall / teleroom biomes explicitly declare `fat_biome_edges="0"` (redundant with the default). |
+| `+0x2A4` | `ptr` | — | biome data pointer. Non-null gates pixel-scene placement. |
 
 ### `ChunkGrid_ResolveChunkAtPosition` (`0x0087d9a0`)
 
@@ -34,7 +37,7 @@ For world position `(wx, wy)` with `sx = wx + xShift`, `sy = wy + yShift`,
 sub-chunk coords `subX = sx & 0x1FF`, `subY = sy & 0x1FF`, and
 `original = chunks[chunk_y][chunk_x]`:
 
-1. If `original.wobbleEligible == 0` or `original.forceOriginal != 0`,
+1. If `original.noise_biome_edges == 0` or `original.fat_biome_edges != 0`,
    return `original`.
 2. Walk relevant neighbor directions in this fixed order, stopping at the
    **first** with a different `Chunk*`:
@@ -44,11 +47,11 @@ sub-chunk coords `subX = sx & 0x1FF`, `subY = sy & 0x1FF`, and
      SE only if `subX > 470 && subY > 470`
    - if none of the probed directions yield a different chunk, return
      `original`.
-3. Re-fetch that specific neighbor. If `neighbor.wobbleEligible == 0`,
+3. Re-fetch that specific neighbor. If `neighbor.noise_biome_edges == 0`,
    return `original`.
 4. Compute the wobble offset:
    - `s = simplex(sx * 0.05, sy * 0.05) * 70`
-   - if `original.wavyEdge == 0` or `neighbor.wavyEdge == 0`:
+   - if `original.big_noise_biome_edges == 0` or `neighbor.big_noise_biome_edges == 0`:
      `dx = dy = s * 2.5` (simplex-only)
    - otherwise:
      `dx = cos(sx * 0.005) * 30 + s * 11`
@@ -59,7 +62,7 @@ sub-chunk coords `subX = sx & 0x1FF`, `subY = sy & 0x1FF`, and
    `BiomeGrid_GetChunkAt` (noita.exe @ 0x0087d870) call
    `(grid, (dVar10+dVar13)>>9, (dVar12+dVar9)>>9)`, `dVar10` is the
    sin/Y branch and `dVar12` is the cos/X branch.)
-6. If `wobbled.wobbleEligible == 0`, return `original`. Otherwise return
+6. If `wobbled.noise_biome_edges == 0`, return `original`. Otherwise return
    `wobbled`.
 
 The simplex helper is the standard 2D Simplex noise from telescope's
@@ -99,49 +102,64 @@ There is no all-corners-must-match-the-biome check.
 
 ## Source of truth: biome XMLs (`data.wak`)
 
-The `+0xC4` byte is set from the per-biome XML's `noise_biome_edges`
-attribute (`0` ⇒ ineligible, absent or `1` ⇒ eligible). The mapping from
-biome-map RGB color to biome XML is in `biome/_biomes_all.xml`.
+The +0xC4/+0xC5/+0xC6 bytes are set from the per-biome XML's
+`noise_biome_edges`, `big_noise_biome_edges`, and `fat_biome_edges`
+attributes. The mapping from biome-map RGB color to biome XML is in
+`biome/_biomes_all.xml`.
 
 `scripts/generate.mjs biome-flags` walks both and emits
 `data/biome_flags.json`: one entry per known biome color with
-`{color, xmlName, wobbleIneligible?}` (`wobbleIneligible: true` when
-the XML sets `noise_biome_edges="0"`; absent means the default/eligible
-case).
-Re-run after a Noita update with `--src=PATH --out=PATH`.
+`{color, xmlName, noise_biome_edges?, fat_biome_edges?}`. Each
+edge-noise attribute is passed through verbatim; the field is only
+present when the biome's XML declares it (absence means "engine default
+applies", and the defaults live in `js/wobble_flags.js`).
+`big_noise_biome_edges` (+0xC5) is a real XML attribute that would
+swap the resolver to its simplex-only branch, but no biome in the
+known data.wak unpack declares it — so the generator skips it and
+telescope only models the sincos+simplex branch. If a future unpack
+introduces a biome with `big_noise_biome_edges="0"`, re-add it to
+`EDGE_NOISE_ATTRS` in the generator and thread a branch-selector
+through `GetBiomeOffset` / `GetWobbledBiome`. Re-run after a Noita
+update with `--src=PATH --out=PATH`.
 
 `js/wobble_flags.js` consumes that JSON and exposes
-`colorWobbleVerdict(color) → 'ineligible' | 'eligible' | 'unknown'`.
+`biomeEdgeNoiseFlag(colorInt, attr)` — returns the biome's value for
+`attr` (one of the three XML names), falling back to the documented
+engine default if the XML doesn't declare it, or `null` if the biome-map
+color isn't in the catalogue.
 
 ## Telescope's model and known divergences
 
 `utils.js getBiomeAtWorldCoordinates` reads the biome map at the original
 chunk position and applies an edge offset from `edge_noise.js
-GetBiomeOffset`. The wobble math itself matches Noita's binary; the
-remaining divergences are upstream of the math:
+GetBiomeOffset`. The sincos+simplex path in `GetWobbledBiome` matches
+Noita's binary; the simplex-only branch (gated on
+`big_noise_biome_edges`) is unmodelled because no biome declares the
+attribute.
 
 1. **Wobble eligibility — proxy by color, not chunk.** Noita keys it
-   on the per-chunk `+0xC4` byte (sourced from biome XML). Telescope
-   keys it on biome-map color via `wobble_flags.js`. The proxy holds
-   because each color maps to exactly one biome XML — including
-   variant shades like the HM entrance column (cx=35) using
-   `temple_altar_right_snowcastle.xml` with `noise_biome_edges="1"`
-   while neighboring HM tiles use `temple_altar.xml` with `="0"`.
+   on the per-chunk `+0xC4` byte. Telescope keys it on biome-map color
+   via `biomeEdgeNoiseFlag(color, 'noise_biome_edges')`. The proxy holds
+   because each color maps to exactly one biome XML — including variant
+   shades like the HM entrance column (cx=35) using
+   `temple_altar_right_snowcastle.xml` with `noise_biome_edges="1"` while
+   neighboring HM tiles use `temple_altar.xml` with `="0"`.
 
 2. **Eager wobble — telescope wobbles for any sub-position, doesn't
    require a differing neighbor first.** `GetTrueChunkPosIdAt` always
    wobbles when `subX/subY` is in `[0..41] ∪ [471..510]`. Noita
    pre-checks that some neighbor in the wobble direction is a different
-   chunk pointer and stops early if not. Telescope's eager wobble
-   usually lands in a same-named neighbor (so biome name agrees), but
-   the resolved chunk index differs about 25% of the time inside edge
-   zones. Affects spawn placement, not biome name resolution.
+   chunk pointer and stops early if not. `getBiomeAtWorldCoordinates`
+   runs its own probe to recover the same short-circuit behavior
+   (`chunk-index agreement: 100.00%`), and reuses the probe's first
+   differing neighbor to pick the sincos+simplex vs simplex-only branch.
 
-3. **NG+ palette gaps.** `js/wobble_flags.js` is sourced from the
-   static biome XML data (NG-tier-independent). If an NG+ palette swap
-   ever introduces a color not in `_biomes_all.xml`, `colorWobbleVerdict`
-   returns `'unknown'` and the wobble runs normally — regenerate
-   `data/biome_flags.json` from the new unpack to fix.
+3. **NG+ palette gaps.** `js/wobble_flags.js` is sourced from the static
+   biome XML data (NG-tier-independent). If an NG+ palette swap ever
+   introduces a color not in `_biomes_all.xml`,
+   `biomeEdgeNoiseFlag(color, ...)` returns `null` and the caller falls
+   back to the engine default — regenerate `data/biome_flags.json` from
+   the new unpack to fix.
 
 ## Verification harness
 
