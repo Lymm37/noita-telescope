@@ -337,6 +337,7 @@ export const app = {
 		document.getElementById('debug-original-biome-map').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-small-pois').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-fix-holy-mountain-edge-noise').onchange = () => {this.saveSettings(); this.generate(true, true);};
+		document.getElementById('debug-block-edge-spawns').onchange = () => {this.saveSettings(); this.generate(true, true);};
 		document.getElementById('show-enemy-spawns').onchange = () => {this.saveSettings(); this.generate(true, true);};
 		document.getElementById('enable-hamis-hints').onchange = () => {this.saveSettings();};
 		document.getElementById('clear-spawn-pixels').onchange = () => {
@@ -2395,6 +2396,7 @@ export const app = {
 			hidePois: document.getElementById('debug-hide-pois').checked,
 			originalBiomeMap: document.getElementById('debug-original-biome-map').checked,
 			enableEdgeNoise: document.getElementById('enable-edge-noise').checked,
+			blockEdgeSpawns: document.getElementById('debug-block-edge-spawns').checked,
 			edgeNoiseDebug: document.getElementById('debug-edge-noise').checked,
 			overlayMode: document.getElementById('debug-biome-overlay-mode').value,
 			showTileBounds: document.getElementById('debug-show-tile-bounds').checked,
@@ -2465,6 +2467,7 @@ export const app = {
 				document.getElementById('debug-hide-pois').checked = settings.hidePois || false;
 				document.getElementById('debug-original-biome-map').checked = settings.originalBiomeMap || false;
 				document.getElementById('enable-edge-noise').checked = settings.enableEdgeNoise || false;
+				document.getElementById('debug-block-edge-spawns').checked = settings.blockEdgeSpawns || false;
 				document.getElementById('debug-edge-noise').checked = settings.edgeNoiseDebug || false;
 				document.getElementById('debug-biome-overlay-mode').value = settings.overlayMode || 'none';
 				document.getElementById('debug-show-tile-bounds').checked = settings.showTileBounds || false;

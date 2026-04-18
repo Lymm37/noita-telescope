@@ -321,9 +321,9 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				const h = pixelSceneData.height;
 				const corners = [
 					[x, y],
-					[x + w-1, y],
-					[x, y + h-1],
-					[x + w-1, y + h-1],
+					[x + w, y],
+					[x, y + h],
+					[x + w, y + h],
 				];
 				for (const [cx, cy] of corners) {
 					const res = getBiomeAtWorldCoordinates(biomeData, cx, cy, ng > 0, gameMode);

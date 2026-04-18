@@ -194,7 +194,13 @@ function spawnEntities(ws, ng, x, y, spawnList, gameMode='normal', perks={}, off
 
 // Might just make this cover all colors?
 export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}, gameMode='normal') {
-
+	// Block spawns if near chunk boundary (only on negative side, this is what the game appears to do)
+	if (appSettings.blockEdgeSpawns) {
+		const offsetX = ((x % 512) + 512) % 512;
+		const offsetY = ((y % 512) + 512) % 512;
+		// Don't spawn anything within 5 pixels of the chunk edge, but only on the negative side.
+		if (offsetX > 507 || offsetY > 507) return null;
+	}
 	// Adjust biome with edge noise
 	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
 	// Hacky to reference app but I am feeling lazy and this is easier than passing in a parameter
