@@ -1,4 +1,4 @@
-import { BIOMES_WITHOUT_WAVY_EDGE } from "./generator_config.js";
+import { HOLY_MOUNTAIN_BASIN_COLORS } from "./generator_config.js";
 import { NollaPrng } from "./nolla_prng.js";
 import { loadPixelScene } from "./pixel_scene_generation.js";
 import { getWorldCenter, getWorldSize } from "./utils.js";
@@ -295,9 +295,8 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 				// Check whether chunk is correct first
 				const idx = ((depth + 14) * mapWidth) + start + j + mapWidth/2;
 				const biomeColor = biomeData.pixels[idx] & 0xffffff;
-				// Skip any chunk that is not holy mountain related (these have straight edges... This is a bit hacky)
-				// TODO: Make a list of holy mountain biome colors instead, even though it's nearly identical to this list
-				if (!BIOMES_WITHOUT_WAVY_EDGE.has(biomeColor)) continue;
+				// Skip any chunk that is not holy mountain (HM chunks can get overwritten in NG+ and nightmare)
+				if (!HOLY_MOUNTAIN_BASIN_COLORS.has(biomeColor)) continue;
 				const basin = {x: 512 * (start + j) + pwIndex*mapWidth*512, y: 512 * depth};
 				let material = '';
 				if (basin.y > 12000) material = '_ending'; // boss_arena... is this the same?

@@ -743,6 +743,8 @@ export const app = {
 		const list = document.getElementById('regions-list');
 		// TODO: Sort this better
 		Object.keys(GENERATOR_CONFIG).forEach(key => {
+			// Only include regions with tiles
+			if (!GENERATOR_CONFIG[key].wangFile) return;
 			const div = document.createElement('div');
 			div.className = 'region-item';
 			const cb = document.createElement('input');
@@ -1072,7 +1074,9 @@ export const app = {
 			// Get biome
 			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP, this.gameMode);
 			if (biomeResult && biomeResult.biome) {
-				biomeName = `<br>Biome: ${getDisplayName(biomeResult.biome)}`;
+				// For the display name, let's just use the generator config
+				const biomeDisplayName = GENERATOR_CONFIG[biomeResult.biome]?.name || biomeResult.biome;
+				biomeName = `<br>Biome: ${biomeDisplayName}`;
 				if (this.biomeModifiers && this.biomeModifiers[biomeResult.biome]) {
 					const biomeModifier = this.biomeModifiers[biomeResult.biome];
 					const biomeModifierName = getDisplayName(biomeModifier.id);
@@ -2412,6 +2416,8 @@ export const app = {
 		}
 		// Region settings
 		for (const region of Object.keys(GENERATOR_CONFIG)) {
+			// Only include regions with tiles
+			if (!GENERATOR_CONFIG[region].wangFile) continue;
 			settings[`region_${region}`] = document.getElementById(`region-${region}`).checked;
 		}
 		// Daily run nonsense
@@ -2496,6 +2502,8 @@ export const app = {
 					}
 				}
 				for (const region of Object.keys(GENERATOR_CONFIG)) {
+					// Only include regions with tiles
+					if (!GENERATOR_CONFIG[region].wangFile) continue;
 					// Missing saved value (e.g. a biome added since the settings were last
 					// saved) keeps the code-default enabled state from generator_config.js.
 					const saved = settings[`region_${region}`];

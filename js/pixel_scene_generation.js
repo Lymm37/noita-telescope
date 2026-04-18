@@ -2,6 +2,7 @@ import { NollaPrng } from './nolla_prng.js';
 import { BLOCKED_COLORS, GENERAL_SCENES, PIXEL_SCENE_BIOME_MAP } from './pixel_scene_config.js';
 import { MATERIAL_COLOR_CONVERSION, MATERIAL_WANG_COLORS } from './potion_config.js';
 import { getBiomeAtWorldCoordinates } from './utils.js';
+import { biomeEdgeNoiseFlag } from './wobble_flags.js';
 import { loadPNG } from './png_sanitizer.js';
 import { prescanPixelScene } from './poi_scanner.js';
 import { BIOME_BACKGROUND_COLORS, TILE_OVERLAY_COLORS, makeBlackTransparent } from './image_processing.js';
@@ -202,19 +203,11 @@ export function blockOutRooms(pixels, width, height) {
 	return rooms;
 }
 
-const CHECK_PIXEL_SCENE_CORNERS = true;
-const PIXEL_SCENES_WITHOUT_BOUNDS_CHECK = [
-	//"trailer_altar", // Nope this doesn't work
-]
-// TODO: This offset apparently works but I don't think it makes sense, so I am probably still misunderstanding exactly how it checks the bounds for pixel scenes
-// Seed for debug: 119164939
+const CHECK_PIXEL_SCENE_BIOME = true;
+
+// Trailer altar example for validating that the bounds check is working correctly:
+// Seed: 119164939, NG+1
 // Appears in PW 0, disappears in PW -1, second one appears in PW 9
-// Without the offset they don't appear until PW 8 / 17
-// Visually the main world one is nearly split down the middle between biomes even with the edge noise,
-// which seemingly contradicts my assumption that the bounds check looks for all 4 corners being in the same biome
-const PIXEL_SCENE_BOUNDS_OFFSET = {
-	"trailer_altar": {x: -67, y: 0},
-}
 
 // TODO: Refactoring pixel scenes to not do the image manipulation here at all
 // Instead do it in the overlay worker when generating for display
@@ -231,32 +224,13 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		// If the scene is purely cosmetic and we're skipping cosmetic scenes, skip it
 		return null;
 	}
-	// Check whether it is actually in the right biome completely
-	// Need to check all corners I think, otherwise we get edge cases that break
-	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_CORNERS && !PIXEL_SCENES_WITHOUT_BOUNDS_CHECK.includes(sceneName)) {
-		const boundsOffset = PIXEL_SCENE_BOUNDS_OFFSET[sceneName] || {x: 0, y: 0};
-		const topCornerCoords = {x: x + boundsOffset.x, y: y + boundsOffset.y};
-		const targetTopLeft = getBiomeAtWorldCoordinates(biomeData, topCornerCoords.x, topCornerCoords.y, ng > 0, gameMode);
-		const targetBiomeTopLeft = targetTopLeft ? targetTopLeft.biome : null;
-		if (!targetBiomeTopLeft || targetBiomeTopLeft !== biomeName) {
-			return null;
-		}
-		const topRightCoords = {x: x + pixelSceneData.width + boundsOffset.x, y: y + boundsOffset.y};
-		const targetTopRight = getBiomeAtWorldCoordinates(biomeData, topRightCoords.x, topRightCoords.y, ng > 0, gameMode);
-		const targetBiomeTopRight = targetTopRight ? targetTopRight.biome : null;
-		if (!targetBiomeTopRight || targetBiomeTopRight !== biomeName) {
-			return null;
-		}
-		const bottomLeftCoords = {x: x + boundsOffset.x, y: y + pixelSceneData.height + boundsOffset.y};
-		const targetBottomLeft = getBiomeAtWorldCoordinates(biomeData, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0, gameMode);
-		const targetBiomeBottomLeft = targetBottomLeft ? targetBottomLeft.biome : null;
-		if (!targetBiomeBottomLeft || targetBiomeBottomLeft !== biomeName) {
-			return null;
-		}
-		const bottomRightCoords = {x: x + pixelSceneData.width + boundsOffset.x, y: y + pixelSceneData.height + boundsOffset.y};
-		const targetBottomRight = getBiomeAtWorldCoordinates(biomeData, bottomRightCoords.x, bottomRightCoords.y, ng > 0, gameMode);
-		const targetBiomeBottomRight = targetBottomRight ? targetBottomRight.biome : null;
-		if (!targetBiomeBottomRight || targetBiomeBottomRight !== biomeName) {
+	// checkBounds matches the skip_biome_checks parameter and only checks the top-left corner, while randomly placed pixel scenes check all corners
+	if (checkBounds && biomeName && CHECK_PIXEL_SCENE_BIOME) {
+		const topLeft = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
+		// Check wobbled biome based on edge noise
+		if (!topLeft.biome && biomeEdgeNoiseFlag(topLeft.colorInt, 'noise_biome_edges') === null) {
+			// This does not appear to ever trigger?
+			console.log(`Rejected spawn for pixel scene ${sceneName} at (${x}, ${y}) with unknown biome color ${topLeft.colorInt.toString(16)} in original biome ${biomeName}. This likely means the biome map is missing colors from the data.wak unpack, such as NG+ palette swaps. Accepting spawn but returning null biome so it can be recolored without a biome-specific variant.`);
 			return null;
 		}
 	}
@@ -268,6 +242,11 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		} else {
 			biomeName = getBiomeAtWorldCoordinates(biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, ng > 0, gameMode)?.biome || "general";
 		}
+	}
+	// Exception to the exception because it's in two different biomes which need to be recolored differently
+	// There are a few other pixel scenes which could follow this pattern, but they're drawn in the custom art already
+	if (sceneName !== "the_end_shop" && GENERAL_SCENE_NAMES.includes(sceneName)) {
+		biomeName = "general";
 	}
 	// Alternative?
 	/*
@@ -336,32 +315,22 @@ export function loadRandomPixelScene(biomeData, biomeName, scene_list, ws, ng, x
 				//spawnPoints: pixelSceneData.spawnPoints,
 				type: 'pixel_scene'
 			};
-			// Check whether it is actually in the right biome completely
-			// Need to check all corners I think, otherwise we get edge cases that break
-			if (CHECK_PIXEL_SCENE_CORNERS) {
-				const topCornerCoords = {x: x, y: y};
-				const targetTopLeft = getBiomeAtWorldCoordinates(biomeData, topCornerCoords.x, topCornerCoords.y, ng > 0, gameMode);
-				const targetBiomeTopLeft = targetTopLeft ? targetTopLeft.biome : null;
-				if (!targetBiomeTopLeft || targetBiomeTopLeft !== biomeName) {
-					return null;
-				}
-				const topRightCoords = {x: x + pixelSceneData.width, y: y};
-				const targetTopRight = getBiomeAtWorldCoordinates(biomeData, topRightCoords.x, topRightCoords.y, ng > 0, gameMode);
-				const targetBiomeTopRight = targetTopRight ? targetTopRight.biome : null;
-				if (!targetBiomeTopRight || targetBiomeTopRight !== biomeName) {
-					return null;
-				}
-				const bottomLeftCoords = {x: x, y: y + pixelSceneData.height};
-				const targetBottomLeft = getBiomeAtWorldCoordinates(biomeData, bottomLeftCoords.x, bottomLeftCoords.y, ng > 0, gameMode);
-				const targetBiomeBottomLeft = targetBottomLeft ? targetBottomLeft.biome : null;
-				if (!targetBiomeBottomLeft || targetBiomeBottomLeft !== biomeName) {
-					return null;
-				}
-				const bottomRightCoords = {x: x + pixelSceneData.width, y: y + pixelSceneData.height};
-				const targetBottomRight = getBiomeAtWorldCoordinates(biomeData, bottomRightCoords.x, bottomRightCoords.y, ng > 0, gameMode);
-				const targetBiomeBottomRight = targetBottomRight ? targetBottomRight.biome : null;
-				if (!targetBiomeBottomRight || targetBiomeBottomRight !== biomeName) {
-					return null;
+			// Check all four corners to make sure they are in the same biome
+			if (CHECK_PIXEL_SCENE_BIOME) {
+				const w = pixelSceneData.width;
+				const h = pixelSceneData.height;
+				const corners = [
+					[x, y],
+					[x + w-1, y],
+					[x, y + h-1],
+					[x + w-1, y + h-1],
+				];
+				for (const [cx, cy] of corners) {
+					const res = getBiomeAtWorldCoordinates(biomeData, cx, cy, ng > 0, gameMode);
+					// Reject if the corner's wobbled biome is different (including null)
+					if (res.biome !== biomeName) {
+						return null;
+					}
 				}
 			}
 			// Recolor random materials first so material lookups still work
