@@ -243,6 +243,11 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 			biomeName = getBiomeAtWorldCoordinates(biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, ng > 0, gameMode)?.biome || "general";
 		}
 	}
+	// Exception to the exception because it's in two different biomes which need to be recolored differently
+	// There are a few other pixel scenes which could follow this pattern, but they're drawn in the custom art already
+	if (sceneName !== "the_end_shop" && GENERAL_SCENE_NAMES.includes(sceneName)) {
+		biomeName = "general";
+	}
 	// Alternative?
 	/*
 	if (SCENES_TO_NOT_RECOLOR.includes(sceneName)) {
