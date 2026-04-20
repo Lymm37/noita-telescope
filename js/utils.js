@@ -183,7 +183,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     
     // Account for biome edge noise
     let highDetail = true; // Seems to be required to avoid false negatives...
-    const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail);
+    const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail, gameMode);
 
     // Apparently these app settings were not being updated correctly
     if (!appSettings.enableEdgeNoise) {

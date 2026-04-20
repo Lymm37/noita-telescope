@@ -535,7 +535,7 @@ export const app = {
 					this.debugCanvas.height = 512;
 					let dx = this.debugX - this.debugCanvas.width/2;
 					let dy = this.debugY - this.debugCanvas.height/2;
-					debugBiomeEdgeNoise(this.debugCanvas, dx, dy, false);
+					debugBiomeEdgeNoise(this.debugCanvas, dx, dy, false, this.gameMode);
 					this.draw();
 				}
 

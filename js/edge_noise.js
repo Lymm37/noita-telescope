@@ -259,9 +259,9 @@ function GetWobbledBiome(shifted_x, shifted_y, highDetail = true, sincosWobble =
 	return SampleBiome(Math.floor(y2 + shifted_x) >> 9, Math.floor(x2 + shifted_y) >> 9);
 }
 
-export function GetBiomeOffset(x, y, isNGP = false, highDetail = true) {
+export function GetBiomeOffset(x, y, isNGP = false, highDetail = true, gameMode='normal') {
 	const originalBiomeId = GetOriginalChunkPosIdAt(x, y, isNGP);
-	const trueBiomeId = GetTrueChunkPosIdAt(x, y, isNGP, highDetail);
+	const trueBiomeId = GetTrueChunkPosIdAt(x, y, isNGP, highDetail, gameMode);
 	const isDiffY = Mod(trueBiomeId - originalBiomeId, 2);
 	const isDiffX = Mod(Math.floor(trueBiomeId / 2) - Math.floor(originalBiomeId / 2), 2);
 	const signX = Mod(x, 512) < 42 ? -1 : (Mod(x, 512) > 470 ? 1 : 0);
@@ -272,7 +272,7 @@ export function GetBiomeOffset(x, y, isNGP = false, highDetail = true) {
 	};
 }
 
-export function debugBiomeEdgeNoise(canvas, startWorldX, startWorldY, isNGP = false) {
+export function debugBiomeEdgeNoise(canvas, startWorldX, startWorldY, isNGP = false, gameMode='normal') {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
@@ -292,7 +292,7 @@ export function debugBiomeEdgeNoise(canvas, startWorldX, startWorldY, isNGP = fa
         for (let x = 0; x < width; x++) {
             // Get the biome ID at this exact world pixel
 			//const biomeId = GetOriginalChunkPosIdAt(startWorldX + x, startWorldY + y, isNGP) ^ GetTrueChunkPosIdAt(startWorldX + x, startWorldY + y, isNGP, highDetail);
-			const biomeId = GetTrueChunkPosIdAt(startWorldX + x, startWorldY + y, isNGP, highDetail);
+			const biomeId = GetTrueChunkPosIdAt(startWorldX + x, startWorldY + y, isNGP, highDetail, gameMode);
             const color = biomeColors[biomeId] || [255, 255, 255]; // Default white
 
             const idx = (y * width + x) * 4;
