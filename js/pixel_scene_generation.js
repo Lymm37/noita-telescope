@@ -233,6 +233,11 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 			console.log(`Rejected spawn for pixel scene ${sceneName} at (${x}, ${y}) with unknown biome color ${topLeft.colorInt.toString(16)} in original biome ${biomeName}. This likely means the biome map is missing colors from the data.wak unpack, such as NG+ palette swaps. Accepting spawn but returning null biome so it can be recolored without a biome-specific variant.`);
 			return null;
 		}
+		// Unsure about this, but it would make sense... Seems to help
+		if (topLeft.biome !== biomeName) {
+			//console.log(`Rejected spawn for pixel scene ${sceneName} at (${x}, ${y}) in biome ${biomeName} because top-left corner is in biome ${topLeft.biome}.`);
+			return null;
+		}
 	}
 	// Recolor the pixel scene for the biome if needed
 	if (!biomeName || biomeName === "general") {

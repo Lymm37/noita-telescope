@@ -199,7 +199,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		const offsetX = ((x % 512) + 512) % 512;
 		const offsetY = ((y % 512) + 512) % 512;
 		// Don't spawn anything within 5 pixels of the chunk edge, but only on the negative side.
-		if (offsetX > 507 || offsetY > 507) return null;
+		if (offsetX >= 507 || offsetY >= 507) return null;
 	}
 	// Adjust biome with edge noise
 	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);

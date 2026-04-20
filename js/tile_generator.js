@@ -10,7 +10,7 @@ import { getWorldCenter } from './utils.js';
 
 // Constants
 
-const MAX_PATHFINDING_ATTEMPTS = 100; 
+const MAX_PATHFINDING_ATTEMPTS = 99; 
 const BIOME_PATH_HEIGHT_LIMIT_CHUNKS = 4;
 //const BIOME_PATH_FIND_WORLD_POS_MIN_X = 159;
 //const BIOME_PATH_FIND_WORLD_POS_MAX_X = 223;
