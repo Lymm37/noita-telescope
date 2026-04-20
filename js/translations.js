@@ -95,6 +95,7 @@ const ALIASES = {
 	'water_receptacle_puzzle': ['water receptacle puzzle', 'receptacle', 'water puzzle', 'snowy depths puzzle', 'puzzle', 'valtikka', 'scepter'],
 	'vault_puzzle_arpaluu': ['vault puzzle', 'puzzle', 'receptacle', 'arpaluu', 'skull wand', 'skull'],
 	'vault_puzzle_varpuluuta': ['vault puzzle', 'puzzle', 'receptacle', 'varpuluuta', 'broom wand', 'broom'],
+	'trailer_altar': ['trailer altar', 'sacred barrel'],
 	// Silly things
 	'CHAINSAW': ['chainsaw', 'dunk', 'bald', 'dunkisbald', 'dunk is bald', 'rant'],
 	'MANA_REDUCE': ['add mana', 'mana reduce', 'addmana', 'lasiace', 'lasiacchi'],
@@ -127,6 +128,7 @@ const EXTRA_TRANSLATIONS = {
 	'refresh_mimic': 'Refresh Mimic',
 	'heart_mimic': 'Heart Mimic',
 	'chest_leggy': 'Leggy Mimic',
+	'trailer_altar': 'Trailer Altar',
 	// Oddly named materials (using different names in their material data from their IDs)
 	'just_death': 'Instant Deathium',
 	

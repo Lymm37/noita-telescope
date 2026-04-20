@@ -345,8 +345,9 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		}
 		else if (func === "spawn_meditation_cube") {
 			let rnd = prng.Random(1, 100);
-			if (rnd > 96) {
-				return {type: 'item', item: 'meditation_cube', x: x, y: y};
+			if (rnd > 96 && gameMode !== 'nightmare') {
+				return loadPixelScene(biomeData, biomeName, "meditation_cube_visual", ws, ng, x-20, y-29, skipCosmeticScenes, false, gameMode);
+				//return {type: 'item', item: 'meditation_cube', x: x, y: y};
 			}
 		}
 		else if (func === "spawn_receptacle") {

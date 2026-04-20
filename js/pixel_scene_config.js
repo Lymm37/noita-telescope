@@ -137,6 +137,9 @@ export const EXCAVATIONSITE_SCENES = {
 	],
 	"g_gunpowderpool_04": [
 		{prob: 1.5, name: "gunpowderpool_04"},
+	],
+	"extras": [
+		{name: "meditation_cube_visual"}
 	]
 };
 

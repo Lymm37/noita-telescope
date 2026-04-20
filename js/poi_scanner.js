@@ -171,6 +171,26 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
         generatedSpawns.push(labData);
     }
 
+    // Special pixel scenes which add their own PoI despite not actually spawning a separate item
+    if (pixelScene.name === "trailer_altar") {
+        generatedSpawns.push({
+            type: 'item',
+            item: 'trailer_altar',
+            x: pixelScene.x + pixelScene.width / 2,
+            y: pixelScene.y + pixelScene.height / 2,
+            biome: biomeName
+        });
+    }
+    if (pixelScene.name === "meditation_cube_visual") {
+        generatedSpawns.push({
+            type: 'item',
+            item: 'meditation_cube',
+            x: pixelScene.x + 20,
+            y: pixelScene.y + 29 - 70, // Match teleporter position
+            biome: biomeName
+        });
+    }
+
     return { detectedSpawns, newPixelScenes, generatedSpawns };
 }
 
