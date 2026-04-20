@@ -260,7 +260,7 @@ function GetWobbledBiome(shifted_x, shifted_y, highDetail = true, sincosWobble =
 }
 
 export function GetBiomeOffset(x, y, isNGP = false, highDetail = true, gameMode='normal') {
-	const originalBiomeId = GetOriginalChunkPosIdAt(x, y, isNGP);
+	const originalBiomeId = GetOriginalChunkPosIdAt(x, y, isNGP, gameMode);
 	const trueBiomeId = GetTrueChunkPosIdAt(x, y, isNGP, highDetail, gameMode);
 	const isDiffY = Mod(trueBiomeId - originalBiomeId, 2);
 	const isDiffX = Mod(Math.floor(trueBiomeId / 2) - Math.floor(originalBiomeId / 2), 2);
