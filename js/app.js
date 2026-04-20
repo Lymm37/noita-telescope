@@ -2406,7 +2406,7 @@ export const app = {
 			gameMode: document.getElementById('game-mode').value,
 			//smallPois: document.getElementById('debug-small-pois').checked,
 			//fixHolyMountainEdgeNoise: document.getElementById('debug-fix-holy-mountain-edge-noise').checked,
-			//excludeEdgeCases: document.getElementById('exclude-edge-cases').checked,
+			excludeEdgeCases: document.getElementById('exclude-edge-cases').checked,
 			//extraRerolls: parseInt(document.getElementById('debug-extra-rerolls').value),
 			//rngInfo: document.getElementById('debug-rng-info').checked,
 		};
@@ -2477,7 +2477,7 @@ export const app = {
 				document.getElementById('game-mode').value = settings.gameMode || 'normal';
 				//document.getElementById('debug-small-pois').checked = settings.smallPois || false;
 				//document.getElementById('debug-fix-holy-mountain-edge-noise').checked = settings.fixHolyMountainEdgeNoise || false;
-				//document.getElementById('exclude-edge-cases').checked = settings.excludeEdgeCases || false;
+				document.getElementById('exclude-edge-cases').checked = settings.excludeEdgeCases || false;
 				//document.getElementById('debug-extra-rerolls').value = settings.extraRerolls || 0;
 				//document.getElementById('debug-rng-info').checked = settings.rngInfo || false;
 				// Unlock settings

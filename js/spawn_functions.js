@@ -203,14 +203,12 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 	}
 	// Adjust biome with edge noise
 	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
-	// Hacky to reference app but I am feeling lazy and this is easier than passing in a parameter
-	// Actually this isn't working anyway, determining if it's an edge case might be hard
-	/*
-	if (app.excludeEdgeCases && adjustedBiomeResults.mightBeEdgeCase) {
-		console.log(`Excluding spawn at (${x}, ${y}) in biome ${biomeName} due to edge noise uncertainty`);
+	// Attempt to exclude edge cases if the biome is different after edge noise
+	if (appSettings.excludeEdgeCases && adjustedBiomeResults.biome !== adjustedBiomeResults.origBiome) {
+		//console.log(`Excluding spawn at (${x}, ${y}) in biome ${biomeName} due to edge noise uncertainty`);
 		return null; // Don't spawn anything if this is an edge case and we're excluding them
 	}
-	*/
+	
 	biomeName = adjustedBiomeResults.biome;
 
 	const spawns = BIOME_SPAWN_FUNCTION_MAP[biomeName];

@@ -265,6 +265,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
 
     return {
         biome: biomeName || null,
+        origBiome: origBiomeName || null,
         colorInt: finalColorInt,
         pos: {x: biomePixelX, y: biomePixelY},
         originalPos: {x: originalX, y: originalY},
