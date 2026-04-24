@@ -1,4 +1,7 @@
-import biomeFlagsData from '../data/biome_flags.json' with { type: 'json' };
+import { fetchSafeJson } from "./utils.js";
+// This fails on some browsers
+//import biomeFlagsData from '../data/biome_flags.json' with { type: 'json' };
+const biomeFlagsData = await fetchSafeJson('../data/biome_flags.json');
 
 const EDGE_NOISE_DEFAULTS = {
     noise_biome_edges: 1, // 0 for straight edges, 1 for wobble

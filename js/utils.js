@@ -412,3 +412,21 @@ export function getDateAndTime() {
         second: date.getSeconds()
     };
 }
+
+export async function fetchSafeJson(url) {
+	const dataUrl = new URL(url, import.meta.url);
+    const res = await fetch(dataUrl);
+    
+    // Check if the server returned a 404 or other error
+    if (!res.ok) {
+        throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+    }
+
+    // Verify the content type is actually JSON before parsing
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Expected JSON from ${url}, but received ${contentType}. File path might be wrong.`);
+    }
+
+    return await res.json();
+}
