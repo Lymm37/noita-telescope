@@ -1,5 +1,17 @@
 import { getFromZipFirst } from "./zip_extraction.js";
-import UPNG from "https://cdn.jsdelivr.net/npm/upng-js@2.1.0/+esm";
+
+// Detect Node so the rest of this file can pick ESM-local deps instead of the
+// browser CDN URLs. `process` is injected by Node; browsers leave it undefined.
+const IS_NODE = typeof process !== 'undefined' && !!process?.versions?.node;
+
+// Lazy so Node can import this module without resolving the https URL.
+// In Node the browser CDN URL fails to resolve, so swap to the local npm copy.
+let _upngPromise = null;
+const loadUpng = () => _upngPromise ??= (
+    IS_NODE
+        ? import("upng-js").then(m => m.default || m)
+        : import("https://cdn.jsdelivr.net/npm/upng-js@2.1.0/+esm").then(m => m.default)
+);
 
 /**
  * sanitizes a PNG buffer by removing ancillary chunks (gAMA, iCCP, sRGB, etc.)
@@ -53,12 +65,28 @@ export async function sanitizePng(url) {
 
 
 
+// In Node, `getFromZipFirst` can't resolve browser-relative URLs or use
+// `fetch`. Read the underlying PNG straight off disk; the zip bundles exist
+// only to avoid N requests from the browser, which isn't a Node concern.
+async function readPngBufferNode(url) {
+    const fs = await import('node:fs/promises');
+    const { fileURLToPath } = await import('node:url');
+    const fileUrl = new URL(url, import.meta.url);
+    return (await fs.readFile(fileURLToPath(fileUrl))).buffer;
+}
+
 // Updated version using UPNG
 
 export async function loadPNG(url) {
-    const response = await getFromZipFirst(url);
-    const originalBuffer = await response.arrayBuffer();
-    
+    const UPNG = await loadUpng();
+    let originalBuffer;
+    if (IS_NODE) {
+        originalBuffer = await readPngBufferNode(url);
+    } else {
+        const response = await getFromZipFirst(url);
+        originalBuffer = await response.arrayBuffer();
+    }
+
     // 1. Sanitize the buffer (Remove gAMA, etc.)
     const sanitizedUint8 = stripAncillaryChunks(originalBuffer);
 
@@ -69,9 +97,14 @@ export async function loadPNG(url) {
         // Convert to a simple RGBA8 array
         const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
 
-        // 3. Create a bitmap for fast canvas rendering
-        const blob = new Blob([sanitizedUint8], { type: 'image/png' });
-        const bitmap = await createImageBitmap(blob);
+        // 3. Create a bitmap for fast canvas rendering. Node has no
+        // `createImageBitmap` and the headless dump scripts never touch
+        // `.bitmap`, so skip it there.
+        let bitmap = null;
+        if (!IS_NODE) {
+            const blob = new Blob([sanitizedUint8], { type: 'image/png' });
+            bitmap = await createImageBitmap(blob);
+        }
 
         //console.log(`Loaded and sanitized PNG: ${url.split('/').pop()} (Dimensions: ${img.width}x${img.height})`);
         return {
