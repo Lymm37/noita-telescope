@@ -124,13 +124,14 @@ function generateItem(ws, ng, x, y, perks={}, gameMode = 'normal') {
 		return createPowderPouch(ws, ng, x, y-2);
 	}
 	else if (rnd <= 71) {
+		// potion_spawnlist die entry: offset_y = -12
 		let unlocked = unlockedSpells[363];
 		if (unlocked) {
 			if (perks['greedCurse']) {
-				return {type: 'item', item: 'greed_die', x: x, y: y};
+				return {type: 'item', item: 'greed_die', x: x, y: y-12};
 			}
 			else {
-				return {type: 'item', item: 'chaos_die', x: x, y: y};
+				return {type: 'item', item: 'chaos_die', x: x, y: y-12};
 			}
 		}
 		else {
@@ -138,36 +139,39 @@ function generateItem(ws, ng, x, y, perks={}, gameMode = 'normal') {
 		}
 	}
 	else if (rnd <= 72) {
+		// potion_spawnlist runestone entry: offset_y = -10
 		const options = ['runestone_light', 'runestone_fire', 'runestone_magma', 'runestone_weight', 'runestone_emptiness', 'runestone_edges', 'runestone_metal'];
 		prng.SetRandomSeed(ws, x + 2617.941, y - 1229.3581);
 		rnd = prng.Random(0, 6);
 		let runestoneActive = prng.Random(1, 10);
-		return {type: 'item', item: options[rnd], active: runestoneActive === 2, x: x, y: y};
+		return {type: 'item', item: options[rnd], active: runestoneActive === 2, x: x, y: y-10};
 	}
+	// Remaining potion_spawnlist entries all carry offset_y = -2 (matching the
+	// potion/pouch entries handled in createPotion/createPowderPouch above).
 	else if (rnd <= 73) {
-		return {type: 'item', item: 'egg_purple', x: x, y: y};
+		return {type: 'item', item: 'egg_purple', x: x, y: y-2};
 	}
 	else if (rnd <= 77) {
-		return {type: 'item', item: 'egg_slime', x: x, y: y};
+		return {type: 'item', item: 'egg_slime', x: x, y: y-2};
 	}
 	else if (rnd <= 79) {
-		return {type: 'item', item: 'egg_monster', x: x, y: y};
+		return {type: 'item', item: 'egg_monster', x: x, y: y-2};
 	}
 	else if (rnd <= 83) {
-		return {type: 'item', item: 'kiuaskivi', x: x, y: y};
+		return {type: 'item', item: 'kiuaskivi', x: x, y: y-2};
 	}
 	else if (rnd <= 85) {
-		return {type: 'item', item: 'ukkoskivi', x: x, y: y};
+		return {type: 'item', item: 'ukkoskivi', x: x, y: y-2};
 	}
 	else if (rnd <= 89) {
-		return {type: 'item', item: 'broken_wand', x: x, y: y};
+		return {type: 'item', item: 'broken_wand', x: x, y: y-2};
 	}
 	else {
 		if (perks['greedCurse']) {
-			return {type: 'item', item: 'greed_orb', x: x, y: y};
+			return {type: 'item', item: 'greed_orb', x: x, y: y-2};
 		}
 		else {
-			return {type: 'item', item: 'shiny_orb', x: x, y: y};
+			return {type: 'item', item: 'shiny_orb', x: x, y: y-2};
 		}
 	}
 }
@@ -179,29 +183,30 @@ function generateItemLiquidcave(ws, ng, x, y, gameMode = 'normal') {
 	if (rnd <= 49) {
 		return createPotion(ws, ng, x, y-2, 'normal', gameMode);
 	}
+	// potion_spawnlist_liquidcave: every entry carries offset_y = -2.
 	else if (rnd <= 52) {
-		return {type: 'item', item: 'egg_purple', x: x, y: y};
+		return {type: 'item', item: 'egg_purple', x: x, y: y-2};
 	}
 	else if (rnd <= 55) {
-		return {type: 'item', item: 'egg_fire', x: x, y: y};
+		return {type: 'item', item: 'egg_fire', x: x, y: y-2};
 	}
 	else if (rnd <= 58) {
-		return {type: 'item', item: 'egg_slime', x: x, y: y};
+		return {type: 'item', item: 'egg_slime', x: x, y: y-2};
 	}
 	else if (rnd <= 64) {
-		return {type: 'item', item: 'egg_monster', x: x, y: y};
+		return {type: 'item', item: 'egg_monster', x: x, y: y-2};
 	}
 	else if (rnd <= 70) {
-		return {type: 'item', item: 'kiuaskivi', x: x, y: y};
+		return {type: 'item', item: 'kiuaskivi', x: x, y: y-2};
 	}
 	else if (rnd <= 76) {
-		return {type: 'item', item: 'ukkoskivi', x: x, y: y};
+		return {type: 'item', item: 'ukkoskivi', x: x, y: y-2};
 	}
 	else if (rnd <= 82) {
-		return {type: 'item', item: 'kuu', x: x, y: y};
+		return {type: 'item', item: 'kuu', x: x, y: y-2};
 	}
 	else {
-		return {type: 'item', item: 'broken_wand', x: x, y: y};
+		return {type: 'item', item: 'broken_wand', x: x, y: y-2};
 	}
 }
 
