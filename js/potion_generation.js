@@ -96,8 +96,8 @@ export function spawnItem(ws, ng, x, y, biome, perks={}, gameMode = 'normal') {
     if (!item) {
         return null;
     }
-    item['x'] = x;
-    item['y'] = y;
+    if (item['x'] === undefined) item['x'] = x;
+    if (item['y'] === undefined) item['y'] = y;
 	// No longer have access to this :(
 	/*
 	if (document.getElementById('debug-rng-info').checked) {
