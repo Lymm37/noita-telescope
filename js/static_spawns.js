@@ -6,7 +6,7 @@ import { getStartingLoadout, getTinyDrops } from "./misc_generation.js";
 import { appSettings } from "./settings.js";
 import { generateWand } from "./wand_generation.js";
 
-const STATIC_PIXEL_SCENES = [
+export const STATIC_PIXEL_SCENES = [
 	{name: "pyramid/boss_limbs", x: 9726, y: -1024, required: true},
 	{name: "snowcastle/altar_snowcastle_capsule", x: 143, y: 5112, required: true},
 	{name: "snowcastle/forge", x: 1464, y: 5976},
@@ -43,7 +43,7 @@ const STATIC_PIXEL_SCENES = [
 	// entities...
 ];
 
-const STATIC_PIXEL_SCENES_NIGHTMARE = [
+export const STATIC_PIXEL_SCENES_NIGHTMARE = [
 	{name: "pyramid/boss_limbs", x: 9726, y: -1024, required: true},
 	{name: "general/clean_entrance", x: 128, y: 1535, required: true},
 	{name: "general/clean_entrance", x: 128, y: 4095, required: true},
@@ -56,7 +56,7 @@ const STATIC_PIXEL_SCENES_NIGHTMARE = [
 
 // Using 'required' for ones which look bad if they're missing
 // I think all of these are replaced by the art overlay at this point
-const PIXEL_SCENE_BIOMES = {
+export const PIXEL_SCENE_BIOMES = {
 	// Biome color: scene name
 	0xff24888a: {biome: "excavationsite_cube_chamber", name: "cube_chamber"},
 	0xff18a0d6: {biome: "snowcave_secret_chamber", name: "secret_chamber"},
