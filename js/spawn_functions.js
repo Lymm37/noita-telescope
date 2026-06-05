@@ -698,10 +698,10 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 		}
 		else if (func === "spawn_potion_beer") {
-			return {type: 'item', item: 'potion', material: 'beer', x: x, y: y};
+			return {type: 'item', item: 'potion', material: 'beer', x: x, y: y - 5};
 		}
 		else if (func === "spawn_potion_milk") {
-			return {type: 'item', item: 'potion', material: 'milk', x: x, y: y};
+			return {type: 'item', item: 'potion', material: 'milk', x: x, y: y - 5};
 		}
 		else if (func === "spawn_potions" || func === "spawn_wands") {
 			return null; // disabled
