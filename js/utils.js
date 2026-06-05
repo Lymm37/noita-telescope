@@ -166,7 +166,7 @@ export function getPWLimit(isNGP, gameMode='normal') {
     return isNGP ? 512 : 468;
 }
 
-export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false, gameMode='normal') {
+export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false, gameMode='normal', useWobble = false) {
     let biomeMap = biomeData.pixels;
     if (worldY < -14*512) {
         biomeMap = biomeData.heavenPixels;
@@ -185,8 +185,17 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     let highDetail = true; // Seems to be required to avoid false negatives...
     const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail, gameMode);
 
-    // Apparently these app settings were not being updated correctly
-    if (!appSettings.enableEdgeNoise) {
+    // Edge-wobble is opt-in per call site (useWobble), default OFF so nothing wobbles by
+    // accident. Two call-site groups opt in: (1) the cosmetic map render / hover pass
+    // appSettings.enableEdgeNoise so the wavy-edge visual still follows the "Enable Edge
+    // Noise" checkbox; (2) PIXEL-SCENE biome resolution (poi_scanner) passes useWobble=true: the engine resolves a scene's biome
+    // through the wobbled chunk lookup. Direct per-pixel spawn dispatch (spawn_functions
+    // spawnSwitch) must NOT wobble — the game places chests/hearts/eggs from the chunk's
+    // ORIGINAL biome even when the pixel wobbles into a spawn-less neighbour (verified live:
+    // a chest at (-10765,517) sits where the wobbled biome `winter` has no chest spawn, so
+    // the engine used the original `vault_frozen`). Applying wobble there only invented/dropped
+    // spawns at boundaries.
+    if (!useWobble) {
         edgeOffset.x = 0;
         edgeOffset.y = 0;
     }
