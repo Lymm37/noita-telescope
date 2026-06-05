@@ -283,8 +283,19 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         for (let i = 0; i < numberOfNewPixelScenes; i++) {
             const pixelScene = newPixelScenes[i];
             finalPixelScenes.push(pixelScene);
-            const target = getBiomeAtWorldCoordinates(biomeData, pixelScene.x, pixelScene.y, ngPlusCount > 0, gameMode);
-            const targetBiome = target ? target.biome : null;
+            // useWobble=true: the engine resolves a pixel scene's biome through the wobbled
+            // chunk lookup, so altar/scene inner-spawns near a boundary follow the neighbour.
+            // This is what suppresses spurious boundary altars (e.g. potion_altar over-spawns)
+            // without touching direct per-pixel spawns (see getBiomeAtWorldCoordinates note).
+            const target = getBiomeAtWorldCoordinates(biomeData, pixelScene.x, pixelScene.y, ngPlusCount > 0, gameMode, true);
+            // A scene spawned by a biome's spawn function belongs to THAT biome (its
+            // spawn pixel's biome, recorded as pixelScene.biome) even when the scene's
+            // top-left corner straddles a chunk boundary into a neighbour. The game
+            // loads these with skip_biome_checks, so re-deriving the biome from the
+            // corner (e.g. solid_wall beside fungiforest) would silently drop the
+            // scene's inner spawns. Prefer the owner biome; fall back to the corner
+            // for nested scenes that don't carry one.
+            const targetBiome = pixelScene.biome || (target ? target.biome : null);
             //const targetChunkPos = target ? target.pos : null;
 
             const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeData, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks, gameMode);
@@ -299,7 +310,7 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         newPixelScenes = [];
 
         detectedSpawns.forEach(spawn => {
-            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode);
+            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode, true);
             const targetBiome = target ? target.biome : null;
             //const targetChunkPos = target ? target.pos : null;
             if (targetBiome) {
