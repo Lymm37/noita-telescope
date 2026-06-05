@@ -245,7 +245,7 @@ export function loadPixelScene(biomeData, biomeName, sceneName, ws, ng, x, y, sk
 		if (SCENES_TO_NOT_RECOLOR.includes(sceneName)) {
 			biomeName = "general";
 		} else {
-			biomeName = getBiomeAtWorldCoordinates(biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, ng > 0, gameMode)?.biome || "general";
+			biomeName = getBiomeAtWorldCoordinates(biomeData, x + pixelSceneData.width/2, y + pixelSceneData.height/2, ng > 0, gameMode, true)?.biome || "general";
 		}
 	}
 	// Exception to the exception because it's in two different biomes which need to be recolored differently
