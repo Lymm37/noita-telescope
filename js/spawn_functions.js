@@ -15,6 +15,12 @@ import { BIOME_ENEMY_MAP, TOWER_ENEMIES } from './enemy_config.js';
 // Switching to using app settings instead?
 import { appSettings } from './settings.js';
 
+// Per-pixel biome-SCRIPT spawn functions whose dispatch follows the wobbled biome
+// (the engine redraws the spawn pixel from the wobbled neighbour near chunk edges).
+// Deliberately excludes structure/scene placers (spawn_chest, spawn_heart,
+// spawn_*_altar, load_pixel_scene, …) which use the original chunk biome.
+const WOBBLE_DISPATCH_FUNCS = new Set(['spawn_potions', 'spawn_wands', 'spawn_wand']);
+
 const BIOME_TIERS = {
 	'coalmine': 1,
 	'coalmine_alt': 1,
@@ -236,6 +242,43 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		console.warn(`No spawn function at index ${functionIndex} for biome ${biomeName}, trying to spawn at (${x}, ${y})`);
 		return;
 	}
+
+	// Per-spawn-mechanism wobble (live-confirmed on seed 1): a biome's per-pixel
+	// SCRIPT spawns (item/wand lists) are dispatched on the WOBBLED biome — near a
+	// chunk edge the engine redraws the spawn pixel from the wobbled neighbour, so
+	// it runs THAT biome's spawn map for the pixel's colour. Structure/scene spawns
+	// (chest/heart/*_altar/pixel scenes) are placed by a separate pass that uses the
+	// ORIGINAL chunk biome, so they are intentionally excluded here. Proof: ukkoskivi
+	// (-2065,1949) fungicave->excavationsite & wand (15355,2068) fungiforest->desert
+	// are telescope extras the game omits because the wobbled biome has no such pixel.
+	// We re-derive the function through the wobbled biome's OWN colour map and drop
+	// the spawn when that biome has no matching spawn pixel (the engine spawns nothing).
+	if (WOBBLE_DISPATCH_FUNCS.has(func)) {
+		const wob = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode, true);
+		if (wob && wob.biome && wob.biome !== biomeName) {
+			// The engine reads the spawn pixel from the wobbled biome's OWN spawn image.
+			// We approximate without that image: if the wobbled biome's colour map has
+			// NO entry for this pixel's colour, the engine can't spawn here -> drop
+			// (e.g. wand (15355,2068) fungiforest->desert: desert lacks the wand colour).
+			// If the colour IS defined we re-dispatch through the wobbled biome, which
+			// keeps the rare flips where both biomes legitimately spawn (dropping those
+			// unconditionally regressed a real wand + potion match). Caveat: a biome can
+			// define a colour in its map yet have no such pixel at THIS coord, so a few
+			// flip extras still slip through (ukkoskivi (-2065,1949) fungicave->
+			// excavationsite, both define spawn_potions @0xbca0f0) — fixing those, and
+			// the ADD direction (egg_worm (-1047,-477)), needs real image sampling.
+			const color = spawns[functionIndex] && spawns[functionIndex].color;
+			const wobIdx = color != null ? getSpawnFunctionIndex(wob.biome, color) : null;
+			if (wobIdx === null) return null;
+			const wobSpawns = BIOME_SPAWN_FUNCTION_MAP[wob.biome];
+			const wobSpawn = wobSpawns && wobSpawns[wobIdx];
+			if (!wobSpawn || wobSpawn.active === false || !wobSpawn.funcName) return null;
+			biomeName = wob.biome;
+			functionIndex = wobIdx;
+			func = wobSpawn.funcName;
+		}
+	}
+
 	const scenes = PIXEL_SCENE_BIOME_MAP[biomeName];
 	const prng = new NollaPrng(0);
 	prng.SetRandomSeed(ws + ng, x, y);
