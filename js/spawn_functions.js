@@ -1007,11 +1007,11 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeData, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeData, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 		}
 		else {
@@ -1032,11 +1032,11 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeData, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeData, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 		}
 		else {
