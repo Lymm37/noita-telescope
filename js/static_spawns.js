@@ -243,8 +243,9 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 				newPixelScenes.push(pixelScene);
 			}
 			if (i === friendRoom) {
-				// Gourd
-				newPois.push({type: 'item', item: 'gourd', x: friendRoomPositions[i-1].x + 256, y: friendRoomPositions[i-1].y + 256, biome: `friend_${i}`});
+				// Gourd: the "cavern" scene actually has three (fixed spawn_fruit
+				// pixels at y+~350); we show one for display, sat on the cluster.
+				newPois.push({type: 'item', item: 'gourd', x: friendRoomPositions[i-1].x + 256, y: friendRoomPositions[i-1].y + 350, biome: `friend_${i}`});
 			}
 		}
 
@@ -390,7 +391,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	// This one is in nightmare though
 	if (ng === 0 && pwIndex === 0 && pwIndexVertical === 0) {
 		// Kantele
-		newPois.push(generateWandKantele(-1634, -792));
+		newPois.push(generateWandKantele(-1633, -783));
 		newPois.push({type: 'shop', biome: 'mountain_tree', x: -1628, y: -736, items: [
 			{type: 'item', item: 'spell', spell: 'KANTELE_A', biome: 'mountain_tree', x: -1663, y: -760},
 			{type: 'item', item: 'spell', spell: 'KANTELE_A', biome: 'mountain_tree', x: -1663, y: -740},
@@ -419,7 +420,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	if (ng === 0 && pwIndexVertical === 0) {
 		// Ocarina / Flute / Huilu
-		newPois.push(generateWandHuilu(-9987 + pwOffsetX, -6479));
+		newPois.push(generateWandHuilu(-9985 + pwOffsetX, -6472));
 		newPois.push({type: 'shop', biome: 'ocarina', x: -9987 + pwOffsetX, y: -6400, items: [
 			{type: 'item', item: 'spell', spell: 'OCARINA_A', biome: 'ocarina', x: -10055, y: -6466},
 			{type: 'item', item: 'spell', spell: 'OCARINA_A', biome: 'ocarina', x: -10055, y: -6418},
