@@ -132,7 +132,14 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
                     sourceBiome: biomeName,
                     x: spawnX,
                     y: spawnY,
-                    spawnFunctionIndex: index
+                    spawnFunctionIndex: index,
+                    // The game loads pixel scenes with skip_biome_checks, so a scene's
+                    // inner spawns belong to the scene's owner biome even when an inner
+                    // pixel straddles a chunk boundary into a neighbour (e.g. a vault
+                    // wand altar whose wand pixel sits in the last row of its chunk, over
+                    // the winter surface biome). Tag these so spawnSwitch trusts the
+                    // owner biome instead of re-deriving the wrong one from the raw map.
+                    fromPixelScene: true
                 });
             }
         }
@@ -315,7 +322,7 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
             //const targetChunkPos = target ? target.pos : null;
             if (targetBiome) {
                 // TODO: Setting the biome in here might be redundant now
-                const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks, gameMode);
+                const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks, gameMode, spawn.fromPixelScene);
                 if (spawnData) {
                     spawnData.biome = targetBiome;
                     if (spawn.sourceBiome != targetBiome) {

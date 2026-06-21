@@ -199,23 +199,31 @@ function spawnEntities(ws, ng, x, y, spawnList, gameMode='normal', perks={}, off
 }
 
 // Might just make this cover all colors?
-export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}, gameMode='normal') {
-	// Block spawns if near chunk boundary (only on negative side, this is what the game appears to do)
-	if (appSettings.blockEdgeSpawns) {
-		const offsetX = ((x % 512) + 512) % 512;
-		const offsetY = ((y % 512) + 512) % 512;
-		// Don't spawn anything within 5 pixels of the chunk edge, but only on the negative side.
-		if (offsetX >= 507 || offsetY >= 507) return null;
+export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}, gameMode='normal', trustBiome=false) {
+	// trustBiome: the spawn comes from inside a pixel scene, which the game loads
+	// with skip_biome_checks. The caller already resolved the scene's owner biome
+	// (the wobbled biome at the spawn pixel), so don't re-derive it here: an inner
+	// pixel can straddle a chunk boundary into a neighbour whose raw-map biome lacks
+	// this spawn function (e.g. a vault wand altar's wand pixel sitting in the last
+	// row of its chunk, over the winter surface), which would otherwise drop it.
+	if (!trustBiome) {
+		// Block spawns if near chunk boundary (only on negative side, this is what the game appears to do)
+		if (appSettings.blockEdgeSpawns) {
+			const offsetX = ((x % 512) + 512) % 512;
+			const offsetY = ((y % 512) + 512) % 512;
+			// Don't spawn anything within 5 pixels of the chunk edge, but only on the negative side.
+			if (offsetX >= 507 || offsetY >= 507) return null;
+		}
+		// Adjust biome with edge noise
+		const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
+		// Attempt to exclude edge cases if the biome is different after edge noise
+		if (appSettings.excludeEdgeCases && adjustedBiomeResults.biome !== adjustedBiomeResults.origBiome) {
+			//console.log(`Excluding spawn at (${x}, ${y}) in biome ${biomeName} due to edge noise uncertainty`);
+			return null; // Don't spawn anything if this is an edge case and we're excluding them
+		}
+
+		biomeName = adjustedBiomeResults.biome;
 	}
-	// Adjust biome with edge noise
-	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
-	// Attempt to exclude edge cases if the biome is different after edge noise
-	if (appSettings.excludeEdgeCases && adjustedBiomeResults.biome !== adjustedBiomeResults.origBiome) {
-		//console.log(`Excluding spawn at (${x}, ${y}) in biome ${biomeName} due to edge noise uncertainty`);
-		return null; // Don't spawn anything if this is an edge case and we're excluding them
-	}
-	
-	biomeName = adjustedBiomeResults.biome;
 
 	const spawns = BIOME_SPAWN_FUNCTION_MAP[biomeName];
 	if (!spawns) {
