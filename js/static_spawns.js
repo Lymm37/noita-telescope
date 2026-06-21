@@ -408,7 +408,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	if (ng === 0 && pwIndexVertical === 0 && !isNightmare) {
 		// Chaingun
-		newPois.push(generateExperimentalWand3(16121 + pwOffsetX, 9987)); // Approx position
+		newPois.push(generateExperimentalWand3(16120 + pwOffsetX, 9996)); // Chaingun, matches game (16120,9996)
 		// Saha
 		newPois.push(generateExperimentalWand4(13*512+256 + pwOffsetX, 16*512+256)); // Approx position, also this is a boss drop but I'm just treating it as a wand
 
