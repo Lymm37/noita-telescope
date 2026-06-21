@@ -1,7 +1,7 @@
 import { isMatch, getDisplayName, injectTranslations } from './translations.js';
 import { generateGreatChest } from './chest_generation.js';
 import { generateWand } from './wand_generation.js';
-import { SPRITE_RARITY } from './wand_config.js';
+import { SPRITE_RARITY, WAND_TIERS, getWandTierIndex } from './wand_config.js';
 import { NollaPrng } from './nolla_prng.js';
 import { getDragonDrops, getPitBossDrops, getTinyDrops } from './misc_generation.js';
 import { generateSpiral, CONTAINER_TYPES } from './utils.js'; 
@@ -83,6 +83,12 @@ function checkWandMatch(w, f) {
 	// Shuffle
 	if (f.shuffleMode === 'shuffle' && !w.shuffle_deck_when_empty) return false;
 	if (f.shuffleMode === 'non-shuffle' && w.shuffle_deck_when_empty) return false;
+
+	// Tier
+	if (f.minTierIdx > 0 || f.maxTierIdx < WAND_TIERS.length - 1) {
+		const tierIdx = getWandTierIndex(w);
+		if (tierIdx < f.minTierIdx || tierIdx > f.maxTierIdx) return false;
+	}
 
 	// Always Casts
 	if (f.ac) {

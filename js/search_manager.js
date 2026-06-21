@@ -7,6 +7,7 @@ import { TRANSLATIONS } from './translations.js';
 import { unlockedSpells } from './unlocks.js';
 import { getOrGenerateWorld } from './world_manager.js';
 import { T10_SPELLS } from './spells.js';
+import { WAND_TIERS } from './wand_config.js';
 
 const SEARCH_ENABLED = true;
 let searchActive = false; // Whether to display the search results
@@ -90,7 +91,9 @@ function getSearchFilters() {
 		minLen: parseInt(document.getElementById('len-min-num').value),
 		maxLen: parseInt(document.getElementById('len-max-num').value),
 		minSpriteRarity: parseFloat(document.getElementById('rarity-min-num').value),
-		maxSpriteRarity: parseFloat(document.getElementById('rarity-max-num').value)
+		maxSpriteRarity: parseFloat(document.getElementById('rarity-max-num').value),
+		minTierIdx: parseInt(document.getElementById('tier-min-range').value),
+		maxTierIdx: parseInt(document.getElementById('tier-max-range').value),
 	};
 }
 

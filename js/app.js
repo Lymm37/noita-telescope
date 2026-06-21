@@ -22,6 +22,7 @@ import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } fr
 import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, isOverlayPending } from './overlay_manager.js';
 import { getBiomeModifiers, getStartingWeather } from './misc_generation.js';
 import { getCauldronState, getCauldronVariation } from './cauldron.js';
+import { WAND_TIERS } from './wand_config.js';
 
 // Not quite ready yet
 //import {getTemplePerks} from './perks.js';
@@ -714,6 +715,8 @@ export const app = {
 		// Rarity (log 10, 1 - 9) (over 9 is always included)
 		// This is another that a single slider makes more sense
 		this.initDualSlider('rarity', 1.0, 9.0, 0.1);
+		// Tier (P - 10NS)
+		this.initDualListSlider('tier', WAND_TIERS);
 
 		// Search radius
 		//this.initSingleSlider('search-radius', 1, 1000, 1, 20);
@@ -1007,6 +1010,95 @@ export const app = {
 		});
 
 		update(); // Initial Draw
+	},
+
+	/**
+	 * Dual Range List Slider Component
+	 * @param {string} idPrefix - The ID prefix used in HTML
+	 * @param {string[]} values - Ordered array of labels
+	 */
+	initDualListSlider(idPrefix, values) {
+		const maxIdx = values.length - 1;
+		const minRange = document.getElementById(`${idPrefix}-min-range`);
+		const maxRange = document.getElementById(`${idPrefix}-max-range`);
+		const minLabel = document.getElementById(`${idPrefix}-min-label`);
+		const maxLabel = document.getElementById(`${idPrefix}-max-label`);
+		const container = minRange.parentElement;
+
+		[minRange, maxRange].forEach(el => {
+			el.min = 0;
+			el.max = maxIdx;
+			el.step = 1;
+		});
+
+		minRange.value = 0;
+		maxRange.value = maxIdx;
+
+		function update(caller) {
+			let valMin = parseInt(minRange.value);
+			let valMax = parseInt(maxRange.value);
+
+			if (caller === 'min' && valMin > valMax) {
+			minRange.value = valMax;
+			valMin = valMax;
+			} else if (caller === 'max' && valMax < valMin) {
+			maxRange.value = valMin;
+			valMax = valMin;
+			}
+
+			minLabel.value = values[valMin];
+			maxLabel.value = values[valMax];
+
+			const percentStart = (valMin / maxIdx) * 100;
+			const percentEnd = (valMax / maxIdx) * 100;
+			container.style.setProperty('--range-start', `${percentStart}%`);
+			container.style.setProperty('--range-end', `${percentEnd}%`);
+		}
+
+		container.addEventListener('mousemove', (e) => {
+			const rect = container.getBoundingClientRect();
+			const pos = (e.clientX - rect.left) / rect.width;
+			const val = pos * maxIdx;
+
+			const distMin = Math.abs(val - parseInt(minRange.value) + 0.01);
+			const distMax = Math.abs(val - parseInt(maxRange.value) - 0.01);
+
+			minRange.style.zIndex = distMin < distMax ? "11" : "10";
+			maxRange.style.zIndex = distMax <= distMin ? "11" : "10";
+		});
+
+		const validate = (el, isMin) => {
+			const typed = el.value.trim().toUpperCase();
+			const idx = values.findIndex(t => t.toUpperCase() === typed);
+
+			if (idx === -1) {
+			el.value = values[parseInt(isMin ? minRange.value : maxRange.value)];
+			return;
+			}
+
+			if (isMin) {
+			if (idx > parseInt(maxRange.value)) maxRange.value = idx;
+			minRange.value = idx;
+			update('min');
+			} else {
+			if (idx < parseInt(minRange.value)) minRange.value = idx;
+			maxRange.value = idx;
+			update('max');
+			}
+		};
+
+		minRange.addEventListener('input', () => update('min'));
+		maxRange.addEventListener('input', () => update('max'));
+		minLabel.addEventListener('blur', () => validate(minLabel, true));
+		maxLabel.addEventListener('blur', () => validate(maxLabel, false));
+		minLabel.addEventListener('click', () => minLabel.select());
+		maxLabel.addEventListener('click', () => maxLabel.select());
+
+		[minLabel, maxLabel].forEach(el => {
+			el.addEventListener('keydown', (e) => { if (e.key === 'Enter') el.blur(); });
+		});
+
+		update();
 	},
 
 	getHitObject(e) {
