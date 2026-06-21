@@ -1,4 +1,4 @@
-import { tileToWorldCoordinates, getBiomeAtWorldCoordinates, getWorldCenter, getWorldSize } from "./utils.js";
+import { tileToWorldCoordinates, getBiomeAtWorldCoordinates, getResolvedBiome, getWorldCenter, getWorldSize } from "./utils.js";
 import { GENERATOR_CONFIG } from "./generator_config.js";
 import { BIOME_SPAWN_FUNCTION_MAP } from "./spawn_function_config.js";
 import { getSpawnFunctionIndex, spawnSwitch } from "./spawn_functions.js";
@@ -22,6 +22,19 @@ import { PIXEL_SCENE_SPAWN_DATA } from "./pixel_scene_generation.js";
 
 // Prevent infinite loops with nested pixel scenes (which hopefully shouldn't happen...)
 const MAX_SCAN_CYCLES = 10;
+
+// Spawn functions whose entities the engine places as pixel-scene / structure content using the
+// chunk's ORIGINAL biome — they survive a biome-flip seam (live-verified vs the game: chest
+// @(-10765,517) vault_frozen->winter, heart @(7175,8627) meat->meatroom, tower wand @(10270,8213)
+// tower_2->tower_3 are all KEPT despite the flip). These are exempt from the wang-scan GATE 1
+// below. Everything else (enemies, decorations, and pixel-scene LOADERS like spawn_potion_altar)
+// is a wang-tile magic pixel gated by the scan: it is dropped when the wobble flips the chunk into
+// a different biome (live-verified: the rainforest_open->rainforest potion_altar is NOT placed).
+const ORIGINAL_BIOME_SPAWNS = new Set([
+    'spawn_heart',
+    'spawn_chest',
+    'spawn_items',
+]);
 
 export function prescanPixelScene(imgData, sourceBiome) {
     //const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
@@ -272,7 +285,7 @@ export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
 
 export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount, pwIndex, pwIndexVertical, skipCosmeticScenes = true, perks={}, gameMode='normal') {
     const t0 = performance.now();
-    let detectedSpawns = tileSpawns.map(spawn => ({...spawn, 
+    let detectedSpawns = tileSpawns.map(spawn => ({...spawn, fromPixelScene: false,
         x: spawn.x + pwIndex*getWorldSize(ngPlusCount > 0, gameMode) * 512 - ((ngPlusCount > 0 || gameMode === 'nightmare') ? 8 * pwIndex : 0),
         y: spawn.y + pwIndexVertical*24570
     }));
@@ -306,7 +319,8 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
             //const targetChunkPos = target ? target.pos : null;
 
             const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeData, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks, gameMode);
-            detectedSpawns.push(...pixelSceneResults.detectedSpawns);
+            // Spawns from inside a pixel scene bypass the wang-scan GATE 1 (cell-grid path).
+            detectedSpawns.push(...pixelSceneResults.detectedSpawns.map(s => ({...s, fromPixelScene: true})));
             newPixelScenes.push(...pixelSceneResults.newPixelScenes); // This could be a problem
             numberOfNewPixelScenes += pixelSceneResults.newPixelScenes.length; // This is a hack to allow processing newly added pixel scenes in the same cycle
             // TODO: Might cause infinite loop if overlap can cause infinitely nested pixel scenes, but surely that can't happen...? Right?
@@ -317,8 +331,27 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         newPixelScenes = [];
 
         detectedSpawns.forEach(spawn => {
-            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode, true);
-            const targetBiome = target ? target.biome : null;
+            let targetBiome;
+            const srcFn = (BIOME_SPAWN_FUNCTION_MAP[spawn.sourceBiome] || [])[spawn.spawnFunctionIndex];
+            const srcFnName = srcFn ? srcFn.funcName : null;
+            if (spawn.fromPixelScene) {
+                // Pixel-scene-internal spawns resolve their biome through the wobbled chunk lookup.
+                const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode, true);
+                targetBiome = target ? target.biome : null;
+            } else if (ORIGINAL_BIOME_SPAWNS.has(srcFnName)) {
+                // Direct loot / structure content: engine places it from the ORIGINAL biome, so it
+                // survives a wobble flip. Dispatch through the raw home-cell biome.
+                const resolved = getResolvedBiome(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode);
+                targetBiome = resolved.origBiome;
+            } else {
+                // Wang-scan GATE 1 (WorldSave_SaveChunkImage_sub_87d380 @0x0087d380): the spawn fires
+                // only if the wobble-resolved chunk is the SAME biome as the raw home chunk. A flip
+                // into a different biome drops it (the rainforest_open->rainforest potion_altar
+                // phantom). Compare the resolver's own raw home cell, not the tile's region label.
+                const resolved = getResolvedBiome(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode);
+                if (resolved.biome !== resolved.origBiome) return; // GATE 1: cross-biome flip -> dropped
+                targetBiome = resolved.origBiome;
+            }
             //const targetChunkPos = target ? target.pos : null;
             if (targetBiome) {
                 // TODO: Setting the biome in here might be redundant now

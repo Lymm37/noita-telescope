@@ -31,7 +31,7 @@ function SampleBiome(x, y) {
 }
 
 // Originally had unused z..?
-function ComputeMagicValueFromDoubles(x, y) {
+export function ComputeMagicValueFromDoubles(x, y) {
 	let uVar1;
 	let uVar2;
 	let dVar3;

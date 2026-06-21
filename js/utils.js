@@ -1,6 +1,6 @@
 import {CHUNK_SIZE, TILE_SIZE, WORLD_CHUNK_CENTER_X, WORLD_CHUNK_CENTER_Y, WORLD_CHUNK_CENTER_X_NGP, TILE_OFFSET_X, TILE_OFFSET_Y, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y} from './constants.js';
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from './generator_config.js';
-import { GetBiomeOffset } from './edge_noise.js';
+import { GetBiomeOffset, ComputeMagicValueFromDoubles } from './edge_noise.js';
 import { biomeEdgeNoiseFlag } from './wobble_flags.js';
 import { MATERIAL_COLOR_LOOKUP } from './potion_config.js';
 import { PIXEL_SCENE_DATA } from './pixel_scene_generation.js';
@@ -280,6 +280,103 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
         originalPos: {x: originalX, y: originalY},
         mightBeEdgeCase: edgeOffset.x !== 0 || edgeOffset.y !== 0
     };
+}
+
+// Faithful port of the engine's ChunkGrid_ResolveChunkAtPosition @0x0087d9a0.
+//
+// Unlike getBiomeAtWorldCoordinates (which reconstructs a lossy ±1 chunk offset from a
+// 2-bit parity sample via GetBiomeOffset, then re-guesses the sign with a probe loop),
+// this computes the ACTUAL wobble-resolved biome chunk the same way the engine does:
+// it gates on the per-biome edge-noise flags, picks the first differing neighbour in the
+// engine's exact probe order, and looks the wobbled chunk up directly from the simplex +
+// sin/cos offset (the cross-wired "swap": the sin/Y branch is added to X, the cos/X branch
+// to Y). The engine compares CHUNK POINTERS, which are shared per biome, so the
+// "differing neighbour" test and the resulting equality are biome-identity tests, not
+// cell-position tests — this is the distinction that makes a faithful GATE 1 keep the
+// chests/hearts/wands the engine keeps at same-biome seams while still dropping genuine
+// cross-biome flip phantoms (e.g. the rainforest_open->rainforest runestone altar).
+//
+// Returns { biome, origBiome, colorInt, pos:{x,y}, originalPos:{x,y} } where `biome`/`pos`
+// are the wobble-resolved chunk and `origBiome`/`originalPos` are the raw (no-wobble) home
+// chunk. GATE 1 = (biome === origBiome).
+//
+// LIMITATION: telescope's biome_flags.json lacks big_noise_biome_edges (only
+// noise_biome_edges + fat_biome_edges), so we always take the sin/cos+simplex branch
+// (big_noise defaulting to 1). Biomes with big_noise_biome_edges==0 would use the
+// simplex-only (×2.5) branch; extract that flag from biome XML if a seam needs it.
+export function getResolvedBiome(biomeData, worldX, worldY, isNGP = false, gameMode = 'normal') {
+    let biomeMap = biomeData.pixels;
+    if (worldY < -14 * 512) biomeMap = biomeData.heavenPixels;
+    else if (worldY > 34 * 512) biomeMap = biomeData.hellPixels;
+
+    const mapWidth = getWorldSize(isNGP, gameMode);
+    const mapHeight = 48;
+    const shifted_x = worldX + 512 * getWorldCenter(isNGP, gameMode);
+    const shifted_y = worldY + 512 * 14;
+    const fx = Math.floor(shifted_x);
+    const fy = Math.floor(shifted_y);
+
+    const wrapX = (cx) => ((cx % mapWidth) + mapWidth) % mapWidth;
+    const clampY = (cy) => (cy < 0 ? 0 : (cy > mapHeight - 1 ? mapHeight - 1 : cy));
+    const colorAt = (cx, cy) => biomeMap[clampY(cy) * mapWidth + wrapX(cx)] & 0xffffff;
+    const nameOf = (color) => BIOME_COLOR_TO_NAME[color] || null;
+
+    const origCx = wrapX(fx >> 9);
+    const origCy = clampY(fy >> 9);
+    const origColor = colorAt(origCx, origCy);
+    const origName = nameOf(origColor);
+    const make = (cx, cy, color) => ({
+        biome: nameOf(color),
+        origBiome: origName,
+        colorInt: color,
+        pos: { x: cx, y: cy },
+        originalPos: { x: origCx, y: origCy },
+    });
+    const orig = () => make(origCx, origCy, origColor);
+
+    // Step 4: short-circuit gates on the home biome's edge flags.
+    if (biomeEdgeNoiseFlag(origColor, 'noise_biome_edges') === 0) return orig();
+    if (biomeEdgeNoiseFlag(origColor, 'fat_biome_edges')) return orig();
+
+    const sub_x = fx & 0x1ff;
+    const sub_y = fy & 0x1ff;
+
+    // Step 5: first neighbour (engine probe order) whose biome differs from home.
+    let nCx = null, nCy = null;
+    const consider = (cx, cy) => {
+        if (nCx !== null) return;
+        if (colorAt(cx, cy) !== origColor) { nCx = cx; nCy = cy; }
+    };
+    if (sub_x < 42 && colorAt(origCx - 1, origCy) !== origColor) {
+        // engine: when sub_x<42 the LEFT neighbour is probed first; if it differs it is used
+        // immediately, otherwise control falls through to the remaining probes below.
+        nCx = origCx - 1; nCy = origCy;
+    }
+    if (nCx === null) {
+        if (sub_y < 42) consider(origCx, origCy - 1);   // top
+        if (sub_x > 470) consider(origCx + 1, origCy);  // right
+        if (sub_y > 470) consider(origCx, origCy + 1);  // bottom
+        if (sub_x < 42) {
+            if (sub_y < 42) consider(origCx - 1, origCy - 1);
+            if (sub_y > 470) consider(origCx - 1, origCy + 1);
+        }
+        if (sub_x > 470) {
+            if (sub_y < 42) consider(origCx + 1, origCy - 1);
+            if (sub_y > 470) consider(origCx + 1, origCy + 1);
+        }
+    }
+    if (nCx === null) return orig();
+    if (biomeEdgeNoiseFlag(colorAt(nCx, nCy), 'noise_biome_edges') === 0) return orig();
+
+    // Steps 7-8: simplex + sin/cos wobble, with the engine's cross-wired axis swap.
+    const simplex = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
+    const dxBranch = Math.cos(shifted_x * 0.005) * 30.0 + simplex * 11.0; // cos on X
+    const dyBranch = Math.sin(shifted_y * 0.005) * 30.0 + simplex * 11.0; // sin on Y
+    const wCx = wrapX(((dyBranch + shifted_x) | 0) >> 9); // sin/Y branch added to X
+    const wCy = clampY(((dxBranch + shifted_y) | 0) >> 9); // cos/X branch added to Y
+    const wColor = colorAt(wCx, wCy);
+    if (biomeEdgeNoiseFlag(wColor, 'noise_biome_edges') !== 0) return make(wCx, wCy, wColor);
+    return orig();
 }
 
 export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, worldY, pwIndex, pwIndexVertical, isNGP = false, gameMode='normal') {
