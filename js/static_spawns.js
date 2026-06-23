@@ -351,8 +351,10 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	if (ng === 0 && pwIndex === 0 && pwIndexVertical === 0 && !isNightmare) {
 		// Eye
 		newPois.push({type: 'item', item: 'paha_silma', x: -2434, y: -204, biome: 'winter'});
-		// Rainbow cloud
-		newPois.push({type: 'item', item: 'spell', spell: 'rainbow_trail', x: -14000, y: -2816, biome: 'lake'});
+		// Rainbow cloud: lake.lua spawn_rainbow_card -> CreateItemActionEntity("RAINBOW_TRAIL", x, y).
+		// Magic pixel 0xFF5078C8 sits at offset (58,0) in biome_impl/rainbow_cloud.png,
+		// whose pixel scene anchor is (-14059,-2851), so the card spawns at (-14001,-2851).
+		newPois.push({type: 'item', item: 'spell', spell: 'RAINBOW_TRAIL', x: -14059 + 58, y: -2851, biome: 'lake'});
 		// Experimental wands?
 		// Unfortunately, it looks like all the experimental wands and tower wands are generated based on frame count, so I can't predict exact values.
 		// {name: "general/bunker", x: -12603, y: 326},
