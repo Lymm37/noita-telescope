@@ -1,4 +1,5 @@
 import { tileToWorldCoordinates, getBiomeAtWorldCoordinates, getResolvedBiome, getWorldCenter, getWorldSize } from "./utils.js";
+import { CHUNK_SIZE, TILE_SIZE, WORLD_CHUNK_CENTER_X, WORLD_CHUNK_CENTER_Y } from "./constants.js";
 import { GENERATOR_CONFIG } from "./generator_config.js";
 import { BIOME_SPAWN_FUNCTION_MAP } from "./spawn_function_config.js";
 import { getSpawnFunctionIndex, spawnSwitch } from "./spawn_functions.js";
@@ -214,6 +215,37 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
     return { detectedSpawns, newPixelScenes, generatedSpawns };
 }
 
+// The wang buffer packs each world chunk's 512px as 51 tile-columns (51,51,51,51,52
+// per 5-group → 256 cols = 2560px = 5*512px), carrying the +0.2-col/chunk remainder
+// only at the 5-group boundary. tileToWorldCoordinates advances world-X continuously
+// (tileX*TILE_SIZE), so for chunks deep in a 5-group the buffer's seam columns drift
+// across the chunk boundary in world space: their world position lands in a NEIGHBOURING
+// 512px chunk that the engine fills from a *different* wang sample. The engine never
+// paints a spawn there, so emitting that buffer cell invents a phantom spawn at the seam.
+//
+// Guard: a buffer cell at (minX+bufX -> chunk by per-chunk-width walk) is only real if
+// the world coordinate it maps to lands back inside that SAME chunk's 512px extent. We
+// derive the owning chunk by walking the per-chunk widths (cw=51, +1 when cx%5===4) and
+// compare it to the chunk the world coord falls in. A mismatch on either axis means the
+// cell bled past its chunk's true 512px extent — drop it. This keeps legit interior and
+// in-chunk near-boundary spawns (their world chunk == owning chunk) while dropping only
+// the drifted seam columns/rows.
+function chunkWidthAt(cx) {
+    return Math.floor(CHUNK_SIZE / TILE_SIZE) + ((((cx % 5) + 5) % 5) === 4 ? 1 : 0);
+}
+function owningChunk(baseChunk, bufIdx) {
+    let c = baseChunk;
+    let rem = bufIdx;
+    while (true) {
+        const w = chunkWidthAt(c);
+        if (rem < w) break;
+        rem -= w;
+        c++;
+    }
+    // rem is the local column/row index within the owning chunk.
+    return { chunk: c, local: rem };
+}
+
 // Surprisingly this depends on NG0 vs NG+ but not on seed
 export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
     // TODO: Don't use clearSpawnPixels here, do it earlier
@@ -249,6 +281,26 @@ export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
 
                 if (index !== null) {
                     const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, 0, isNGP, gameMode);
+
+                    // Seam-drift guard: skip cells whose world position bled into a
+                    // neighbouring 512px chunk (a phantom the engine never paints there).
+                    //
+                    // A chunk's local column/row 0 legitimately maps a few px *before* the
+                    // chunk's nominal base (TILE_OFFSET_X = 5, the -TILE_SIZE term), so the
+                    // engine's first column of a chunk really does land in the previous
+                    // chunk's last px — that cross-boundary cell is REAL and must be kept.
+                    // The seam phantom is different: accumulated +0.2-col/chunk drift pushes
+                    // a NON-zero local column/row (local >= 1) back across the boundary into
+                    // the neighbour, a world position the engine fills from a different wang
+                    // sample and never paints. So a cross-chunk leak is only a phantom when
+                    // it happens at a local index other than 0 on the leaking axis.
+                    const centerX = getWorldCenter(isNGP, gameMode);
+                    const ownX = owningChunk(layer.minX, x);
+                    const ownY = owningChunk(layer.minY, y - 4);
+                    const worldChunkX = Math.floor(coords.x / CHUNK_SIZE) + centerX;
+                    const worldChunkY = Math.floor(coords.y / CHUNK_SIZE) + WORLD_CHUNK_CENTER_Y;
+                    if ((worldChunkX !== ownX.chunk && ownX.local !== 0) ||
+                        (worldChunkY !== ownY.chunk && ownY.local !== 0)) continue;
 
                     detectedSpawns.push({
                         sourceBiome,
