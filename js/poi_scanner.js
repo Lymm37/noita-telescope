@@ -245,27 +245,51 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
 // 512px chunk that the engine fills from a *different* wang sample. The engine never
 // paints a spawn there, so emitting that buffer cell invents a phantom spawn at the seam.
 //
-// Guard: a buffer cell at (minX+bufX -> chunk by per-chunk-width walk) is only real if
-// the world coordinate it maps to lands back inside that SAME chunk's 512px extent. We
-// derive the owning chunk by walking the per-chunk widths (cw=51, +1 when cx%5===4) and
-// compare it to the chunk the world coord falls in. A mismatch on either axis means the
-// cell bled past its chunk's true 512px extent — drop it. This keeps legit interior and
-// in-chunk near-boundary spawns (their world chunk == owning chunk) while dropping only
-// the drifted seam columns/rows.
-function chunkWidthAt(cx) {
-    return Math.floor(CHUNK_SIZE / TILE_SIZE) + ((((cx % 5) + 5) % 5) === 4 ? 1 : 0);
-}
-function owningChunk(baseChunk, bufIdx) {
-    let c = baseChunk;
-    let rem = bufIdx;
-    while (true) {
-        const w = chunkWidthAt(c);
-        if (rem < w) break;
-        rem -= w;
-        c++;
+// Faithful port of the engine's spawn COLLECTOR owning-chunk gate
+// (BiomeSpawns_CollectRecordsForChunk @0x87d380). The engine scans each 512px chunk
+// over its own world range stepping by TILE_SIZE, wobble-maps each scan position to a
+// wang cell (wobbleAmt is hard-0 for the topology-2 pixel-scene path, so
+// wx = (scan + off + 0.5) / TILE_SIZE — note the engine uses a half-PIXEL +0.5 in the
+// lookup but a half-TILE -5 when recomputing the emit pos below), recomputes the cell's
+// CANONICAL emit position (cell*TILE_SIZE - TILE_SIZE/2 - off), and keeps the spawn ONLY when that
+// emit position lies inside the SCANNING chunk's bounds [chunkX, chunkX+CHUNK_SIZE-1).
+// So a cell is kept iff SOME chunk both READS it (its TILE_SIZE scan grid lands on the
+// cell) AND OWNS its emit position. At a chunk seam the wobble can make the only chunk
+// that reads the cell differ from the chunk that owns its emit pos, so the engine
+// drops it — e.g. the fungicave wand at (-2565,1977): cell wx=1536 is read only by the
+// chunk at -2560, but the emit pos -2565 belongs to the chunk at -3072, so no chunk
+// both reads and owns it. This supersedes the older per-axis keep-local-0 heuristic,
+// which kept that phantom (col-0 leaks were kept unconditionally).
+function collectorReaderChunks(cell, off) {
+    // World scan positions whose wobble-floor maps to `cell` AND that fall on their own
+    // chunk's TILE_SIZE grid (scan = chunkBase + k*TILE_SIZE). Returns the distinct
+    // owning chunk bases of those scan positions.
+    const out = [];
+    const lo = cell * TILE_SIZE - off - 1;
+    const hi = cell * TILE_SIZE - off + TILE_SIZE + 1;
+    for (let s = Math.ceil(lo); s <= hi; s++) {
+        if (Math.floor((s + off + 0.5) / TILE_SIZE) !== cell) continue;
+        const cb = Math.floor(s / CHUNK_SIZE) * CHUNK_SIZE;
+        if ((((s - cb) % TILE_SIZE) + TILE_SIZE) % TILE_SIZE !== 0) continue;
+        if (!out.includes(cb)) out.push(cb);
     }
-    // rem is the local column/row index within the owning chunk.
-    return { chunk: c, local: rem };
+    return out;
+}
+function engineCollectorOwns(emitX, emitY, isNGP, gameMode) {
+    const offX = getWorldCenter(isNGP, gameMode) * CHUNK_SIZE;
+    const offY = WORLD_CHUNK_CENTER_Y * CHUNK_SIZE;
+    const half = TILE_SIZE / 2;
+    const cellX = Math.round((emitX + half + offX) / TILE_SIZE);
+    const cellY = Math.round((emitY + half + offY) / TILE_SIZE);
+    const rx = collectorReaderChunks(cellX, offX);
+    const ry = collectorReaderChunks(cellY, offY);
+    for (const cX of rx) {
+        if (!(cX <= emitX && emitX < cX + (CHUNK_SIZE - 1))) continue;
+        for (const cY of ry) {
+            if (cY <= emitY && emitY < cY + (CHUNK_SIZE - 1)) return true;
+        }
+    }
+    return false;
 }
 
 // Surprisingly this depends on NG0 vs NG+ but not on seed
@@ -304,25 +328,13 @@ export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
                 if (index !== null) {
                     const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, 0, isNGP, gameMode);
 
-                    // Seam-drift guard: skip cells whose world position bled into a
-                    // neighbouring 512px chunk (a phantom the engine never paints there).
-                    //
-                    // A chunk's local column/row 0 legitimately maps a few px *before* the
-                    // chunk's nominal base (TILE_OFFSET_X = 5, the -TILE_SIZE term), so the
-                    // engine's first column of a chunk really does land in the previous
-                    // chunk's last px — that cross-boundary cell is REAL and must be kept.
-                    // The seam phantom is different: accumulated +0.2-col/chunk drift pushes
-                    // a NON-zero local column/row (local >= 1) back across the boundary into
-                    // the neighbour, a world position the engine fills from a different wang
-                    // sample and never paints. So a cross-chunk leak is only a phantom when
-                    // it happens at a local index other than 0 on the leaking axis.
-                    const centerX = getWorldCenter(isNGP, gameMode);
-                    const ownX = owningChunk(layer.minX, x);
-                    const ownY = owningChunk(layer.minY, y - 4);
-                    const worldChunkX = Math.floor(coords.x / CHUNK_SIZE) + centerX;
-                    const worldChunkY = Math.floor(coords.y / CHUNK_SIZE) + WORLD_CHUNK_CENTER_Y;
-                    if ((worldChunkX !== ownX.chunk && ownX.local !== 0) ||
-                        (worldChunkY !== ownY.chunk && ownY.local !== 0)) continue;
+                    // Collector owning-chunk gate: the engine only paints a spawn pixel when
+                    // some 512px chunk both READS its wang cell (via its TILE_SIZE scan grid)
+                    // and OWNS the cell's canonical emit position. Near a seam the wobble can
+                    // make the reader chunk differ from the emit-owner chunk, so the engine
+                    // drops the cell — emitting it here would invent a phantom spawn. See
+                    // engineCollectorOwns above.
+                    if (!engineCollectorOwns(coords.x, coords.y, isNGP, gameMode)) continue;
 
                     detectedSpawns.push({
                         sourceBiome,
