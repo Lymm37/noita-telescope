@@ -99,8 +99,12 @@ function generateRawTileBuffer(regionPoints, bbox, wangData, worldSeed, ngPlus, 
     const tile_indices = stbhw_generate_image(ts, rawBuffer, mapW * 3, mapW, outH, coffee_hack);
     if (!tile_indices) return null;
 
-    // Missing step: block out rooms related to pixel scenes
-    let shouldBlockOutRooms = biomeName === 'coalmine' || biomeName === 'excavationsite';
+    // Missing step: block out rooms related to pixel scenes.
+    // solid_wall_tower_1 is a coalmine clone (wang_template=coalmine.png) and gets the
+    // same pixel-scene rooms in-game, so it needs the same room blocking. Without it the
+    // tower altar room's herringbone-baked altar magic-pixels land at the wrong cells,
+    // dropping 2 wand + 2 potion altars (issue #17).
+    let shouldBlockOutRooms = biomeName === 'coalmine' || biomeName === 'excavationsite' || biomeName === 'solid_wall_tower_1';
     let pixelSceneRooms = [];
     if (shouldBlockOutRooms) {
         pixelSceneRooms = blockOutRooms(rawBuffer, mapW, outH);
