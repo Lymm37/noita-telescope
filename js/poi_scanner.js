@@ -37,6 +37,28 @@ const ORIGINAL_BIOME_SPAWNS = new Set([
     'spawn_items',
 ]);
 
+// The engine's tile-spawn scan (WorldSave_SaveChunkImage_sub_87d380 @0x0087d380) does NOT read the
+// wang buffer cell-by-cell. It steps a 10px SCAN GRID across each 512px chunk (anchored at the chunk's
+// world origin, so scan points sit at world ≡ chunkOrigin mod 10), maps each scan point to a wang cell
+// (PixelScene_BiomeNodeLookupCoord, wobbleAmt hard 0 -> a plain (scan+0.5)*0.1 scale, no displacement),
+// and evaluates GATE 1 (raw home biome == wobble-resolved biome) AT THE SCAN POINT — not at the cell.
+// A cell that emits at world (ex,ey) is read by the scan point (ex+dx, ey+dy) with dx,dy in [5,14]
+// (the chunk's grid phase). Near a downward biome seam that scan point lands a few px into the
+// neighbour, the resolver flips, and the gate FAILS — so the engine drops a magic pixel whose own cell
+// is still the home biome. Live-proven (seed 1): fungiforest potion cell (14675,5087)=fungiforest, but
+// its scan point (14686,5098) wobble-resolves to sandcave -> dropped; telescope, gating at the cell,
+// invented a phantom potion there. Interior cells (no differing neighbour) have scan≈cell, gate
+// unchanged. This reconstructs the engine's scan point from the cell's emit world position + chunk
+// grid phase (no runtime offset needed: dx,dy fall out of the half-open [4.5,14.5) window).
+function engineTileScanGatePos(worldX, worldY) {
+    const axis = (w) => {
+        const phase = ((((Math.floor(w / 512) * 512) % 10) + 10) % 10);
+        const base = (((phase - w) % 10) + 10) % 10;
+        return w + (base >= 5 ? base : base + 10);
+    };
+    return { x: axis(worldX), y: axis(worldY) };
+}
+
 export function prescanPixelScene(imgData, sourceBiome) {
     //const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
     const clearSpawnPixels = appSettings.clearSpawnPixels;
@@ -399,8 +421,11 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
                 // Wang-scan GATE 1 (WorldSave_SaveChunkImage_sub_87d380 @0x0087d380): the spawn fires
                 // only if the wobble-resolved chunk is the SAME biome as the raw home chunk. A flip
                 // into a different biome drops it (the rainforest_open->rainforest potion_altar
-                // phantom). Compare the resolver's own raw home cell, not the tile's region label.
-                const resolved = getResolvedBiome(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode);
+                // phantom). The engine evaluates this at the 10px SCAN-GRID point that reads the cell,
+                // not at the cell itself (see engineTileScanGatePos) — near a downward seam the scan
+                // point flips where the cell would not (fungiforest potion 14675,5087 -> 14686,5098).
+                const sp = engineTileScanGatePos(spawn.x, spawn.y);
+                const resolved = getResolvedBiome(biomeData, sp.x, sp.y, ngPlusCount > 0, gameMode);
                 if (resolved.biome !== resolved.origBiome) return; // GATE 1: cross-biome flip -> dropped
                 targetBiome = resolved.origBiome;
             }
