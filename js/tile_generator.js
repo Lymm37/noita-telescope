@@ -27,18 +27,29 @@ const TILESET_CACHE = {};
 
 function calculateMapDimensions(bbox) {
     const [minX, minY, maxX, maxY] = bbox;
-    // Chunks which have x % 5 == -1 have an extra pixel in width
-    // Chunks which have y % 5 == -1 have an extra pixel in height
-    let totalWidth = 0;
-    for (let x = minX; x <= maxX; x++) {
-        totalWidth += 51; // Base width for 1 chunk
-        if (x % 5 === 4) totalWidth += 1; // Extra pixel for this chunk
-    }
-    let totalHeight = 0;
-    for (let y = minY; y <= maxY; y++) {
-        totalHeight += 51; // Base height for 1 chunk
-        if (y % 5 === 4) totalHeight += 1; // Extra pixel for this chunk
-    }
+    // Engine wang-map dimensions (ProceduralTerrain_Init @0x87a900, the region-setup
+    // loop that builds each ProceduralBiome). A 512px chunk spans 51.2 wang columns
+    // (512/10), and the engine sizes a region's herringbone buffer as a DIFFERENCE OF
+    // FLOORS of the trailing/leading chunk pixel edges, NOT a per-chunk sum:
+    //
+    //   wangMapWidth  = ((maxX+1)*512)/10 - (minX*512)/10      ; ProceduralBiome+0x34 (piVar10[0xd])
+    //   wangMapHeight = ((maxY+1)*512)/10 - (minY*512)/10      ; ProceduralBiome+0x38 (piVar10[0xe])
+    //
+    // where <<9 == *512 and "/10" is C integer (truncating) division. Decompiled at
+    // ProceduralTerrain_Init lines:
+    //   local_29c = (((iStack_2e8 + 1) * 0x200) / 10 - (local_2f8[2] << 9) / 10);  // width
+    //   local_298 = (((iStack_2e4 + 1) * 0x200) / 10 - (puStack_2ec << 9) / 10);   // height
+    // (iStack_2e8/2e4 = region maxX/maxY chunk, local_2f8[2]/puStack_2ec = minX/minY chunk).
+    //
+    // For non-negative minX/minY this is exactly equivalent to the old per-chunk sum
+    // (51 + (cx%5===4?1:0)); they differ only when minX/minY is negative, where the old
+    // sum's `x % 5 === 4` test mishandles JS's negative modulo. All seed-1 biome regions
+    // (and the telescope pixel-grid in general) use a large positive center offset, so
+    // this is inert there, but the difference-of-floors is the faithful engine formula
+    // for negative-coordinate regions (NG+/parallel-world/other-seed layouts).
+    const td = (n) => Math.trunc(n / 10); // C int division (truncate toward zero)
+    const totalWidth = td((maxX + 1) * 512) - td(minX * 512);
+    const totalHeight = td((maxY + 1) * 512) - td(minY * 512);
     return { width: totalWidth, height: totalHeight };
 }
 
