@@ -693,10 +693,10 @@ export const app = {
 		this.initDualSlider('delay', -20/60, 1.0, 1/60);
 		// Recharge Time (0.0s - 4.0s)
 		this.initDualSlider('rech', 0.0, 4.0, 1/60);
-		// Mana Max (0 - 3000)
-		this.initDualSlider('mana', 0, 5000, 10);
-		// Mana Charge Speed (0 - 3000)
-		this.initDualSlider('manarech', 0, 5000, 10);
+		// Mana Max (0 - 5250)
+		this.initDualSlider('mana', 0, 5250, 10);
+		// Mana Charge Speed (0 - 3025), adjusted for step=10
+		this.initDualSlider('manarech', 0, 3030, 10);
 		// Capacity (1 - 27+)
 		this.initDualSlider('cap', 1, 66, 1);
 		// Spread (-35 - 35 degrees)
