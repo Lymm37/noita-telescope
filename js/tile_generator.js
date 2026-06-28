@@ -301,6 +301,7 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
 
     for (let biomeName of Object.keys(biomeConfig)) {
         const conf = biomeConfig[biomeName];
+        if (!conf.wangFile) continue; // Not sure why I didn't have this before.
         if (!conf.enabled) continue;
 
         const offsetY = (conf.offsetY !== undefined) ? conf.offsetY : DEFAULT_OFFSET_Y;

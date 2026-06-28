@@ -62,6 +62,10 @@ export const app = {
 	surfaceOverlayNGP21PW: null,
 	skyOverlayNGP21: null,
 	skyOverlayNGP21PW: null,
+	surfaceOverlayNightmare: null,
+	skyOverlayNightmare: null,
+	surfaceOverlayNightmarePW: null,
+	skyOverlayNightmarePW: null,
 
 	ctxo: null, 
 	// Background maps, recolored by biome
@@ -321,6 +325,8 @@ export const app = {
 				this.surfaceOverlayNGP = null;
 				this.surfaceOverlayNGPPW = null;
 				this.surfaceOverlayNGPPWAddition = null;
+				this.surfaceOverlayNightmare = null;
+				this.surfaceOverlayNightmarePW = null;
 			}
 			else {
 				await this.getSurfaceOverlays();
@@ -1538,7 +1544,10 @@ export const app = {
 		this.surfaceOverlayNGP21PW = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_ngp21_pw.png');
 		this.skyOverlayNGP21 = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp21.png');
 		this.skyOverlayNGP21PW = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_ngp21_pw.png');
-
+		this.surfaceOverlayNightmare = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_nightmare.png');
+		this.surfaceOverlayNightmarePW = await loadPNGBitmap('../data/biome_maps/custom/surface_overlay_nightmare_pw.png');
+		this.skyOverlayNightmare = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_nightmare.png');
+		this.skyOverlayNightmarePW = await loadPNGBitmap('../data/biome_maps/custom/sky_overlay_nightmare_pw.png');
 		
 		this.surfaceOverlayScenes = {
 			"hiisi_hourglass_left": await loadPNGBitmap('../data/biome_maps/custom/hiisi_hourglass_left.png'),
@@ -1674,6 +1683,18 @@ export const app = {
 						}
 					}
 				}
+				else if (this.ngPlusCount === 0 && this.gameMode === 'nightmare') {
+					if (pwX === 0) {
+						if (this.surfaceOverlayNightmare) {
+							this.ctx.drawImage(this.surfaceOverlayNightmare, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
+					}
+					else {
+						if (this.surfaceOverlayNightmarePW) {
+							this.ctx.drawImage(this.surfaceOverlayNightmarePW, shiftX, shiftY, this.w * 512, this.h * 512);
+						}
+					}
+				}
 				else {
 					if (this.ngPlusCount === 7 || this.ngPlusCount === 28) {
 						if (pwX === 0) {
@@ -1726,7 +1747,7 @@ export const app = {
 				}
 			}
 			else if (pwY < 0) {
-				if (this.ngPlusCount === 0) {
+				if (this.ngPlusCount === 0 && this.gameMode === 'normal') {
 					if (pwX === 0) {
 						if (this.skyOverlay) {
 							this.ctx.drawImage(this.skyOverlay, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
@@ -1735,6 +1756,18 @@ export const app = {
 					else {
 						if (this.skyOverlayPW) {
 							this.ctx.drawImage(this.skyOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+						}
+					}
+				}
+				else if (this.ngPlusCount === 0 && this.gameMode === 'nightmare') {
+					if (pwX === 0) {
+						if (this.skyOverlayNightmare) {
+							this.ctx.drawImage(this.skyOverlayNightmare, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+						}
+					}
+					else {
+						if (this.skyOverlayNightmarePW) {
+							this.ctx.drawImage(this.skyOverlayNightmarePW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 						}
 					}
 				}
