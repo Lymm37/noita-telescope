@@ -61,8 +61,8 @@ export function stbhw_generate_image(ts, pixels, stride_in_bytes, w, h) {
     if (sidelen <= 0) return null;
 
     //const orig_w = w, orig_h = h;
-    // TODO: Neither way seems to work when the width is over 20 chunks. However, the vertical correction does seem to help...
-    //w = Math.min(w, 1024);
+    // Noita appears to use a 1024px repeat for these maps. For some reason.
+    w = Math.min(w, 1024);
     h = Math.min(h, 1028); // Why
 
     // These are the dimensions of the TILE GRID (Logic Space)
