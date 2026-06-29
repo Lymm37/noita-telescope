@@ -166,7 +166,7 @@ export function getPWLimit(isNGP, gameMode='normal') {
     return isNGP ? 512 : 468;
 }
 
-export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false, gameMode='normal') {
+export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false, gameMode = 'normal', useEdgeNoise = false) {
     let biomeMap = biomeData.pixels;
     if (worldY < -14*512) {
         biomeMap = biomeData.heavenPixels;
@@ -180,13 +180,12 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     const worldCenter = worldSize / 2;
     const modX = ((worldX + worldCenter) % worldSize + worldSize) % worldSize;
     const modY = ((worldY + 14*512) % 24576 + 24576) % 24576;
-    
+
     // Account for biome edge noise
     let highDetail = true; // Seems to be required to avoid false negatives...
     const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail, gameMode);
 
-    // Apparently these app settings were not being updated correctly
-    if (!appSettings.enableEdgeNoise) {
+    if (!useEdgeNoise) {
         edgeOffset.x = 0;
         edgeOffset.y = 0;
     }
@@ -416,7 +415,7 @@ export function getDateAndTime() {
 export async function fetchSafeJson(url) {
 	const dataUrl = new URL(url, import.meta.url);
     const res = await fetch(dataUrl);
-    
+
     // Check if the server returned a 404 or other error
     if (!res.ok) {
         throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);

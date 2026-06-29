@@ -1079,7 +1079,7 @@ export const app = {
 			const absY = Math.floor(wy - 512*14 + (this.pwVertical * 512 * 48));
 			let biomeName = '';
 			// Get biome
-			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP, this.gameMode);
+			const biomeResult = getBiomeAtWorldCoordinates(this.biomeData, absX, absY, this.isNGP, this.gameMode, appSettings.enableEdgeNoise);
 			if (biomeResult && biomeResult.biome) {
 				// For the display name, let's just use the generator config
 				const biomeDisplayName = GENERATOR_CONFIG[biomeResult.biome]?.name || biomeResult.biome;

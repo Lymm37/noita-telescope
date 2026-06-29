@@ -283,8 +283,10 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         for (let i = 0; i < numberOfNewPixelScenes; i++) {
             const pixelScene = newPixelScenes[i];
             finalPixelScenes.push(pixelScene);
-            const target = getBiomeAtWorldCoordinates(biomeData, pixelScene.x, pixelScene.y, ngPlusCount > 0, gameMode);
-            const targetBiome = target ? target.biome : null;
+            // Always use edge noise offset here
+            const target = getBiomeAtWorldCoordinates(biomeData, pixelScene.x, pixelScene.y, ngPlusCount > 0, gameMode, true);
+            // Prefer the original biome of the pixel scene
+            const targetBiome = pixelScene.biome || (target ? target.biome : null);
             //const targetChunkPos = target ? target.pos : null;
 
             const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeData, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks, gameMode);
@@ -299,7 +301,7 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         newPixelScenes = [];
 
         detectedSpawns.forEach(spawn => {
-            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode);
+            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode, true);
             const targetBiome = target ? target.biome : null;
             //const targetChunkPos = target ? target.pos : null;
             if (targetBiome) {
