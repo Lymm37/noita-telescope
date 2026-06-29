@@ -102,7 +102,7 @@ function generateRawTileBuffer(regionPoints, bbox, wangData, worldSeed, ngPlus, 
     if (!tile_indices) return null;
 
     // Missing step: block out rooms related to pixel scenes
-    let shouldBlockOutRooms = biomeName === 'coalmine' || biomeName === 'excavationsite';
+    let shouldBlockOutRooms = biomeName === 'coalmine' || biomeName === 'excavationsite' || biomeName === 'solid_wall_tower_1';
     let pixelSceneRooms = [];
     if (shouldBlockOutRooms) {
         pixelSceneRooms = blockOutRooms(rawBuffer, mapW, outH);

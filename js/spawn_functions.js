@@ -655,10 +655,10 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 		}
 		else if (func === "spawn_potion_beer") {
-			return {type: 'item', item: 'potion', material: 'beer', x: x, y: y};
+			return {type: 'item', item: 'potion', material: 'beer', x: x, y: y-5};
 		}
 		else if (func === "spawn_potion_milk") {
-			return {type: 'item', item: 'potion', material: 'milk', x: x, y: y};
+			return {type: 'item', item: 'potion', material: 'milk', x: x, y: y-5};
 		}
 		else if (func === "spawn_potions" || func === "spawn_wands") {
 			return null; // disabled
@@ -964,11 +964,11 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeData, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "wand_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeData, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "wand_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 		}
 		else {
@@ -989,11 +989,11 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			}
 			if (BIOMES_WITH_SMALL_ALTARS.includes(biomeName)) {
 				// Small altar
-				return loadPixelScene(biomeData, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "potion_altar_vault", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 			else {
 				// Normal size altar
-				return loadPixelScene(biomeData, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, true, gameMode);
+				return loadPixelScene(biomeData, biomeName, "potion_altar", ws, ng, x+offsetX, y+offsetY, skipCosmeticScenes, false, gameMode);
 			}
 		}
 		else {

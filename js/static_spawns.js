@@ -244,7 +244,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 			}
 			if (i === friendRoom) {
 				// Gourd
-				newPois.push({type: 'item', item: 'gourd', x: friendRoomPositions[i-1].x + 256, y: friendRoomPositions[i-1].y + 256, biome: `friend_${i}`});
+				newPois.push({type: 'item', item: 'gourd', x: friendRoomPositions[i-1].x + 256, y: friendRoomPositions[i-1].y + 350, biome: `friend_${i}`});
 			}
 		}
 
@@ -351,7 +351,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 		// Eye
 		newPois.push({type: 'item', item: 'paha_silma', x: -2434, y: -204, biome: 'winter'});
 		// Rainbow cloud
-		newPois.push({type: 'item', item: 'spell', spell: 'rainbow_trail', x: -14000, y: -2816, biome: 'lake'});
+		newPois.push({type: 'item', item: 'spell', spell: 'RAINBOW_TRAIL', x: -14001, y: -2851, biome: 'lake'});
 		// Experimental wands?
 		// Unfortunately, it looks like all the experimental wands and tower wands are generated based on frame count, so I can't predict exact values.
 		// {name: "general/bunker", x: -12603, y: 326},
@@ -390,7 +390,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	// This one is in nightmare though
 	if (ng === 0 && pwIndex === 0 && pwIndexVertical === 0) {
 		// Kantele
-		newPois.push(generateWandKantele(-1634, -792));
+		newPois.push(generateWandKantele(-1633, -783));
 		newPois.push({type: 'shop', biome: 'mountain_tree', x: -1628, y: -736, items: [
 			{type: 'item', item: 'spell', spell: 'KANTELE_A', biome: 'mountain_tree', x: -1663, y: -760},
 			{type: 'item', item: 'spell', spell: 'KANTELE_A', biome: 'mountain_tree', x: -1663, y: -740},
@@ -407,7 +407,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	if (ng === 0 && pwIndexVertical === 0 && !isNightmare) {
 		// Chaingun
-		newPois.push(generateExperimentalWand3(16121 + pwOffsetX, 9987)); // Approx position
+		newPois.push(generateExperimentalWand3(16120 + pwOffsetX, 9996));
 		// Saha
 		newPois.push(generateExperimentalWand4(13*512+256 + pwOffsetX, 16*512+256)); // Approx position, also this is a boss drop but I'm just treating it as a wand
 
@@ -419,7 +419,7 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 
 	if (ng === 0 && pwIndexVertical === 0) {
 		// Ocarina / Flute / Huilu
-		newPois.push(generateWandHuilu(-9987 + pwOffsetX, -6479));
+		newPois.push(generateWandHuilu(-9985 + pwOffsetX, -6472));
 		newPois.push({type: 'shop', biome: 'ocarina', x: -9987 + pwOffsetX, y: -6400, items: [
 			{type: 'item', item: 'spell', spell: 'OCARINA_A', biome: 'ocarina', x: -10055, y: -6466},
 			{type: 'item', item: 'spell', spell: 'OCARINA_A', biome: 'ocarina', x: -10055, y: -6418},
