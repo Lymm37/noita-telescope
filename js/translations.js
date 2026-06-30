@@ -111,6 +111,7 @@ const EXTRA_TRANSLATIONS = {
 	'egg_monster': 'Egg',
 	'egg_fire': 'Warm Egg',
 	'egg_purple': 'Chilly Egg',
+	'egg_worm': 'Worm Egg',
 	'chaos_die': 'Chaos Die',
 	'greed_die': 'Greed Die',
 	'shiny_orb': 'Shiny Orb',

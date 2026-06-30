@@ -446,6 +446,26 @@ export function addStaticPixelScenes(ws, ng, pwIndex, pwIndexVertical, biomeData
 	}
 	// Orbs and other stuff: TODO: Doesn't seem that important compared to NG+ which already works
 
+	// Three eggs
+	if (pwIndex === 0 && pwIndexVertical === 0) {
+		const baseX = -4*512;
+		const baseY = -3*512 + 212;
+		const egg_positions = [
+			{x: 999, y: 845}, // -> -1047, -477
+			{x: 914, y: 301},
+			{x: 904, y: 302}
+		];
+		for (const pos of egg_positions) {
+			prng.SetRandomSeed(ws + ng, baseX + pos.x, baseY + pos.y);
+			let r = prng.Next() * 0.42;
+			let eggType = 'egg_worm';
+			if (r >= 0.4) {
+				eggType = 'egg_purple'; // Hamis!
+			}
+			newPois.push({type: 'item', item: eggType, x: baseX + pos.x + 2, y: baseY + pos.y + 2, biome: 'mountain_tree'});
+		}
+	}
+
 	// Starting loadout
 	if (ng === 0) {
 		const startingLoadout = getStartingLoadout(ws, isDaily, gameMode);
