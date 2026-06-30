@@ -272,6 +272,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     };
 }
 
+// TODO: big_noise_biome_edges missing might still be an issue in some biomes?
 export function getResolvedBiome(biomeData, worldX, worldY, isNGP = false, gameMode = 'normal') {
     // Resolve biome at a world position using the same edge gates + wobble branch
     // used by spawn gating code. Returns both raw (origBiome/originalPos) and

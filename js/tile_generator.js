@@ -29,6 +29,7 @@ function calculateMapDimensions(bbox) {
     const [minX, minY, maxX, maxY] = bbox;
     // Chunks which have x % 5 == -1 have an extra pixel in width
     // Chunks which have y % 5 == -1 have an extra pixel in height
+    /*
     let totalWidth = 0;
     for (let x = minX; x <= maxX; x++) {
         totalWidth += 51; // Base width for 1 chunk
@@ -39,6 +40,11 @@ function calculateMapDimensions(bbox) {
         totalHeight += 51; // Base height for 1 chunk
         if (y % 5 === 4) totalHeight += 1; // Extra pixel for this chunk
     }
+    */
+    // Shortcut, equivalent
+    const td = (n) => Math.trunc(n / 10);
+    const totalWidth = td((maxX + 1) * 512) - td(minX * 512);
+    const totalHeight = td((maxY + 1) * 512) - td(minY * 512);
     return { width: totalWidth, height: totalHeight };
 }
 
