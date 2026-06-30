@@ -1,6 +1,6 @@
 import {CHUNK_SIZE, TILE_SIZE, WORLD_CHUNK_CENTER_X, WORLD_CHUNK_CENTER_Y, WORLD_CHUNK_CENTER_X_NGP, TILE_OFFSET_X, TILE_OFFSET_Y, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y} from './constants.js';
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from './generator_config.js';
-import { GetBiomeOffset } from './edge_noise.js';
+import { GetBiomeOffset, ComputeMagicValueFromDoubles } from './edge_noise.js';
 import { biomeEdgeNoiseFlag } from './wobble_flags.js';
 import { MATERIAL_COLOR_LOOKUP } from './potion_config.js';
 import { PIXEL_SCENE_DATA } from './pixel_scene_generation.js';
@@ -270,6 +270,90 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
         originalPos: {x: originalX, y: originalY},
         mightBeEdgeCase: edgeOffset.x !== 0 || edgeOffset.y !== 0
     };
+}
+
+export function getResolvedBiome(biomeData, worldX, worldY, isNGP = false, gameMode = 'normal') {
+    // Resolve biome at a world position using the same edge gates + wobble branch
+    // used by spawn gating code. Returns both raw (origBiome/originalPos) and
+    // resolved (biome/pos) chunk info so callers can do a direct gate check:
+    // keep only when biome === origBiome.
+    //
+    // This differs from getBiomeAtWorldCoordinates, which uses GetBiomeOffset()
+    // and a simplified +/- chunk-offset path aimed at general biome lookup.
+    // getResolvedBiome computes the wobble target chunk directly from the noise
+    // branch after eligibility checks.
+    let biomeMap = biomeData.pixels;
+    if (worldY < -14 * 512) biomeMap = biomeData.heavenPixels;
+    else if (worldY > 34 * 512) biomeMap = biomeData.hellPixels;
+
+    const mapWidth = getWorldSize(isNGP, gameMode);
+    const mapHeight = 48;
+    const shifted_x = worldX + 512 * getWorldCenter(isNGP, gameMode);
+    const shifted_y = worldY + 512 * 14;
+    const fx = Math.floor(shifted_x);
+    const fy = Math.floor(shifted_y);
+
+    const wrapX = (cx) => ((cx % mapWidth) + mapWidth) % mapWidth;
+    const clampY = (cy) => (cy < 0 ? 0 : (cy > mapHeight - 1 ? mapHeight - 1 : cy));
+    const colorAt = (cx, cy) => biomeMap[clampY(cy) * mapWidth + wrapX(cx)] & 0xffffff;
+    const nameOf = (color) => BIOME_COLOR_TO_NAME[color] || null;
+
+    const origCx = wrapX(fx >> 9);
+    const origCy = clampY(fy >> 9);
+    const origColor = colorAt(origCx, origCy);
+    const origName = nameOf(origColor);
+    const make = (cx, cy, color) => ({
+        biome: nameOf(color),
+        origBiome: origName,
+        colorInt: color,
+        pos: { x: cx, y: cy },
+        originalPos: { x: origCx, y: origCy },
+    });
+    const orig = () => make(origCx, origCy, origColor);
+
+    // Step 4: short-circuit gates on the home biome's edge flags.
+    if (biomeEdgeNoiseFlag(origColor, 'noise_biome_edges') === 0) return orig();
+    if (biomeEdgeNoiseFlag(origColor, 'fat_biome_edges')) return orig();
+
+    const sub_x = fx & 0x1ff;
+    const sub_y = fy & 0x1ff;
+
+    // Step 5: first neighbour (engine probe order) whose biome differs from home.
+    let nCx = null, nCy = null;
+    const consider = (cx, cy) => {
+        if (nCx !== null) return;
+        if (colorAt(cx, cy) !== origColor) { nCx = cx; nCy = cy; }
+    };
+    if (sub_x < 42 && colorAt(origCx - 1, origCy) !== origColor) {
+        // engine: when sub_x<42 the LEFT neighbour is probed first; if it differs it is used
+        // immediately, otherwise control falls through to the remaining probes below.
+        nCx = origCx - 1; nCy = origCy;
+    }
+    if (nCx === null) {
+        if (sub_y < 42) consider(origCx, origCy - 1);   // top
+        if (sub_x > 470) consider(origCx + 1, origCy);  // right
+        if (sub_y > 470) consider(origCx, origCy + 1);  // bottom
+        if (sub_x < 42) {
+            if (sub_y < 42) consider(origCx - 1, origCy - 1);
+            if (sub_y > 470) consider(origCx - 1, origCy + 1);
+        }
+        if (sub_x > 470) {
+            if (sub_y < 42) consider(origCx + 1, origCy - 1);
+            if (sub_y > 470) consider(origCx + 1, origCy + 1);
+        }
+    }
+    if (nCx === null) return orig();
+    if (biomeEdgeNoiseFlag(colorAt(nCx, nCy), 'noise_biome_edges') === 0) return orig();
+
+    // Steps 7-8: simplex + sin/cos wobble, with the engine's cross-wired axis swap.
+    const simplex = ComputeMagicValueFromDoubles(shifted_x * 0.05, shifted_y * 0.05);
+    const dxBranch = Math.cos(shifted_x * 0.005) * 30.0 + simplex * 11.0; // cos on X
+    const dyBranch = Math.sin(shifted_y * 0.005) * 30.0 + simplex * 11.0; // sin on Y
+    const wCx = wrapX(((dyBranch + shifted_x) | 0) >> 9); // sin/Y branch added to X
+    const wCy = clampY(((dxBranch + shifted_y) | 0) >> 9); // cos/X branch added to Y
+    const wColor = colorAt(wCx, wCy);
+    if (biomeEdgeNoiseFlag(wColor, 'noise_biome_edges') !== 0) return make(wCx, wCy, wColor);
+    return orig();
 }
 
 export function getMaterialAtWorldCoordinates(tileLayers, pixelScenes, worldX, worldY, pwIndex, pwIndexVertical, isNGP = false, gameMode='normal') {

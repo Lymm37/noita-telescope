@@ -15,6 +15,10 @@ import { BIOME_ENEMY_MAP, TOWER_ENEMIES } from './enemy_config.js';
 // Switching to using app settings instead?
 import { appSettings } from './settings.js';
 
+// Only these spawn functions are remapped through the wobbled biome after applying edge noise.
+// TODO: Are there any others missing?
+const WOBBLE_REMAP_FUNCS = new Set(['spawn_potions', 'spawn_wands', 'spawn_wand']);
+
 const BIOME_TIERS = {
 	'coalmine': 1,
 	'coalmine_alt': 1,
@@ -193,23 +197,27 @@ function spawnEntities(ws, ng, x, y, spawnList, gameMode='normal', perks={}, off
 }
 
 // Might just make this cover all colors?
-export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}, gameMode='normal') {
-	// Block spawns if near chunk boundary (only on negative side, this is what the game appears to do)
-	if (appSettings.blockEdgeSpawns) {
-		const offsetX = ((x % 512) + 512) % 512;
-		const offsetY = ((y % 512) + 512) % 512;
-		// Don't spawn anything within 5 pixels of the chunk edge, but only on the negative side.
-		if (offsetX >= 507 || offsetY >= 507) return null;
+export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, skipCosmeticScenes=true, perks={}, gameMode='normal', trustBiome=false) {
+	// trustBiome=true: caller already resolved the biome for this spawn point
+	// (used for pixel-scene-internal spawns), so skip local biome re-resolution.
+	if (!trustBiome) {
+		// Block spawns if near chunk boundary (only on negative side, this is what the game appears to do)
+		if (appSettings.blockEdgeSpawns) {
+			const offsetX = ((x % 512) + 512) % 512;
+			const offsetY = ((y % 512) + 512) % 512;
+			// Don't spawn anything within 5 pixels of the chunk edge, but only on the negative side.
+			if (offsetX >= 507 || offsetY >= 507) return null;
+		}
+		// Adjust biome with edge noise
+		const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
+		// Attempt to exclude edge cases if the biome is different after edge noise
+		if (appSettings.excludeEdgeCases && adjustedBiomeResults.biome !== adjustedBiomeResults.origBiome) {
+			//console.log(`Excluding spawn at (${x}, ${y}) in biome ${biomeName} due to edge noise uncertainty`);
+			return null; // Don't spawn anything if this is an edge case and we're excluding them
+		}
+		
+		biomeName = adjustedBiomeResults.biome;
 	}
-	// Adjust biome with edge noise
-	const adjustedBiomeResults = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode);
-	// Attempt to exclude edge cases if the biome is different after edge noise
-	if (appSettings.excludeEdgeCases && adjustedBiomeResults.biome !== adjustedBiomeResults.origBiome) {
-		//console.log(`Excluding spawn at (${x}, ${y}) in biome ${biomeName} due to edge noise uncertainty`);
-		return null; // Don't spawn anything if this is an edge case and we're excluding them
-	}
-	
-	biomeName = adjustedBiomeResults.biome;
 
 	const spawns = BIOME_SPAWN_FUNCTION_MAP[biomeName];
 	if (!spawns) {
@@ -236,6 +244,24 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 		console.warn(`No spawn function at index ${functionIndex} for biome ${biomeName}, trying to spawn at (${x}, ${y})`);
 		return;
 	}
+
+	// For a small subset of item/wand functions, remap through the wobbled biome.
+	// If the wobbled biome has no matching color entry at this index, drop the spawn.
+	if (WOBBLE_REMAP_FUNCS.has(func)) {
+		const wob = getBiomeAtWorldCoordinates(biomeData, x, y, ng > 0, gameMode, true);
+		if (wob && wob.biome && wob.biome !== biomeName) {
+			const color = spawns[functionIndex] && spawns[functionIndex].color;
+			const wobIdx = color != null ? getSpawnFunctionIndex(wob.biome, color) : null;
+			if (wobIdx === null) return null;
+			const wobSpawns = BIOME_SPAWN_FUNCTION_MAP[wob.biome];
+			const wobSpawn = wobSpawns && wobSpawns[wobIdx];
+			if (!wobSpawn || wobSpawn.active === false || !wobSpawn.funcName) return null;
+			biomeName = wob.biome;
+			functionIndex = wobIdx;
+			func = wobSpawn.funcName;
+		}
+	}
+
 	const scenes = PIXEL_SCENE_BIOME_MAP[biomeName];
 	const prng = new NollaPrng(0);
 	prng.SetRandomSeed(ws + ng, x, y);

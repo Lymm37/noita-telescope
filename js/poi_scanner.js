@@ -1,4 +1,5 @@
-import { tileToWorldCoordinates, getBiomeAtWorldCoordinates, getWorldCenter, getWorldSize } from "./utils.js";
+import { tileToWorldCoordinates, getBiomeAtWorldCoordinates, getResolvedBiome, getWorldCenter, getWorldSize } from "./utils.js";
+import { CHUNK_SIZE, TILE_SIZE, WORLD_CHUNK_CENTER_X, WORLD_CHUNK_CENTER_Y } from "./constants.js";
 import { GENERATOR_CONFIG } from "./generator_config.js";
 import { BIOME_SPAWN_FUNCTION_MAP } from "./spawn_function_config.js";
 import { getSpawnFunctionIndex, spawnSwitch } from "./spawn_functions.js";
@@ -22,6 +23,25 @@ import { PIXEL_SCENE_SPAWN_DATA } from "./pixel_scene_generation.js";
 
 // Prevent infinite loops with nested pixel scenes (which hopefully shouldn't happen...)
 const MAX_SCAN_CYCLES = 10;
+
+// Spawn functions which keep their original biome, even if edge noise would place them in a different biome
+// TODO: Check if this applies to any others
+const ORIGINAL_BIOME_SPAWNS = new Set([
+    'spawn_heart',
+    'spawn_chest',
+    'spawn_items',
+]);
+
+// Convert a world position to the wang tile pixel's scan point (increments of 10 pixels).
+// Checks for edge noise biome flips are done at this base scan point
+function getTileScanPoint(worldX, worldY) {
+    const axis = (w) => {
+        const phase = ((((Math.floor(w / 512) * 512) % 10) + 10) % 10);
+        const base = (((phase - w) % 10) + 10) % 10;
+        return w + (base >= 5 ? base : base + 10);
+    };
+    return { x: axis(worldX), y: axis(worldY) };
+}
 
 export function prescanPixelScene(imgData, sourceBiome) {
     //const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
@@ -132,7 +152,8 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
                     sourceBiome: biomeName,
                     x: spawnX,
                     y: spawnY,
-                    spawnFunctionIndex: index
+                    spawnFunctionIndex: index,
+                    fromPixelScene: true
                 });
             }
         }
@@ -194,6 +215,38 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
     return { detectedSpawns, newPixelScenes, generatedSpawns };
 }
 
+// Return axis chunk bases that align with a wang tile pixel index on the spawn function scan grid.
+function getChunkBasesForTileIndexAxis(tileIndex, off) {
+    const out = [];
+    const lo = tileIndex * TILE_SIZE - off - 1;
+    const hi = tileIndex * TILE_SIZE - off + TILE_SIZE + 1;
+    for (let s = Math.ceil(lo); s <= hi; s++) {
+        if (Math.floor((s + off + 0.5) / TILE_SIZE) !== tileIndex) continue;
+        const cb = Math.floor(s / CHUNK_SIZE) * CHUNK_SIZE;
+        if ((((s - cb) % TILE_SIZE) + TILE_SIZE) % TILE_SIZE !== 0) continue;
+        if (!out.includes(cb)) out.push(cb);
+    }
+    return out;
+}
+// Conservative seam gate: keep a spawn only if its spawn pixel lands inside at least
+// one chunk candidate on both axes from the wang tile index mapping.
+function passesSpawnChunkGate(emitX, emitY, isNGP, gameMode) {
+    const offX = getWorldCenter(isNGP, gameMode) * CHUNK_SIZE;
+    const offY = WORLD_CHUNK_CENTER_Y * CHUNK_SIZE;
+    const half = TILE_SIZE / 2;
+    const cellX = Math.round((emitX + half + offX) / TILE_SIZE);
+    const cellY = Math.round((emitY + half + offY) / TILE_SIZE);
+    const rx = getChunkBasesForTileIndexAxis(cellX, offX);
+    const ry = getChunkBasesForTileIndexAxis(cellY, offY);
+    for (const cX of rx) {
+        if (!(cX <= emitX && emitX < cX + (CHUNK_SIZE - 1))) continue;
+        for (const cY of ry) {
+            if (cY <= emitY && emitY < cY + (CHUNK_SIZE - 1)) return true;
+        }
+    }
+    return false;
+}
+
 // Surprisingly this depends on NG0 vs NG+ but not on seed
 export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
     // TODO: Don't use clearSpawnPixels here, do it earlier
@@ -230,6 +283,10 @@ export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
                 if (index !== null) {
                     const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, 0, isNGP, gameMode);
 
+                    // Only keep spawn pixels that land inside a chunk for both this position and the scan grid position
+                    // This helps with some false positives for edge noise
+                    if (!passesSpawnChunkGate(coords.x, coords.y, isNGP, gameMode)) continue;
+
                     detectedSpawns.push({
                         sourceBiome,
                         x: coords.x, // Note: PW0
@@ -265,7 +322,7 @@ export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
 
 export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount, pwIndex, pwIndexVertical, skipCosmeticScenes = true, perks={}, gameMode='normal') {
     const t0 = performance.now();
-    let detectedSpawns = tileSpawns.map(spawn => ({...spawn, 
+    let detectedSpawns = tileSpawns.map(spawn => ({...spawn, fromPixelScene: false,
         x: spawn.x + pwIndex*getWorldSize(ngPlusCount > 0, gameMode) * 512 - ((ngPlusCount > 0 || gameMode === 'nightmare') ? 8 * pwIndex : 0),
         y: spawn.y + pwIndexVertical*24570
     }));
@@ -290,7 +347,7 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
             //const targetChunkPos = target ? target.pos : null;
 
             const pixelSceneResults = getPixelSceneSpawnFunctionIndices(biomeData, targetBiome, pixelScene, worldSeed, ngPlusCount, skipCosmeticScenes, perks, gameMode);
-            detectedSpawns.push(...pixelSceneResults.detectedSpawns);
+            detectedSpawns.push(...pixelSceneResults.detectedSpawns.map(s => ({...s, fromPixelScene: true})));
             newPixelScenes.push(...pixelSceneResults.newPixelScenes); // This could be a problem
             numberOfNewPixelScenes += pixelSceneResults.newPixelScenes.length; // This is a hack to allow processing newly added pixel scenes in the same cycle
             // TODO: Might cause infinite loop if overlap can cause infinitely nested pixel scenes, but surely that can't happen...? Right?
@@ -301,12 +358,28 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
         newPixelScenes = [];
 
         detectedSpawns.forEach(spawn => {
-            const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode, true);
-            const targetBiome = target ? target.biome : null;
-            //const targetChunkPos = target ? target.pos : null;
+            let targetBiome;
+            const srcFn = (BIOME_SPAWN_FUNCTION_MAP[spawn.sourceBiome] || [])[spawn.spawnFunctionIndex];
+            const srcFnName = srcFn ? srcFn.funcName : null;
+            if (spawn.fromPixelScene) {
+                // Pixel-scene-internal spawns resolve their biome through the wobbled chunk lookup.
+                const target = getBiomeAtWorldCoordinates(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode, true);
+                targetBiome = target ? target.biome : null;
+            } else if (ORIGINAL_BIOME_SPAWNS.has(srcFnName)) {
+                // Exception spawn functions that use their original biome
+                const resolved = getResolvedBiome(biomeData, spawn.x, spawn.y, ngPlusCount > 0, gameMode);
+                targetBiome = resolved.origBiome;
+            } else {
+                // Normal spawn functions resolve their biome through the wobbled chunk lookup at the wang tile pixel scan point rather than the original spawn point
+                const sp = getTileScanPoint(spawn.x, spawn.y);
+                const resolved = getResolvedBiome(biomeData, sp.x, sp.y, ngPlusCount > 0, gameMode);
+                // Drop spawns if they cross a biome edge
+                if (resolved.biome !== resolved.origBiome) return;
+                targetBiome = resolved.origBiome;
+            }
             if (targetBiome) {
                 // TODO: Setting the biome in here might be redundant now
-                const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks, gameMode);
+                const spawnData = spawnSwitch(biomeData, targetBiome, spawn.spawnFunctionIndex, worldSeed, ngPlusCount, spawn.x, spawn.y, skipCosmeticScenes, perks, gameMode, spawn.fromPixelScene);
                 if (spawnData) {
                     spawnData.biome = targetBiome;
                     if (spawn.sourceBiome != targetBiome) {
