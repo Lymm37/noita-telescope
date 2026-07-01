@@ -182,7 +182,8 @@
             width: 100%;
         }
 
-        .dual-range-control input[type="number"] {
+        .dual-range-control input[type="number"],
+        .dual-range-control input[type="text"] {
             min-width: 0;
             box-sizing: content-box;
             width: 6.25ch;
@@ -594,6 +595,21 @@
                         </div>
 
                         <input type="number" id="rarity-max-num" title="Max Rarity">
+                    </div>
+                </div>
+
+                <div class="search-row" title="P: Premade, NS: Non-shuffle, B: Better">
+                    <label>Tier</label>
+                    <div class="dual-range-control">
+                        <input type="text" id="tier-min-label" title="Min Tier">
+
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <input type="range" id="tier-min-range">
+                            <input type="range" id="tier-max-range">
+                        </div>
+
+                        <input type="text" id="tier-max-label" title="Max Tier">
                     </div>
                 </div>
             </div>
