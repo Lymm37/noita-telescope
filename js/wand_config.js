@@ -1,6 +1,7 @@
-// TODO: Load this asynchronously
-const spriteRarityDataUrl = new URL('../data/sprite_distributions/wand_sprite_rates.json', import.meta.url);
-export const SPRITE_RARITY = await fetch(spriteRarityDataUrl).then(res => res.json());
+import { fetchSafeJson } from './utils.js';
+// import-attributes (`with { type: 'json' }`) break on some browsers, so use
+// the shared fetch-based loader that wobble_flags.js uses.
+export const SPRITE_RARITY = await fetchSafeJson('../data/sprite_distributions/wand_sprite_rates.json');
 
 export const GUN_NAMES = [
   'Deadly','Rusty','Old','New','Shiny','Lethal','Dangerous','Large','Enormous','Tiny','Small','Big','Pretty','Terrifying','Confusing',
