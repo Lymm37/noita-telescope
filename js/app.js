@@ -1118,12 +1118,15 @@ export const app = {
 			const shiftX = pwX * 512 * this.w - this.pw * 512 * this.w;
 			const shiftY = pwY * 24576 - this.pwVertical * 24576;
 
-			// Check Orbs
-			let hit = this.biomeData.orbs.find(o => {
-				const ox = (o.x + 0.5) * BIOME_CONFIG.CHUNK_SIZE + shiftX;
-				const oy = (o.y + 0.5) * BIOME_CONFIG.CHUNK_SIZE + shiftY;
-				return Math.sqrt((ox - wx) ** 2 + (oy - wy) ** 2) < BIOME_CONFIG.CHUNK_SIZE / 2;
-			});
+			// Check Orbs only in the main vertical world.
+			let hit = null;
+			if (pwY === 0) {
+				hit = this.biomeData.orbs.find(o => {
+					const ox = (o.x + 0.5) * BIOME_CONFIG.CHUNK_SIZE + shiftX;
+					const oy = (o.y + 0.5) * BIOME_CONFIG.CHUNK_SIZE + shiftY;
+					return Math.sqrt((ox - wx) ** 2 + (oy - wy) ** 2) < BIOME_CONFIG.CHUNK_SIZE / 2;
+				});
+			}
 
 			if (hit) {
 				return {...hit, x: hit.x + this.w*pwX};
@@ -1647,6 +1650,8 @@ export const app = {
 			"orb_room": await loadPNGBitmap('../data/biome_maps/custom/orb_room.png'),
 			"cursed_orb_room": await loadPNGBitmap('../data/biome_maps/custom/cursed_orb_room.png'),
 			"echoing_spire": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire.png'),
+			"echoing_spire_grass": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire_grass.png'),
+			"echoing_spire_sand": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire_sand.png'),
 			"cauldron_room": await loadPNGBitmap('../data/biome_maps/custom/cauldron_room.png'),
 			"cauldron_room_broken": await loadPNGBitmap('../data/biome_maps/custom/cauldron_room_broken.png'),
 			"moon": await loadPNGBitmap('../data/biome_maps/custom/moon.png'),
@@ -1956,18 +1961,31 @@ export const app = {
 		}
 
 		// Echoing spire (so silly, why does this even exist? no one knows)
-		if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['echoing_spire']) {
-			const viewArea = this.getViewArea();
-			const minPW = Math.floor(viewArea.left / (512 * this.w));
-			const maxPW = Math.floor(viewArea.right / (512 * this.w));
-			const minVerticalSegment = Math.floor((viewArea.top + 11*512) / (512 * 25));
-			const maxVerticalSegment = Math.floor((viewArea.bottom + 11*512) / (512 * 25));
-			for (let pwX = minPW; pwX <= maxPW; pwX++) {
-				for (let verticalSegment = minVerticalSegment; verticalSegment <= maxVerticalSegment; verticalSegment++) {
-					if (verticalSegment > 0 || verticalSegment < -pwX+1) continue;
-					const posX = (getWorldCenter(this.isNGP, this.gameMode) - 25) * 512 + pwX * 512 * this.w - this.pw * 512 * this.w;
-					const posY = verticalSegment * 512 * 25 - 11*512 - this.pwVertical * 24576;
-					this.ctx.drawImage(this.surfaceOverlayScenes['echoing_spire'], posX, posY, 512, 512*25);
+		if (this.surfaceOverlayScenes) {
+			let echoingSpireScene;
+			if ((this.ngPlusCount === 0 && this.gameMode !== 'nightmare') || this.ngPlusCount === 7 || this.ngPlusCount === 28) {
+				echoingSpireScene = this.surfaceOverlayScenes['echoing_spire'];
+			}
+			else if (this.ngPlusCount === 21) {
+				echoingSpireScene = this.surfaceOverlayScenes['echoing_spire_sand'];
+			}
+			else {
+				// Hills2 and hills will just render the same, so we don't need one specific to NG+14
+				echoingSpireScene = this.surfaceOverlayScenes['echoing_spire_grass'];
+			}
+			if (echoingSpireScene) {
+				const viewArea = this.getViewArea();
+				const minPW = Math.floor(viewArea.left / (512 * this.w));
+				const maxPW = Math.floor(viewArea.right / (512 * this.w));
+				const minVerticalSegment = Math.floor((viewArea.top + 11*512) / (512 * 25));
+				const maxVerticalSegment = Math.floor((viewArea.bottom + 11*512) / (512 * 25));
+				for (let pwX = minPW; pwX <= maxPW; pwX++) {
+					for (let verticalSegment = minVerticalSegment; verticalSegment <= maxVerticalSegment; verticalSegment++) {
+						if (verticalSegment > 0 || verticalSegment < -pwX+1) continue;
+						const posX = (getWorldCenter(this.isNGP, this.gameMode) - 25) * 512 + pwX * 512 * this.w - this.pw * 512 * this.w;
+						const posY = verticalSegment * 512 * 25 - 11*512 - this.pwVertical * 24576;
+						this.ctx.drawImage(echoingSpireScene, posX, posY, 512, 512*25);
+					}
 				}
 			}
 		}
@@ -2118,24 +2136,36 @@ export const app = {
 			}
 
 			// Orb rooms (effectively another pixel scene overlay)
-			// Skip rendering these for vertical PWs
-			if (pwY === 0) {
-				this.biomeData.orbs.forEach(o => {
-					if (document.getElementById('custom-art').checked && this.surfaceOverlayScenes && this.surfaceOverlayScenes['orb_room']) {
-						if (o.y < 14) return; // Skip the sky altar and pyramid top orbs
-						// Technically always NGP the way I have this set up but whatever
-						const sceneName = (pwX === 0 && this.gameMode !== 'nightmare') ? 'orb_room' : 'cursed_orb_room';
-						this.ctx.drawImage(this.surfaceOverlayScenes[sceneName], o.x * 512 + shiftX, o.y * 512 + shiftY, 512, 512);
-						// Circle (not really needed with exaggerated orb size in art)
-						/*
-						const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
-						this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
-						this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
-						this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
-						*/
+			this.biomeData.orbs.forEach(o => {
+				if (o.y < 14) return; // Skip the sky altar and pyramid top orbs
+
+				// Main world always renders orb rooms. For vertical worlds, only bottom-map
+				// orbs are repeated, and they tile every chunk (512px) downward.
+				const isBottomMapChunkOrb = o.y === this.h - 1;
+				const renderHere = pwY === 0 || (pwY > 0 && isBottomMapChunkOrb);
+				if (!renderHere) return;
+				const repeatCount = (pwY > 0 && isBottomMapChunkOrb) ? 48 : 1;
+
+				if (document.getElementById('custom-art').checked && this.surfaceOverlayScenes && this.surfaceOverlayScenes['orb_room']) {
+					// Technically always NGP the way I have this set up but whatever
+					const sceneName = (pwX === 0 && this.gameMode !== 'nightmare') ? 'orb_room' : 'cursed_orb_room';
+					for (let k = 0; k < repeatCount; k++) {
+						const repeatedSceneName = k > 0 ? 'cursed_orb_room' : sceneName;
+						const sceneImage = this.surfaceOverlayScenes[repeatedSceneName] || this.surfaceOverlayScenes[sceneName];
+						this.ctx.drawImage(sceneImage, o.x * 512 + shiftX, o.y * 512 + shiftY - k * 512, 512, 512);
 					}
-					else {
-						const ox = (o.x + 0.5) * 512 + shiftX; const oy = (o.y + 0.5) * 512 + shiftY;
+					// Circle (not really needed with exaggerated orb size in art)
+					/*
+					const ox = (o.x + 0.5) * 512; const oy = (o.y + 0.5) * 512;
+					this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; this.ctx.strokeStyle = '#f00';
+					this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
+					this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
+					*/
+				}
+				else {
+					for (let k = 0; k < repeatCount; k++) {
+						const ox = (o.x + 0.5) * 512 + shiftX;
+						const oy = (o.y + 0.5) * 512 + shiftY - k * 512;
 						// Fill in chunk entirely to overwrite any tiles underneath, since orbs break the tile rules and can appear under other PoIs
 						this.ctx.fillStyle = '#ffd100';
 						this.ctx.fillRect(ox - 256, oy - 256, 512, 512);
@@ -2143,8 +2173,8 @@ export const app = {
 						this.ctx.beginPath(); this.ctx.arc(ox, oy, 200, 0, Math.PI*2);
 						this.ctx.lineWidth = 10; this.ctx.fill(); this.ctx.stroke();
 					}
-				});
-			}
+				}
+			});
 		}
 
 		// Cauldron room should be on top of the biome data
