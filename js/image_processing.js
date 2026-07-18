@@ -1,3 +1,4 @@
+import { TILE_SIZE } from "./constants.js";
 import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from "./generator_config.js";
 import { loadPNG } from "./png_sanitizer.js";
 import { MATERIAL_COLOR_CONVERSION } from "./potion_config.js";
@@ -66,6 +67,12 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
         const outImageData = ctx.createImageData(width, mapH);
         const out32 = new Uint32Array(outImageData.data.buffer);
 
+        // tileToWorldCoordinates is affine in the tile coordinates: everything but
+        // `tileX * TILE_SIZE` / `tileY * TILE_SIZE` depends only on the layer and the
+        // parallel world. Evaluate it once at tile (0,0) and step by TILE_SIZE, rather
+        // than calling it (and allocating two objects) for every gray pixel.
+        const originCoords = tileToWorldCoordinates(layer.minX, layer.minY, 0, 0, pwIndex, pwIndexVertical, isNGP, gameMode);
+
         for (let y = 4; y < mapH+4; y++) {
             for (let x = 0; x < width; x++) {
                 const idx = y * width + x;
@@ -74,17 +81,15 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
 
                 // Check for gray pixels
                 if (buffer[srcIdx] === buffer[srcIdx + 1] && buffer[srcIdx + 1] === buffer[srcIdx + 2] && buffer[srcIdx] > 0) {
-					// This still feels too expensive for how often it needs to run here
-					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
-					const roundedPosition = {
-						x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
-						y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
-					}
+					const coordX = originCoords.x + x * TILE_SIZE;
+					const coordY = originCoords.y + (y - 4) * TILE_SIZE;
+					const roundedX = (Math.floor((coordX + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth;
+					const roundedY = (Math.floor((coordY + 14*512)/512) % mapHeight + mapHeight) % mapHeight;
 
 					// Find this pixel in the biome map and get the color...
-					const biomeColor = biomeMap[roundedPosition.y * mapWidth + roundedPosition.x] & 0xffffff; // Mask out alpha if present
+					const biomeColor = biomeMap[roundedY * mapWidth + roundedX] & 0xffffff; // Mask out alpha if present
 					const foregroundColor = TILE_FOREGROUND_COLORS[biomeColor];
-					
+
                     if (BIOME_COLORS_WITH_TILES.has(biomeColor) && foregroundColor) {
                         //const bColor = TILE_OVERLAY_COLORS[layer.biomeName] || 0xff00ff;
                         const r = (foregroundColor >> 16) & 0xff;
@@ -95,26 +100,22 @@ export function createTileOverlaysCheap(biomeData, layers, pwIndex, pwIndexVerti
                 }
                 else {
                     if (buffer[srcIdx] > 0 || buffer[srcIdx + 1] > 0 || buffer[srcIdx + 2] > 0) {
+                        // Both branches below want the same world position for this pixel.
+                        // tileToWorldCoordinates is pure, so resolve it once.
+                        const spawnCoordX = originCoords.x + x * TILE_SIZE;
+                        const spawnCoordY = originCoords.y + (y - 4) * TILE_SIZE;
+                        const spawnRoundedX = (Math.floor((spawnCoordX + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth;
+                        const spawnRoundedY = (Math.floor((spawnCoordY + 14*512)/512) % mapHeight + mapHeight) % mapHeight;
+                        const spawnBiomeColor = biomeMap[spawnRoundedY * mapWidth + spawnRoundedX] & 0xffffff; // Mask out alpha if present
+
                         if (!clearSpawnPixels) {
                             // Still need to check it's in bounds of the biome...
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
-                            const roundedPosition = {
-                                x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
-                                y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
-                            }
-                            const biomeColor = biomeMap[roundedPosition.y * mapWidth + roundedPosition.x] & 0xffffff; // Mask out alpha if present
-                            if (BIOME_COLORS_WITH_TILES.has(biomeColor)) {
+                            if (BIOME_COLORS_WITH_TILES.has(spawnBiomeColor)) {
                                 out32[targetIdx] = (255 << 24) | (buffer[srcIdx + 2] << 16) | (buffer[srcIdx + 1] << 8) | buffer[srcIdx];
                             }
                         }
                         if (recolorMaterials) {
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
-                            const roundedPosition = {
-                                x: (Math.floor((coords.x + mapWidth*512/2)/512) % mapWidth + mapWidth) % mapWidth,
-                                y: (Math.floor((coords.y + 14*512)/512) % mapHeight + mapHeight) % mapHeight
-                            }
-                            // Find this pixel in the biome map and get the color...
-					        const biomeColor = biomeMap[roundedPosition.y * mapWidth + roundedPosition.x] & 0xffffff; // Mask out alpha if present
+                            const biomeColor = spawnBiomeColor;
                             // Check if it's in a region with tiles
                             if (biomeColor && BIOME_COLORS_WITH_TILES.has(biomeColor)) {
                                 // Look up color in materials table
@@ -173,6 +174,12 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
         const outImageData = ctx.createImageData(width, mapH);
         const out32 = new Uint32Array(outImageData.data.buffer);
 
+        // Same affine identity as createTileOverlaysCheap: everything but
+        // tileX/tileY * TILE_SIZE is constant per layer and parallel world.
+        const originCoords = tileToWorldCoordinates(layer.minX, layer.minY, 0, 0, pwIndex, pwIndexVertical, isNGP, gameMode);
+        const coordX = (tx) => originCoords.x + tx * TILE_SIZE;
+        const coordY = (ty) => originCoords.y + ty * TILE_SIZE;
+
         for (let y = 4; y < mapH+4; y++) {
             for (let x = 0; x < width; x++) {
                 const idx = y * width + x;
@@ -181,9 +188,7 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
 
                 // Check for gray pixels
                 if (buffer[srcIdx] === buffer[srcIdx + 1] && buffer[srcIdx + 1] === buffer[srcIdx + 2] && buffer[srcIdx] > 0) {
-					// This still feels too expensive for how often it needs to run here
-					const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
-					const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode, appSettings.enableEdgeNoise);
+					const biomeResult = getBiomeAtWorldCoordinates(biomeData, coordX(x), coordY(y-4), isNGP, gameMode, appSettings.enableEdgeNoise);
 
 					// Find this pixel in the biome map and get the color...
 					const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
@@ -200,25 +205,22 @@ export function createTileOverlays(biomeData, recolorOffscreen, layers, pwIndex,
                 }
                 else {
                     if (buffer[srcIdx] > 0 || buffer[srcIdx + 1] > 0 || buffer[srcIdx + 2] > 0) {
+                        // Both branches want the same world position and the same biome
+                        // lookup for this pixel. getBiomeAtWorldCoordinates is the most
+                        // expensive call in this loop when edge noise is on, so resolve
+                        // it once. Both are pure, so this is redundancy, not behavior.
+                        const spawnBiomeResult = getBiomeAtWorldCoordinates(biomeData, coordX(x), coordY(y-4), isNGP, gameMode, appSettings.enableEdgeNoise);
+                        const spawnBiomeColor = biomeMap[spawnBiomeResult.pos.y * mapWidth + spawnBiomeResult.pos.x] & 0xffffff;
+
                         if (!clearSpawnPixels) {
                             // Still need to check it's in bounds of the biome...
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
-                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode, appSettings.enableEdgeNoise);
-
-                            // Find this pixel in the biome map and get the color...
-                            const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
-                            
-                            if (BIOME_COLORS_WITH_TILES.has(biomeColor)) {
+                            if (BIOME_COLORS_WITH_TILES.has(spawnBiomeColor)) {
                                 out32[targetIdx] = (255 << 24) | (buffer[srcIdx + 2] << 16) | (buffer[srcIdx + 1] << 8) | buffer[srcIdx];
                             }
                         }
                         if (recolorMaterials) {
-                            // This still feels too expensive for how often it needs to run here
-                            const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y-4, pwIndex, pwIndexVertical, isNGP, gameMode);
-                            const biomeResult = getBiomeAtWorldCoordinates(biomeData, coords.x, coords.y, isNGP, gameMode, appSettings.enableEdgeNoise);
-
-                            // Find this pixel in the biome map and get the color...
-                            const biomeColor = biomeMap[biomeResult.pos.y * mapWidth + biomeResult.pos.x] & 0xffffff; // Mask out alpha if present
+                            const biomeResult = spawnBiomeResult;
+                            const biomeColor = spawnBiomeColor;
                             // Check if it's in a region with tiles
                             // TODO: This is still producing some noise near the edges because the wavy edge is being applied but only for some materials...
                             if (biomeColor && BIOME_COLORS_WITH_TILES.has(biomeColor)) {
