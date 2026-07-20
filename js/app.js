@@ -2388,7 +2388,8 @@ export const app = {
 		if (!document.getElementById('debug-hide-pois').checked) {
 			for (let worldKey of this.worldsInView) {
 				// Skip rendering PoIs when too zoomed out (helps with lag)
-				if (this.cam.z < 0.03) continue;
+				// Not really necessary with the speedups
+				//if (this.cam.z < 0.03) continue;
 				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				const currentPois = this.poisByPW[`${pwX},${pwY}`];
 				if (currentPois) {
