@@ -166,6 +166,13 @@ export function getPWLimit(isNGP, gameMode='normal') {
     return isNGP ? 512 : 468;
 }
 
+// Scratch buffers for the wobble probes. Not reentrant, but this function never
+// recurses, and each worker gets its own module instance.
+const PROBE_X = new Int32Array(8);
+const PROBE_Y = new Int32Array(8);
+
+const colorIneligible = (color) => biomeEdgeNoiseFlag(color, 'noise_biome_edges') === 0;
+
 export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = false, gameMode = 'normal', useEdgeNoise = false) {
     let biomeMap = biomeData.pixels;
     if (worldY < -14*512) {
@@ -183,18 +190,31 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
 
     // Account for biome edge noise
     let highDetail = true; // Seems to be required to avoid false negatives...
-    const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail, gameMode);
 
-    if (!useEdgeNoise) {
-        edgeOffset.x = 0;
-        edgeOffset.y = 0;
+    // How far into its 512px chunk this pixel sits. Both the edge offset and the
+    // wobble probes below only do anything within 42px of a chunk edge.
+    const subWX = ((worldX % 512) + 512) % 512;
+    const subWY = ((worldY % 512) + 512) % 512;
+    const nearEdgeX = subWX < 42 || subWX > 470;
+    const nearEdgeY = subWY < 42 || subWY > 470;
+
+    // GetBiomeOffset multiplies its chunk-id difference by signX/signY, which are
+    // zero unless the pixel is near a chunk edge - so away from an edge the result
+    // is provably {0,0} and the chunk-id work (GetTrueChunkPosIdAt) is wasted.
+    // With edge noise off the original code computed it and then threw it away.
+    let edgeOffsetX = 0;
+    let edgeOffsetY = 0;
+    if (useEdgeNoise && (nearEdgeX || nearEdgeY)) {
+        const edgeOffset = GetBiomeOffset(worldX, worldY, isNGP, highDetail, gameMode);
+        edgeOffsetX = edgeOffset.x;
+        edgeOffsetY = edgeOffset.y;
     }
 
     const originalX = Math.floor(modX / 512);
     const originalY = Math.floor(modY / 512);
 
-    let biomePixelX = originalX + edgeOffset.x;
-    let biomePixelY = originalY + edgeOffset.y;
+    let biomePixelX = originalX + edgeOffsetX;
+    let biomePixelY = originalY + edgeOffsetY;
 
     biomePixelX = ((biomePixelX % mapWidth) + mapWidth) % mapWidth;
     biomePixelY = Math.max(0, Math.min(47, biomePixelY));
@@ -213,31 +233,31 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     const origColorInt = biomeMap[origIdx] & 0xffffff;
     const origBiomeName = BIOME_COLOR_TO_NAME[origColorInt];
     // Skip the wobble when the source, the wobbled-into chunk, or the first differing-color neighbor has edge noise disabled
-    const colorIneligible = (color) => biomeEdgeNoiseFlag(color, 'noise_biome_edges') === 0;
     let skipWobble = colorIneligible(origColorInt) || colorIneligible(colorInt);
 
     if (!skipWobble) {
         // Probe directions in the exact order the engine uses.
         // The first probed neighbor whose biome-map color differs from the original determines the wobble decision
-        // If THAT neighbor has edge noise disabled, skip. 
+        // If THAT neighbor has edge noise disabled, skip.
         // If NO probed neighbor differs at all, also skip.
-        const subWX = ((worldX % 512) + 512) % 512;
-        const subWY = ((worldY % 512) + 512) % 512;
-        const probes = [];
-        if (subWX < 42) probes.push([originalX - 1, originalY]);
-        if (subWY < 42) probes.push([originalX, originalY - 1]);
-        if (subWX > 470) probes.push([originalX + 1, originalY]);
-        if (subWY > 470) probes.push([originalX, originalY + 1]);
+        // Probes are written into a reused scratch buffer instead of an array of
+        // [x, y] pairs; this runs per pixel of every tile overlay.
+        let probeCount = 0;
+        if (subWX < 42) { PROBE_X[probeCount] = originalX - 1; PROBE_Y[probeCount] = originalY; probeCount++; }
+        if (subWY < 42) { PROBE_X[probeCount] = originalX; PROBE_Y[probeCount] = originalY - 1; probeCount++; }
+        if (subWX > 470) { PROBE_X[probeCount] = originalX + 1; PROBE_Y[probeCount] = originalY; probeCount++; }
+        if (subWY > 470) { PROBE_X[probeCount] = originalX; PROBE_Y[probeCount] = originalY + 1; probeCount++; }
         if (subWX < 42) {
-            if (subWY < 42) probes.push([originalX - 1, originalY - 1]);
-            if (subWY > 470) probes.push([originalX - 1, originalY + 1]);
+            if (subWY < 42) { PROBE_X[probeCount] = originalX - 1; PROBE_Y[probeCount] = originalY - 1; probeCount++; }
+            if (subWY > 470) { PROBE_X[probeCount] = originalX - 1; PROBE_Y[probeCount] = originalY + 1; probeCount++; }
         }
         if (subWX > 470) {
-            if (subWY < 42) probes.push([originalX + 1, originalY - 1]);
-            if (subWY > 470) probes.push([originalX + 1, originalY + 1]);
+            if (subWY < 42) { PROBE_X[probeCount] = originalX + 1; PROBE_Y[probeCount] = originalY - 1; probeCount++; }
+            if (subWY > 470) { PROBE_X[probeCount] = originalX + 1; PROBE_Y[probeCount] = originalY + 1; probeCount++; }
         }
         let foundDifferingNeighbor = false;
-        for (const [pcx, pcy] of probes) {
+        for (let p = 0; p < probeCount; p++) {
+            const pcx = PROBE_X[p], pcy = PROBE_Y[p];
             const ncx = ((pcx % mapWidth) + mapWidth) % mapWidth;
             const ncy = Math.max(0, Math.min(47, pcy));
             const nIdx = ncy * mapWidth + ncx;
@@ -248,7 +268,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
             if (colorIneligible(ncolor)) skipWobble = true;
             break; // only the FIRST differing neighbor counts
         }
-        if (probes.length > 0 && !foundDifferingNeighbor) {
+        if (probeCount > 0 && !foundDifferingNeighbor) {
             skipWobble = true;
         }
     }
@@ -268,7 +288,7 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
         colorInt: finalColorInt,
         pos: {x: biomePixelX, y: biomePixelY},
         originalPos: {x: originalX, y: originalY},
-        mightBeEdgeCase: edgeOffset.x !== 0 || edgeOffset.y !== 0
+        mightBeEdgeCase: edgeOffsetX !== 0 || edgeOffsetY !== 0
     };
 }
 
