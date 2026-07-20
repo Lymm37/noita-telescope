@@ -76,11 +76,10 @@ export class NollaPrng {
         let c = (a >>> 12) & 0xfff;
         let x_ = x + b;
         let y_ = y + c;
-
         let r = x_ * 134217727.0;
         //let e = NollaPrng.Helper1(r); 
         // Turns out this is a much simpler way to get the same result, with some edge cases fixed
-        let e = r ? (r & 0xffffffff) >>> 0 : 2;
+        let e = (r & 0xffffffff) >>> 0;
 
         let _x = NollaPrng.f2i(x_) & 0x7fffffffffffffffn;
         let _y = NollaPrng.f2i(y_) & 0x7fffffffffffffffn;
@@ -98,24 +97,12 @@ export class NollaPrng {
         // Again fix edge case
         let f = r ? (r & 0xffffffff) >>> 0 : 2; 
         let g = NollaPrng.Helper2(e, f, ws);
+        let s = g;
+        s /= 4294967295.0;
+        s *= 2147483639.0;
+        s += 1.0;
+        this.Seed = s >>> 0;
 
-        const diddle = [0, 4, 6, 25, 12, 39, 52, 9, 21, 64, 78, 92, 104, 118, 18, 32, 44];
-        const magic = 252645135;
-
-        let t = g;
-        t = (t + (g < 2147483648 ? 1 : 0) + (g === 0 ? 1 : 0)) >>> 0;
-        t = (t - Math.floor(g / magic)) >>> 0;
-
-        let idx = Math.floor(g / magic);
-        if (idx >= 0 && idx < diddle.length) {
-            if ((g % magic < diddle[idx]) && (g < 0xc3c3c3c3 + 4 || g >= 0xc3c3c3c3 + 62)) {
-                t = (t + 1) >>> 0;
-            }
-        }
-        t = (t + (g > 0x80000000 ? 1 : 0)) >>> 1;
-        t = (t + (g === 0xffffffff ? 1 : 0)) >>> 0;
-
-        this.Seed = t;
         this.Next();
 
         let h = ws & 3;

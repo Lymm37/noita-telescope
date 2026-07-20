@@ -155,13 +155,14 @@ export function generateShopItem(ws, ng, x, y, tier, offset=0) {
 // All unlocks: Actual spell ANTIHEAL, predicted spell SPIRAL_SHOT
 // No unlocks: Actual spell HEAL_BULLET, predicted spell MAGIC_SHIELD
 import { setUnlocks, UNLOCKABLES } from './unlocks.js';
-setUnlocks(Object.keys(UNLOCKABLES)); // Unlock everything for testing
+setUnlocks([]); // No unlocks for testing
+//setUnlocks(Object.keys(UNLOCKABLES)); // Unlock everything for testing
 const basePos = {x: -2760, y: 9811}; // Vault shop second spell
 const ws = 786433191;
 const ng = 0;
 const tier = 4;
-for (let dx = -5; dx <= 5; dx++) {
-    for (let dy = -5; dy <= 5; dy++) {
+for (let dx = 0; dx <= 0; dx++) {
+    for (let dy = 0; dy <= 0; dy++) {
         const pos = {x: basePos.x + dx, y: basePos.y + dy};
         const spell = generateShopItem(ws, ng, pos.x, pos.y, tier);
         console.log(`Spell at (${pos.x}, ${pos.y}): ${spell.spell}`);
