@@ -14,7 +14,7 @@ import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
 import { BIOME_COLOR_LOOKUP, createBiomeMapAlphaMask, createTileOverlays, createTileOverlaysCheap, createTileOverlaysExpanded } from './image_processing.js';
 import { COALMINE_ALT_SCENES } from './pixel_scene_config.js';
 import { debugBiomeEdgeNoise } from './edge_noise.js';
-import { getPixelSceneCanvas, loadPixelSceneData, reloadPixelSceneCache } from './pixel_scene_generation.js';
+import { getPixelSceneCanvas, loadPixelSceneData, reloadPixelSceneCache, PIXEL_SCENE_DATA } from './pixel_scene_generation.js';
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings } from './settings.js';
@@ -29,8 +29,11 @@ import { WAND_TIERS } from './wand_config.js';
 
 export const app = {
 	// TODO: A lot of these are old and unused and could probably be cleaned up
-	canvas: null, 
-	ctx: null, 
+	canvas: null,
+	ctx: null,
+
+	// Set while a coalesced redraw is already queued for the next animation frame
+	drawScheduled: false,
 
 	baseBiomeMapNG0: null,
 	baseBiomeMapNGP: null,
@@ -1696,7 +1699,21 @@ export const app = {
 		}
 	},
 
+	// Coalesce redraws: mousemove can fire several times per displayed frame, and
+	// the drag handler used to run a full redraw on every one of them. Schedule at
+	// most one drawNow() per animation frame instead. Every caller (drag, overlay
+	// and search paths that call app.draw() as results stream in) benefits, and
+	// nothing reads back canvas pixels synchronously after a draw().
 	draw() {
+		if (this.drawScheduled) return;
+		this.drawScheduled = true;
+		requestAnimationFrame(() => {
+			this.drawScheduled = false;
+			this.drawNow();
+		});
+	},
+
+	drawNow() {
 		// Panning update: Render layers for each world in view, shifted by the appropriate amount based on the PW and camera position
 
 		// Don't draw unless things are actually loaded
@@ -1710,6 +1727,18 @@ export const app = {
 		this.setupCamera(this.ctx);
 		
 		this.ctx.imageSmoothingEnabled = false;
+
+		// The visible rectangle in the coordinate space setupCamera() draws into,
+		// used to cull draws (tile overlays, pixel scenes) that would land entirely
+		// offscreen.
+		const halfViewW = (this.canvas.width / 2) / this.cam.z;
+		const halfViewH = (this.canvas.height / 2) / this.cam.z;
+		const viewLeft = this.cam.x - halfViewW;
+		const viewRight = this.cam.x + halfViewW;
+		const viewTop = this.cam.y - halfViewH;
+		const viewBottom = this.cam.y + halfViewH;
+		const offscreen = (dx, dy, w, h) =>
+			dx + w < viewLeft || dx > viewRight || dy + h < viewTop || dy > viewBottom;
 
 		// Precompute offsets by key
 		const worldOffsets = {};
@@ -2077,10 +2106,21 @@ export const app = {
 						const overlay = this.tileOverlaysByPW[`${pwX},${pwY}`][i];
 						
 						if (overlay) {
-							if (appSettings.enableEdgeNoise && biomeOverlayMode === 'expanded') {
+							// One overlay per biome region, scattered across a 70x48-chunk
+							// world. Only a few can be on screen at once, so at normal zoom
+							// most of these drawImage calls are entirely offscreen. The
+							// expanded mode pads its draw by 40px, so the cull accounts for it.
+							const expanded = appSettings.enableEdgeNoise && biomeOverlayMode === 'expanded';
+							const pad = expanded ? 40 : 0;
+							if (offscreen(
+								layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - pad,
+								layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - pad,
+								layer.w + pad * 2, layer.h + pad * 2)) continue;
+
+							if (expanded) {
 								this.ctx.drawImage(
-									overlay, 
-									layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - 40, 
+									overlay,
+									layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - 40,
 									layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - 40,
 									layer.w+80,
 									layer.h+80
@@ -2125,12 +2165,22 @@ export const app = {
 					for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
 						//if (!scene || !scene.imgElement) continue;
 						// Note positions of these *do not* use the tile offset
+						const drawX = scene.x + getWorldCenter(this.isNGP, this.gameMode)*512 - pwX*getWorldSize(this.isNGP, this.gameMode)*512 + shiftX;
+						const drawY = scene.y + 14*512 - pwY*24576 + shiftY;
+
+						// Cull offscreen scenes before getPixelSceneCanvas(), so scenes
+						// outside the view never pay for their lazily-built OffscreenCanvas
+						// either. With cosmetic pixel scenes enabled this loop is roughly an
+						// order of magnitude longer, and nearly all of it is offscreen.
+						const sceneData = PIXEL_SCENE_DATA[scene.key];
+						if (sceneData) {
+							if (drawX + sceneData.width < viewLeft || drawX > viewRight ||
+								drawY + sceneData.height < viewTop || drawY > viewBottom) continue;
+						}
+
 						const pixelSceneCanvas = getPixelSceneCanvas(scene);
 						if (!pixelSceneCanvas) continue;
-						this.ctx.drawImage(pixelSceneCanvas, 
-							scene.x + getWorldCenter(this.isNGP, this.gameMode)*512 - pwX*getWorldSize(this.isNGP, this.gameMode)*512 + shiftX, 
-							scene.y + 14*512 - pwY*24576 + shiftY
-						);
+						this.ctx.drawImage(pixelSceneCanvas, drawX, drawY);
 					}
 				}
 			}
@@ -2338,7 +2388,8 @@ export const app = {
 		if (!document.getElementById('debug-hide-pois').checked) {
 			for (let worldKey of this.worldsInView) {
 				// Skip rendering PoIs when too zoomed out (helps with lag)
-				if (this.cam.z < 0.03) continue;
+				// Not really necessary with the speedups
+				//if (this.cam.z < 0.03) continue;
 				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				const currentPois = this.poisByPW[`${pwX},${pwY}`];
 				if (currentPois) {
