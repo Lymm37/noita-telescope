@@ -519,6 +519,16 @@ export function getDateAndTime() {
 
 export async function fetchSafeJson(url) {
 	const dataUrl = new URL(url, import.meta.url);
+
+    // Node's fetch can't resolve file:// URLs, so headless callers (the
+    // generator chain running under Node) read the JSON straight off disk.
+    // Browsers keep the original fetch path unchanged.
+    if (typeof process !== 'undefined' && process?.versions?.node) {
+        const { readFile } = await import('node:fs/promises');
+        const { fileURLToPath } = await import('node:url');
+        return JSON.parse(await readFile(fileURLToPath(dataUrl), 'utf8'));
+    }
+
     const res = await fetch(dataUrl);
 
     // Check if the server returned a 404 or other error

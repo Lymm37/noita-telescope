@@ -1,3 +1,4 @@
+import { fetchSafeJson } from './utils.js';
 
 export const POTION_MATERIALS_STANDARD = [
 	'lava',
@@ -246,12 +247,12 @@ export const POTION_SANDS = [
 	'fungi_yellow',
 ];
 
-// Load material data from JSON file instead of with a giant hardcoded list
-// Note slime needed to have its wang color manually modified since it matched honey in RGB...
-// Also flummoxium has been adjusted to use its potion color instead of average texture color because the average of rainbow is gray and it looks bad
-// Colors here have alpha included but not currently used
-const materialDataUrl = new URL('../data/material_data.json', import.meta.url);
-export const MATERIAL_DATA = await fetch(materialDataUrl).then(res => res.json());
+// Slime wang color manually modified (matched honey in RGB); flummoxium uses its
+// potion color instead of avg texture color (avg of rainbow is gray). Colors
+// include alpha but it's currently unused.
+// import-attributes (`with { type: 'json' }`) break on some browsers, so use
+// the shared fetch-based loader that wobble_flags.js uses.
+export const MATERIAL_DATA = await fetchSafeJson('../data/material_data.json');
 export const MATERIAL_WANG_COLORS = {};
 export const POTION_COLORS = {};
 export const TEXTURE_COLORS = {};
