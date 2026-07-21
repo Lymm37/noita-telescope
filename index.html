@@ -776,20 +776,20 @@
             <label class="debug-opt" title="Change the overlay which colors the foreground materials of biomes. None mode uses the original white color of the tiles. Cheap mode calculates straight edges of the biomes but still checks accurately which biome they are in. Other modes require edge noise to be enabled to show any difference. Normal mode calculates the edge noise but only within the interior of biomes. Expanded mode attempts to use the edge noise with an area slightly extended from the biome to show the wavy edges more clearly, but it's currently a bit broken.">
                 Overlay Mode
                 <select id="debug-biome-overlay-mode">
-                    <option value="none">None</option>
+                    <!-- <option value="none">None</option> -->
                     <option value="cheap" selected>Cheap</option>
                     <option value="normal">Normal</option>
-                    <option value="expanded">Expanded (currently broken, also very slow)</option>
+                    <option value="expanded">Expanded (slow)</option>
                 </select>
             </label>
             <label class="debug-opt" title="Show tile bounds for each region, with numerical values of the tile indices shown."><input type="checkbox" id="debug-show-tile-bounds"> Show Tile Bounds</label>
             <label class="debug-opt" title="Show the calculated pathfinding validation step for the region. This may not be exactly the same as the path the game uses, and is definitely not the shortest path or anything, it's just a verification that there is some path to the bottom of the biome. If it seems broken and nonsensical sometimes, it's because the way the game does it is too."><input type="checkbox" id="debug-show-path"> Show Paths</label>
-            <label class="debug-opt" title="Show enemy spawns. Will make generation/searching slightly slower. Might still be buggy."><input type="checkbox" id="show-enemy-spawns"> Show Enemy Spawns</label>
+            <label class="debug-opt" title="Show enemy spawns. Will make generation/searching/panning slightly slower. Might still be buggy."><input type="checkbox" id="show-enemy-spawns"> Show Enemy Spawns</label>
             <label class="debug-opt" title="Whether to give hints for searching when common searches fail because of unlikely conditions."><input type="checkbox" id="enable-hamis-hints" checked> Enable hämis hints</label>
-            <label class="debug-opt" title="Whether to block spawns near the edges of chunks. Testing out something the game seems to do."><input type="checkbox" id="debug-block-edge-spawns"> Block Edge Spawns</label>
-            <label class="debug-opt hidden" title="Make PoIs very small to try to see their precise positions better"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
+            <label class="debug-opt hidden" title="Whether to block spawns near the edges of chunks. Testing out something the game seems to do."><input type="checkbox" id="debug-block-edge-spawns"> Block Edge Spawns</label>
+            <label class="debug-opt" title="Make PoIs very small to try to see their precise positions better"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
             <label class="debug-opt hidden" title="Apply straight edges to the Holy Mountain biomes instead of using the normal wavy edge noise"><input type="checkbox" id="debug-fix-holy-mountain-edge-noise" checked> Fix Holy Mountain Edge Noise</label>
-            <label class="debug-opt" title="Exclude edge cases where edge noise changes the biome"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases</label>
+            <label class="debug-opt hidden" title="Exclude edge cases where edge noise changes the biome"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases</label>
             <label class="debug-opt hidden" title="Set extra rerolls for pathfinding debug (requires pathfinding requirement to be disabled)">Extra Rerolls (Pathfinding Debug)<input type="number" value="0" min="0" max="100" style="width: 60px;" id="debug-extra-rerolls" autocomplete="off"> </label>
             <label class="debug-opt hidden" title="Display RNG info (deprecated)"><input type="checkbox" id="debug-rng-info"> Display RNG Info (Deprecated)</label>
         </div>

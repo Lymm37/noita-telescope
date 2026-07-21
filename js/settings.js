@@ -3,14 +3,14 @@ import { getDateAndTime } from "./utils.js";
 export const appSettings = {
 	enableStaticPixelScenes: 'some',
 	skipCosmeticScenes: true,
-	enableEdgeNoise: false,
+	enableEdgeNoise: true,
 	blockEdgeSpawns: false,
 	fixHolyMountainEdgeNoise: true,
 	rngInfo: false,
 	recolorMaterials: true,
 	clearSpawnPixels: false,
 	visitedCoalmineAltShrine: false,
-	excludeTaikasauva: true,
+	excludeTaikasauva: false,
 	excludeEdgeCases: false, // Not yet implemented
 	biomeOverlayMode: 'cheap',
 	showEnemies: false,

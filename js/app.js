@@ -7,7 +7,7 @@ import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
 import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
-import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
+import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getPWIndices, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
@@ -19,7 +19,7 @@ import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings } from './settings.js';
 import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
-import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, isOverlayPending } from './overlay_manager.js';
+import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, isOverlayPending, invalidatePendingOverlays } from './overlay_manager.js';
 import { getBiomeModifiers, getStartingWeather } from './misc_generation.js';
 import { getCauldronState, getCauldronVariation } from './cauldron.js';
 import { WAND_TIERS } from './wand_config.js';
@@ -363,6 +363,12 @@ export const app = {
 		document.getElementById('debug-biome-overlay-mode').onchange = () => {
 			this.saveSettings();
 			this.tileOverlaysByPW = {}; // Clear cached overlays so they will be regenerated with the new mode
+			invalidatePendingOverlays();
+			if (document.getElementById('debug-biome-overlay-mode').value !== 'none') {
+				// Settings are posted to this worker before this request, so it uses
+				// the newly selected mode without requiring a page reload.
+				getOrGenerateOverlay(this.pw, this.pwVertical);
+			}
 			this.draw();
 			//this.generate(true, true); // TODO: Probably don't need to completely regenerate tiles
 		};
@@ -2109,9 +2115,9 @@ export const app = {
 							// One overlay per biome region, scattered across a 70x48-chunk
 							// world. Only a few can be on screen at once, so at normal zoom
 							// most of these drawImage calls are entirely offscreen. The
-							// expanded mode pads its draw by 40px, so the cull accounts for it.
+							// Expanded mode pads its draw by the full edge-noise extent, so the cull accounts for it.
 							const expanded = appSettings.enableEdgeNoise && biomeOverlayMode === 'expanded';
-							const pad = expanded ? 40 : 0;
+							const pad = expanded ? BIOME_EDGE_NOISE_PADDING_PIXELS : 0;
 							if (offscreen(
 								layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - pad,
 								layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - pad,
@@ -2120,10 +2126,10 @@ export const app = {
 							if (expanded) {
 								this.ctx.drawImage(
 									overlay,
-									layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - 40,
-									layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - 40,
-									layer.w+80,
-									layer.h+80
+									layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - pad,
+									layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - pad,
+									layer.w + pad * 2,
+									layer.h + pad * 2
 								);
 							}
 							else {

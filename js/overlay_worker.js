@@ -5,6 +5,7 @@ import { appSettings, updateSettings } from './settings.js';
 
 let workerBiomeData = null;
 let workerTileLayers = null;
+let workerRecolorBuffers = null;
 
 self.onmessage = async function(e) {
 	const data = e.data;
@@ -13,6 +14,7 @@ self.onmessage = async function(e) {
 		injectPixelSceneData(data.pixelSceneCache);
 		workerBiomeData = data.biomeData;
 		workerTileLayers = data.tileLayers;
+		workerRecolorBuffers = data.recolorBuffers;
 	}
 	else if (data.cmd === 'SYNC_SETTINGS') {
 		updateSettings(data.settings);
@@ -67,20 +69,28 @@ function generatePixelSceneImagesWorker(pixelSceneKeys, variantKeys) {
 
 function generateOverlayWorker(seed, ngPlusCount, pw, pwVertical, gameMode) {
 	const biomeOverlayMode = appSettings.biomeOverlayMode;
+	const isNGP = ngPlusCount > 0;
 	let canvases;
 
-	//if (biomeOverlayMode === 'cheap') {
-		canvases = createTileOverlaysCheap(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0, gameMode);
-	//}
-	// TODO: Currently missing recolorOffscreen... For now just use cheap mode
-	/*
-	else if (biomeOverlayMode === 'normal') {
-		canvases = createTileOverlays(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0, gameMode);
+	if (biomeOverlayMode === 'normal' || biomeOverlayMode === 'expanded') {
+		const recolorBuffer = pwVertical < 0
+			? workerRecolorBuffers?.heaven
+			: pwVertical > 0
+				? workerRecolorBuffers?.hell
+				: workerRecolorBuffers?.normal;
+
+		// Metadata is synchronized before overlay requests. Fall back to the cheap
+		// path only if a request races before its RGB recolor data arrives.
+		if (recolorBuffer) {
+			canvases = biomeOverlayMode === 'expanded'
+				? createTileOverlaysExpanded(workerBiomeData, recolorBuffer, workerTileLayers, pw, pwVertical, isNGP, gameMode)
+				: createTileOverlays(workerBiomeData, recolorBuffer, workerTileLayers, pw, pwVertical, isNGP, gameMode);
+		}
 	}
-	else if (biomeOverlayMode === 'expanded') {
-		canvases = createTileOverlaysExpanded(workerBiomeData, workerTileLayers, pw, pwVertical, ngPlusCount > 0, gameMode);
+
+	if (!canvases) {
+		canvases = createTileOverlaysCheap(workerBiomeData, workerTileLayers, pw, pwVertical, isNGP, gameMode);
 	}
-	*/
 
 
 	// Extract the rendered pixels from each canvas into a transferable ImageBitmap
@@ -96,6 +106,7 @@ function generateOverlayWorker(seed, ngPlusCount, pw, pwVertical, gameMode) {
 		pw: pw,
 		pwVertical: pwVertical,
 		gameMode: gameMode,
+		biomeOverlayMode: biomeOverlayMode,
 		overlays: bitmaps
 	}, bitmaps);
 }
