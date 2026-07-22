@@ -23,9 +23,10 @@ import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorke
 import { getBiomeModifiers, getStartingWeather } from './misc_generation.js';
 import { getCauldronState, getCauldronVariation } from './cauldron.js';
 import { WAND_TIERS } from './wand_config.js';
-
-// Not quite ready yet
-//import {getTemplePerks} from './perks.js';
+import { renderFungalShifts, renderAlchemyRecipes, updatePerksState } from './misc_ui.js';
+import { renderStars } from './star_decorations.js';
+import { getFungalShifts } from './fungal_shifts.js';
+import { pickAlchemyMaterials } from './alchemy.js';
 
 export const app = {
 	// TODO: A lot of these are old and unused and could probably be cleaned up
@@ -116,6 +117,9 @@ export const app = {
 	isDaily: false,
 	cauldronState: null,
 
+	fungalShifts: null,
+	alchemyRecipes: null,
+
 	worldsInView: new Set(),
 	gameMode: 'normal', // or nightmare
 
@@ -150,6 +154,9 @@ export const app = {
 		// Menu Toggles
 		document.querySelector('.adv-toggle').onclick = () => this.toggleAdvancedSearch();
 		document.querySelector('.debug-toggle').onclick = () => this.toggleDebugOptions();
+		document.querySelector('#fungal-shifts-label').onclick = () => this.toggleFungalShifts();
+		document.querySelector('#alchemy-label').onclick = () => this.toggleAlchemyRecipes();
+		document.querySelector('#perks-label').onclick = () => this.togglePerkDeck();
 		
 		document.getElementById('daily-run-button').onclick = () => {
 			this.getDailyRunSeed().then(seed => {
@@ -1440,8 +1447,19 @@ export const app = {
 			this.weather = weather;
 
 			const biomeModifiers = getBiomeModifiers(seedVal, ngVal, weather.snowing);
-			console.log("Biome Modifiers:", biomeModifiers);
+			//console.log("Biome Modifiers:", biomeModifiers);
 			this.biomeModifiers = biomeModifiers;
+
+			this.fungalShifts = getFungalShifts(seedVal, ngVal);
+			//console.log("Fungal Shifts:", this.fungalShifts);
+			// Should probably just keep this in the current module
+			renderFungalShifts(this.fungalShifts);
+
+			this.alchemyRecipes = pickAlchemyMaterials(seedVal);
+			//console.log("Alchemy Recipes:", this.alchemyRecipes);
+			renderAlchemyRecipes(this.alchemyRecipes);
+
+			updatePerksState(seedVal, ngVal, 0, {}, this.gameMode);
 
 			this.cauldronState = await getCauldronState();
 			console.log("Cauldron State:", this.cauldronState);
@@ -1995,6 +2013,9 @@ export const app = {
 			}
 		}
 
+		// Stars
+		renderStars(this.ctx, this.seed, this.ngPlusCount, this.pw, this.pwVertical);
+
 		// Echoing spire (so silly, why does this even exist? no one knows)
 		if (this.surfaceOverlayScenes) {
 			let echoingSpireScene;
@@ -2527,6 +2548,38 @@ export const app = {
 	toggleDebugOptions() {
 		const ui = document.getElementById('debug-options');
 		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+	},
+
+	toggleFungalShifts() {
+		const ui = document.getElementById('shifts-list');
+		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+		if (ui.style.display === 'block') {
+			document.getElementById('fungal-shifts-label').innerText = 'Fungal Shifts ▲';
+		} else {
+			document.getElementById('fungal-shifts-label').innerText = 'Fungal Shifts ▼';
+		}
+	},
+
+	toggleAlchemyRecipes() {
+		const ui = document.getElementById('alchemy-list');
+		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+		if (ui.style.display === 'block') {
+			document.getElementById('alchemy-label').innerText = 'Alchemy Recipes ▲';
+		}
+		else {
+			document.getElementById('alchemy-label').innerText = 'Alchemy Recipes ▼';
+		}
+	},
+
+	togglePerkDeck() {
+		const ui = document.getElementById('perks-data');
+		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+		if (ui.style.display === 'block') {
+			document.getElementById('perks-label').innerText = 'Perk Deck ▲';
+		}
+		else {
+			document.getElementById('perks-label').innerText = 'Perk Deck ▼';
+		}
 	},
 
 	gotoPOI(poi) {

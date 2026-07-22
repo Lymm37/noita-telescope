@@ -152,6 +152,7 @@ const EXTRA_TRANSLATIONS = {
 	'soil_lush_dark': 'Soil',
 	'soil_dark': 'Barren Soil',
 	'shock_powder': 'Fungal Soil', // Typo included lol
+	'snow_sticky': 'Snow',
 
 	// Missing biomes with weird capitalization (in no particular order)
 	'coalmine': 'Mines',

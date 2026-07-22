@@ -340,6 +340,241 @@
             display: inline-block;
         }
 
+        /* Fungal shift styling */
+        .shift-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .shift-item {
+            background-color: #2a2a2a;
+            margin-bottom: 8px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shift-index {
+            font-weight: bold;
+            color: #666;
+            min-width: 30px;
+        }
+
+        .flask-tag {
+            background-color: #005082;
+            color: #8ed6ff;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .arrow {
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        /* Remove the color: properties from these since they are now handled inline */
+        .material-from {
+            font-weight: 600;
+        }
+
+        .material-to {
+            font-weight: 600;
+        }
+
+        .special-shifts {
+            font-size: 0.8rem;
+            padding-left: 38px;
+            margin-top: 2px;
+            font-weight: 600;
+        }
+
+        /* This kind of fails for very dark materials, but I tried it with a white outline and it looks way worse... */
+        .material-hover {
+            cursor: help;
+            text-decoration: underline dotted;
+            text-decoration-color: rgba(255, 255, 255, 0.3);
+            text-underline-offset: 3px;
+            text-shadow: 
+                -1px -1px 0 #000,  
+                1px -1px 0 #000,
+                -1px  1px 0 #000,
+                1px  1px 0 #000;
+        }
+
+        /* Keep the commas clean and un-styled */
+        .comma {
+            color: #888;
+            font-weight: normal;
+        }
+
+        .plus {
+            color: #888;
+            font-weight: bold;
+            margin: 0 4px;
+        }
+
+        /* Perks */
+
+        .temple-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .temple-row {
+            background-color: #2a2a2a;
+            padding: 6px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px; /* Tighter gap between the perks and the reroll block */
+        }
+
+        .perk-cards {
+            display: flex;
+            flex-wrap: wrap; /* Allows icons to wrap to a new line if the user has many Extra Perks */
+            gap: 4px; /* Much tighter spacing between icons */
+            flex-grow: 1;
+        }
+
+        .perk-card {
+            display: flex;
+            flex-direction: column; /* Stacks the gamble preview below the main icon */
+            align-items: center;
+            justify-content: center;
+            padding: 4px 6px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+        }
+
+        .perk-card:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .perk-card.selected-perk {
+            background-color: rgba(105, 219, 124, 0.15);
+            border-color: #69db7c;
+        }
+
+        /* Gamble Preview UI */
+        .gamble-preview {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .gamble-icon {
+            width: 16px;
+            height: 16px;
+            image-rendering: pixelated;
+            cursor: help;
+        }
+
+        .perk-icon {
+            width: 32px;
+            height: 32px;
+            image-rendering: pixelated;
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5));
+            cursor: help; /* Gives a visual cue that it can be hovered */
+        }
+
+        /* Remove the .perk-name class entirely */
+
+        .reroll-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: #1e1e1e;
+            padding: 4px 6px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            flex-shrink: 0; /* Prevents the buttons from being squished */
+        }
+
+        .reroll-btn {
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            width: 20px; /* Slightly smaller */
+            height: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reroll-btn:hover {
+            background-color: #444;
+        }
+
+        .reroll-btn:disabled {
+            background-color: #222;
+            color: #555;
+            cursor: not-allowed;
+        }
+
+        .reroll-count {
+            min-width: 16px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 1rem;
+        }
+
+        .lottery-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        .lottery-control input {
+            width: 40px;
+            background-color: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-family: monospace;
+            text-align: center;
+        }
+
+        /* The gold glow for lucky perks */
+        .lucky-perk {
+            /* A bright yellow/gold double drop-shadow */
+            filter: drop-shadow(0px 0px 3px #ffd700) drop-shadow(0px 0px 6px #ffa500);
+            /* A radial background glow as a fallback/enhancement behind the sprite */
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.4) 10%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .pw-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pw-control h3 {
+            margin: 0;
+            font-size: 1rem;
+            width: 90px;
+            text-align: center;
+        }
+
     </style>
 </head>
 <body>
@@ -692,12 +927,45 @@
 
         <div class="settings-group">
             <label>Sync Unlocks:</label>
-            <small class="help-text">Click the Copy Path button then paste it into the file picker and click upload. This will sync the spell unlocks to your current progress. <span style="color: #ff4400">Spell generation is unlikely to be correct if your unlocks are not synced.</span></small>
+            <small class="help-text">Click the Copy Path button then paste it into the file picker and click upload. This will sync the spell unlocks to your current progress. <span style="color: #ff4400">Spell generation is unlikely to be correct if your unlocks are not synced. Also, if you get a new unlock flag in a run, those spells will not spawn until you save your game!</span></small>
             <div style="display: flex; flex-direction: row; align-items: center; gap: 10px; padding-top: 5px;">
                 <button id="copy-path-btn">Copy Path</button>
                 <input type="file" id="unlock-folder-picker" webkitdirectory directory multiple style="display:none;">
                 <button onclick="document.getElementById('unlock-folder-picker').click()" title="Navigate to %appdata%/../LocalLow/Nolla_Games_Noita/save00/persistent and upload the entire flags folder to sync your unlocked spells">Upload Flags Folder</button>
             </div>
+        </div>
+
+        <div id="perks-ui-container" style="font-weight:bold; font-size:14px; margin-bottom:5px; border-top:1px solid #444;">
+            <label id="perks-label" style="text-decoration: underline;">Perk Deck ▼</label>
+            <div id="perks-data" style="display:none;">
+                <div class="pw-control">
+                    <button id="prev-pw" class="reroll-btn">&lt;</button>
+                    <h3 id="pw-label">Main World</h3>
+                    <button id="next-pw" class="reroll-btn">&gt;</button>
+                </div>
+                <div class="lottery-control">
+                    <label for="lottery-count" title="Perk Lottery Pickups">(Global) Perk Lotteries:</label>
+                    <input type="number" id="lottery-count" value="0" min="0" max="6">
+                </div>
+                <div id="temple-list" class="temple-list">
+                    <!-- Perk rows for each holy mountain will be injected here -->
+                </div>
+                <small class="help-text">Work in progress, think of it as a simulation of the perk deck, doesn't affect the generation like the perk settings above, and gets reset if any settings change.</small>
+            </div>
+        </div>
+
+        <div id="fungal-shifts-container" style="font-weight:bold; font-size:14px; margin-bottom:5px; border-top:1px solid #444;">
+            <label id="fungal-shifts-label" style="text-decoration: underline;">Fungal Shifts ▼</label>
+            <ul id="shifts-list" class="shift-list" style="display:none;">
+                <!-- Shifts will be injected here -->
+            </ul>
+        </div>
+
+        <div id="alchemy-container" style="font-weight:bold; font-size:14px; margin-bottom:5px; border-top:1px solid #444;">
+            <label id="alchemy-label" style="text-decoration: underline;">Alchemy Recipes ▼</label>
+            <ul id="alchemy-list" class="shift-list" style="display:none;">
+                <!-- Alchemy recipes will be injected here -->
+            </ul>
         </div>
 
         <div id="poi-legend" style="font-weight:bold; font-size:14px; margin-bottom:5px; border-top:1px solid #444;">

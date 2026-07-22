@@ -687,6 +687,7 @@ function getAlwaysCasts(ws, ng, x, y) {
 		else {
 			card = GetRandomActionWithType(x, y, level, UTILITY, ws, 666);
 		}
+    card = card.name;
 	}
 	return card;
 }
