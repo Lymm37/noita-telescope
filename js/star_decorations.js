@@ -1,5 +1,6 @@
 import { NollaPrng } from "./nolla_prng.js";
 const { pow, cos, sin, floor, round, sqrt, PI } = Math;
+import { fetchSafeJson } from "./utils.js";
 
 const e = [
 	{x:13456,y:-5360},
@@ -107,7 +108,7 @@ let starPositions = [];
 let variedStarPositions = [];
 const starClusters = [];
 // Use actual RNG data for stars
-const seeds = await fetch('../data/rng/sampo_seeds.json').then(res => res.json());
+const seeds = await fetchSafeJson('../data/rng/sampo_seeds.json');
 
 export function generateStars(ws, ng) {
 	const starCount = 4096; // Don't use too many, don't want to slow things down for cosmetics
