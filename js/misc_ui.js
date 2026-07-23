@@ -323,35 +323,36 @@ export function renderPerkUI() {
                 let altText = `${getPerkDisplayName(p.perk)}${isLucky ? ' (Lucky)' : ''}`;
 
                 let subIconsHtml = '';
+                
+                // Flag to determine if we need to render the spell card at the bottom
+                let needsAcSpell = showAllAlwaysCasts || p.perk === 'ALWAYS_CAST';
 
+                // 1. Build the Gamble Preview (and check if it rolled Always Cast)
                 if (p.perk === 'GAMBLE' && p.hypotheticalGamble) {
                     subIconsHtml += `<div class="gamble-preview">
                         ${p.hypotheticalGamble.perks.map(gp => {
-                            let gambleAcHtml = '';
-                            if (gp === 'ALWAYS_CAST') {
-                                const gacSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
-                                gambleAcHtml = `<img class="gamble-icon" title="Always Cast: ${formatPerkName(gacSpell)}" src="data/spell_sprites/${gacSpell.id ? gacSpell.id.toLowerCase() : gacSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">`;
-                            }
-                            return `<img class="gamble-icon" title="${getPerkDisplayName(gp)}" src="data/perk_sprites/${gp.toLowerCase()}.png" onerror="this.src='data/perk_sprites/unknown.png'">${gambleAcHtml}`;
+                            if (gp === 'ALWAYS_CAST') needsAcSpell = true;
+                            return `<img class="gamble-icon" title="${getPerkDisplayName(gp)}" src="data/perk_sprites/${gp.toLowerCase()}.png" onerror="this.src='data/perk_sprites/unknown.png'">`;
                         }).join('')}
                     </div>`;
                 }
 
-                let acSpell = p.alwaysCast;
-                if (!acSpell && showAllAlwaysCasts) {
-                    acSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
-                }
-                
-                if (acSpell && (p.perk === 'ALWAYS_CAST' || showAllAlwaysCasts)) {
-                    const spellName = formatPerkName(acSpell);
-                    titleText += `\nSpell: ${spellName}`;
-                    altText += ` (Spell: ${spellName})`;
-                    
-                    subIconsHtml += `
-                        <div class="gamble-preview">
-                            <img class="gamble-icon" title="Always Cast: ${spellName}" src="data/spell_sprites/${acSpell.id ? acSpell.id.toLowerCase() : acSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">
-                        </div>
-                    `;
+                // 2. Render the Always Cast spell exactly once, on its own line below everything else
+                if (needsAcSpell) {
+                    // Use precalculated AC if available, otherwise calculate it for this position
+                    let acSpell = p.alwaysCast || getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
+                    if (acSpell) {
+                        const spellName = formatPerkName(acSpell);
+                        titleText += `\nSpell: ${spellName}`;
+                        altText += ` (Spell: ${spellName})`;
+                        
+                        // Creating a new .gamble-preview div forces it to stack below the gamble perks
+                        subIconsHtml += `
+                            <div class="gamble-preview">
+                                <img class="gamble-icon" title="Always Cast: ${spellName}" src="data/spell_sprites/${acSpell.id ? acSpell.id.toLowerCase() : acSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">
+                            </div>
+                        `;
+                    }
                 }
 
                 // Add data-index utilizing originalIndex for strict slot tracking
