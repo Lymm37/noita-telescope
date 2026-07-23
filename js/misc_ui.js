@@ -174,14 +174,15 @@ function getTempleCount(ng, pwIndex) {
 }
 
 /**
- * Recalculates all perks by simulating the path from Main World to the current PW.
+ * Recalculates all perks using a Two-Pass architecture:
+ * Pass 1: Simulates state, cleans up orphans (strict index matching), and finalizing global counters.
+ * Pass 2: Renders the DOM with accurate global data.
  */
 export function renderPerkUI() {
     const listElement = document.getElementById('temple-list');
     if (!listElement) return;
-    listElement.innerHTML = '';
 
-    // Bind static header controls directly
+    // Bind static header controls
     const pwLabel = document.getElementById('pw-label');
     const prevBtn = document.getElementById('prev-pw');
     const nextBtn = document.getElementById('next-pw');
@@ -225,7 +226,6 @@ export function renderPerkUI() {
     let rIdx = null;
     let accumulatedPickups = JSON.parse(JSON.stringify(perkPickups));
 
-    // 1. Build the path sequence (e.g. 0, -1, -2 for West 2)
     let path = [0];
     if (currentPwIndex > 0) {
         for (let i = 1; i <= currentPwIndex; i++) path.push(i);
@@ -233,7 +233,10 @@ export function renderPerkUI() {
         for (let i = -1; i >= currentPwIndex; i--) path.push(i);
     }
 
-    // 2. The Unified Simulation Loop
+    // --- PASS 1: STATE SIMULATION & CLEANUP ---
+    let lotteriesLostInCleanup = 0;
+    let templesData = []; // Cache generation results so we don't recalculate in Pass 2
+
     for (let w of path) {
         let tCount = getTempleCount(currentNg, w);
         if (!pwRerolls[w]) pwRerolls[w] = new Array(tCount).fill(0);
@@ -251,7 +254,6 @@ export function renderPerkUI() {
                 finalPerks = reroll.perks;
             }
 
-            // Calculate Gamble AFTER pedestal is drawn
             finalPerks.forEach(p => {
                 if (p.perk === 'GAMBLE') {
                     p.hypotheticalGamble = getGamblePerks(currentSeed, currentNg, pIdx, accumulatedPickups, gameMode);
@@ -260,100 +262,122 @@ export function renderPerkUI() {
 
             const selectionKey = `${w}-${t}`;
             let selectedInTemple = uiSelectedPerks[selectionKey] || [];
-            selectedInTemple = selectedInTemple.filter(perkId => finalPerks.some(p => p.perk === perkId));
-            uiSelectedPerks[selectionKey] = selectedInTemple;
-
-            if (w === currentPwIndex) {
-                const row = document.createElement('div');
-                row.className = 'temple-row';
-
-                // Reverse the array to display right-to-left as drawn in game
-                const displayPerks = finalPerks.slice();
-
-                const cardsHtml = displayPerks.map(p => {
-                    // Lucky states now rely purely on the global perkLotteryCount
-                    const luckyIndex = Math.min(perkLotteryCount, p.luckyStates.length - 1);
-                    const isLucky = p.luckyStates[luckyIndex];
-                    const luckyClass = isLucky ? 'lucky-perk' : '';
-                    
-                    const isSelected = selectedInTemple.includes(p.perk);
-                    const selectedClass = isSelected ? 'selected-perk' : '';
-                    
-                    let titleText = `${getPerkDisplayName(p.perk)}${isLucky ? ' (Lucky)' : ''}`;
-                    let altText = `${p.perk}${isLucky ? ' (Lucky)' : ''}`;
-
-                    let subIconsHtml = '';
-
-					// Gamble Preview (includes checking if Gamble gives Always Casts)
-                    if (p.perk === 'GAMBLE' && p.hypotheticalGamble) {
-                        subIconsHtml += `<div class="gamble-preview">
-                            ${p.hypotheticalGamble.perks.map(gp => {
-                                let gambleAcHtml = '';
-                                if (gp === 'ALWAYS_CAST') {
-                                    const gacSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
-                                    gambleAcHtml = `<img class="gamble-icon" title="Always Casts: ${getPerkDisplayName(gacSpell)}" src="data/spell_sprites/${gacSpell.id ? gacSpell.id.toLowerCase() : gacSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">`;
-                                }
-                                return `<img class="gamble-icon" title="${getPerkDisplayName(gp)}" src="data/perk_sprites/${gp.toLowerCase()}.png" onerror="this.src='data/perk_sprites/unknown.png'">${gambleAcHtml}`;
-                            }).join('')}
-                        </div>`;
-                    }
-
-                    // Main Always Casts
-                    let acSpell = p.alwaysCast;
-                    if (!acSpell && showAllAlwaysCasts) {
-                        acSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
-                    }
-                    
-                    if (acSpell && (p.perk === 'ALWAYS_CAST' || showAllAlwaysCasts)) {
-                        const spellName = getDisplayName(acSpell);
-                        titleText += `\nAlways Casts: ${spellName}`;
-                        altText += ` (Always Casts: ${spellName})`;
-                        
-                        // Use a gamble-preview container to slot the spell card underneath
-                        subIconsHtml += `
-                            <div class="gamble-preview">
-                                <img class="gamble-icon" title="Always Casts: ${spellName}" src="data/spell_sprites/${acSpell.id ? acSpell.id.toLowerCase() : acSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">
-                            </div>
-                        `;
-                    }
-
-                    return `
-                        <div class="perk-card ${selectedClass}" data-temple="${t}" data-perk="${p.perk}">
-                            <img class="perk-icon ${luckyClass}" 
-                                 title="${titleText}" 
-                                 src="data/perk_sprites/${p.perk.toLowerCase()}.png" 
-                                 alt="${altText}" 
-                                 onerror="this.src='data/perk_sprites/unknown.png'">
-                            ${subIconsHtml}
-                        </div>
-                    `;
-                }).join('');
-
-                row.innerHTML = `
-                    <div class="perk-cards">
-                        ${cardsHtml}
-                    </div>
-                    <div class="reroll-controls">
-                        <button class="reroll-btn minus-btn" data-temple="${t}" ${rCount === 0 ? 'disabled' : ''}>-</button>
-                        <span class="reroll-count">${rCount}</span>
-                        <button class="reroll-btn plus-btn" data-temple="${t}">+</button>
-                    </div>
-                `;
-                listElement.appendChild(row);
+            
+            const lotteriesBefore = selectedInTemple.filter(s => s.id === 'PERKS_LOTTERY').length;
+            
+            // STRICT MATCH: Must match the exact perk ID at the exact physical slot index
+            selectedInTemple = selectedInTemple.filter(s => {
+                return finalPerks[s.i] && finalPerks[s.i].perk === s.id;
+            });
+            
+            const lotteriesAfter = selectedInTemple.filter(s => s.id === 'PERKS_LOTTERY').length;
+            if (lotteriesBefore > lotteriesAfter) {
+                lotteriesLostInCleanup += (lotteriesBefore - lotteriesAfter);
             }
 
-            // Apply selected perks to the accumulated state for NEXT temple
-            selectedInTemple.forEach(perkId => {
-                if (perkId === 'GAMBLE') {
+            uiSelectedPerks[selectionKey] = selectedInTemple;
+
+            finalPerks.forEach((p, i) => p.originalIndex = i);
+
+            templesData.push({ w, t, finalPerks, rCount, selectedInTemple });
+
+            selectedInTemple.forEach(s => {
+                if (s.id === 'GAMBLE') {
                     const gambleResult = getGamblePerks(currentSeed, currentNg, pIdx, accumulatedPickups, gameMode);
                     pIdx = gambleResult.perkIndex; 
                     gambleResult.perks.forEach(gp => {
                         accumulatedPickups = pickupPerk(gp, accumulatedPickups);
                     });
                 } else {
-                    accumulatedPickups = pickupPerk(perkId, accumulatedPickups);
+                    accumulatedPickups = pickupPerk(s.id, accumulatedPickups);
                 }
             });
+        }
+    }
+
+    // Finalize global variables BEFORE building any DOM
+    if (lotteriesLostInCleanup > 0) {
+        perkLotteryCount = Math.max(0, perkLotteryCount - lotteriesLostInCleanup);
+        if (lotteryInput) lotteryInput.value = perkLotteryCount;
+    }
+
+    // --- PASS 2: RENDER DOM ---
+    listElement.innerHTML = '';
+    
+    for (let data of templesData) {
+        if (data.w === currentPwIndex) {
+            const row = document.createElement('div');
+            row.className = 'temple-row';
+
+            const displayPerks = data.finalPerks.slice();
+
+            const cardsHtml = displayPerks.map(p => {
+                const luckyIndex = Math.min(perkLotteryCount, p.luckyStates.length - 1);
+                const isLucky = p.luckyStates[luckyIndex];
+                const luckyClass = isLucky ? 'lucky-perk' : '';
+                
+                const isSelected = data.selectedInTemple.some(s => s.i === p.originalIndex && s.id === p.perk);
+                const selectedClass = isSelected ? 'selected-perk' : '';
+                
+                let titleText = `${getPerkDisplayName(p.perk)}${isLucky ? ' (Lucky)' : ''}`;
+                let altText = `${getPerkDisplayName(p.perk)}${isLucky ? ' (Lucky)' : ''}`;
+
+                let subIconsHtml = '';
+
+                if (p.perk === 'GAMBLE' && p.hypotheticalGamble) {
+                    subIconsHtml += `<div class="gamble-preview">
+                        ${p.hypotheticalGamble.perks.map(gp => {
+                            let gambleAcHtml = '';
+                            if (gp === 'ALWAYS_CAST') {
+                                const gacSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
+                                gambleAcHtml = `<img class="gamble-icon" title="Always Cast: ${formatPerkName(gacSpell)}" src="data/spell_sprites/${gacSpell.id ? gacSpell.id.toLowerCase() : gacSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">`;
+                            }
+                            return `<img class="gamble-icon" title="${getPerkDisplayName(gp)}" src="data/perk_sprites/${gp.toLowerCase()}.png" onerror="this.src='data/perk_sprites/unknown.png'">${gambleAcHtml}`;
+                        }).join('')}
+                    </div>`;
+                }
+
+                let acSpell = p.alwaysCast;
+                if (!acSpell && showAllAlwaysCasts) {
+                    acSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
+                }
+                
+                if (acSpell && (p.perk === 'ALWAYS_CAST' || showAllAlwaysCasts)) {
+                    const spellName = formatPerkName(acSpell);
+                    titleText += `\nSpell: ${spellName}`;
+                    altText += ` (Spell: ${spellName})`;
+                    
+                    subIconsHtml += `
+                        <div class="gamble-preview">
+                            <img class="gamble-icon" title="Always Cast: ${spellName}" src="data/spell_sprites/${acSpell.id ? acSpell.id.toLowerCase() : acSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">
+                        </div>
+                    `;
+                }
+
+                // Add data-index utilizing originalIndex for strict slot tracking
+                return `
+                    <div class="perk-card ${selectedClass}" data-temple="${data.t}" data-perk="${p.perk}" data-index="${p.originalIndex}">
+                        <img class="perk-icon ${luckyClass}" 
+                             title="${titleText}" 
+                             src="data/perk_sprites/${p.perk.toLowerCase()}.png" 
+                             alt="${altText}" 
+                             onerror="this.src='data/perk_sprites/unknown.png'">
+                        ${subIconsHtml}
+                    </div>
+                `;
+            }).join('');
+
+            row.innerHTML = `
+                <div class="perk-cards">
+                    ${cardsHtml}
+                </div>
+                <div class="reroll-controls">
+                    <button class="reroll-btn minus-btn" data-temple="${data.t}" ${data.rCount === 0 ? 'disabled' : ''}>-</button>
+                    <span class="reroll-count">${data.rCount}</span>
+                    <button class="reroll-btn plus-btn" data-temple="${data.t}">+</button>
+                </div>
+            `;
+            listElement.appendChild(row);
         }
     }
 
@@ -362,22 +386,19 @@ export function renderPerkUI() {
         if (card) {
             const t = card.getAttribute('data-temple');
             const perkId = card.getAttribute('data-perk');
+            const pIndex = parseInt(card.getAttribute('data-index'), 10);
             const key = `${currentPwIndex}-${t}`;
             
             if (!uiSelectedPerks[key]) uiSelectedPerks[key] = [];
             
-            const isSelected = uiSelectedPerks[key].includes(perkId);
+            const existingIndex = uiSelectedPerks[key].findIndex(s => s.i === pIndex && s.id === perkId);
             
-            if (isSelected) {
-                uiSelectedPerks[key] = uiSelectedPerks[key].filter(id => id !== perkId); 
-                if (perkId === 'PERKS_LOTTERY') {
-                    perkLotteryCount = Math.max(0, perkLotteryCount - 1);
-                }
+            if (existingIndex !== -1) {
+                uiSelectedPerks[key].splice(existingIndex, 1); 
+                if (perkId === 'PERKS_LOTTERY') perkLotteryCount = Math.max(0, perkLotteryCount - 1);
             } else {
-                uiSelectedPerks[key].push(perkId); 
-                if (perkId === 'PERKS_LOTTERY') {
-                    perkLotteryCount = Math.min(6, perkLotteryCount + 1);
-                }
+                uiSelectedPerks[key].push({ i: pIndex, id: perkId }); 
+                if (perkId === 'PERKS_LOTTERY') perkLotteryCount = Math.min(6, perkLotteryCount + 1);
             }
             
             if (lotteryInput) lotteryInput.value = perkLotteryCount;
