@@ -342,7 +342,7 @@ export function renderPerkUI() {
                     // Use precalculated AC if available, otherwise calculate it for this position
                     let acSpell = p.alwaysCast || getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
                     if (acSpell) {
-                        const spellName = formatPerkName(acSpell);
+                        const spellName = capitalize(getDisplayName(acSpell));
                         titleText += `\nSpell: ${spellName}`;
                         altText += ` (Spell: ${spellName})`;
                         
@@ -399,7 +399,7 @@ export function renderPerkUI() {
                 if (perkId === 'PERKS_LOTTERY') perkLotteryCount = Math.max(0, perkLotteryCount - 1);
             } else {
                 uiSelectedPerks[key].push({ i: pIndex, id: perkId }); 
-                if (perkId === 'PERKS_LOTTERY') perkLotteryCount = Math.min(6, perkLotteryCount + 1);
+                if (perkId === 'PERKS_LOTTERY') perkLotteryCount = Math.min(7, perkLotteryCount + 1);
             }
             
             if (lotteryInput) lotteryInput.value = perkLotteryCount;

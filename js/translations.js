@@ -192,14 +192,12 @@ const EXTRA_TRANSLATIONS = {
 	'biome_darkness': 'Ominous Temple',
 	'biome_boss_sky': 'Kivi Temple',
 
-	// Renamed perks (only a few exceptions, not worth storing all the info about perk display names)
-	'WAND_RADAR': 'Wand Radar', //radar_wand
-	'ITEM_RADAR': 'Item Radar', //radar_item
-	'MOON_RADAR': 'Moon Radar', //radar_moon
-	'FIRE_GAS': 'Gas Fire', //gas_fire
-	'BLEED_GAS': 'Gas Blood', //gas_blood
-	'DUPLICATE_PROJECTILE:': 'Duplicate Projectile', // spell_duplication
-	'PEACE_WITH_GODS': 'Peace With Gods', // peace_with_steve
+	// Spells which inexplicably don't have translations
+	'DISC_BULLET_BIGGER': 'Summon Omega Sawblade',
+	'ESSENCE_TO_POWER': 'Essence to Power',
+	'LANCE_HOLY': 'Holy Lance',
+	'LASER_LUMINOUS_DRILL': 'Luminous Drill With Timer',
+	'HITFX_PETRIFY': 'Petrify',
 }
 
 export let TRANSLATIONS = {};
