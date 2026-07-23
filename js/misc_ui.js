@@ -1,6 +1,6 @@
 import { getDisplayName } from "./translations.js";
 import { POTION_COLORS } from './potion_config.js';
-import { getTemplePerks, rerollTemplePerks, pickupPerk } from "./perks.js";
+import { getTemplePerks, rerollTemplePerks, pickupPerk, getGamblePerks, getAlwaysCasts, PERKS } from "./perks.js";
 
 function capitalize(str) {
     if (typeof str !== 'string' || str.length === 0) {
@@ -140,73 +140,71 @@ export function renderAlchemyRecipes(alchemyMaterials) {
     });
 }
 
-
-
-
 // Internal state
-let worldRerolls = { 0: [0, 0, 0, 0, 0, 0, 0] }; 
-let uiSelectedPerks = {}; // Format: { "worldIndex-templeIndex": ["PERK_ID_1", "PERK_ID_2"] }
+let pwRerolls = { 0: [0, 0, 0, 0, 0, 0, 0] }; 
+let uiSelectedPerks = {}; 
 
 let currentSeed = 1;
 let currentNg = 0;
-let currentWorldIndex = 0; 
+let currentPwIndex = 0; // 0 = Main, negative = West, positive = East
 let perkPickups = {}; 
 let gameMode = 'normal';
 let perkLotteryCount = 0;
+let showAllAlwaysCasts = false;
 
 function formatPerkName(id) {
     if (!id) return '';
+    if (typeof id === 'object' && id.id) id = id.id; // Extract from spell object
+    else if (typeof id !== 'string') id = String(id);
     
-    // If it's a spell object (from GetRandomActionWithType), extract the string ID
-    if (typeof id === 'object') {
-        id = JSON.stringify(id).replace(/\n/g, ''); // Mostly for debug
-    } else if (typeof id !== 'string') {
-        id = String(id); // Safety fallback
-    }
-
     return id.split('_')
              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
              .join(' ');
 }
 
-function getTempleCount(ng, worldIndex) {
+function getPerkDisplayName(id) {
+    const perkData = PERKS.find(p => p.id === id);
+    // Return the official name if found, otherwise fallback to the old formatting
+    return (perkData && perkData.name) ? perkData.name : formatPerkName(id);
+}
+
+function getTempleCount(ng, pwIndex) {
     if (ng > 0) return 5;
-    return worldIndex === 0 ? 7 : 6;
+    return pwIndex === 0 ? 7 : 6;
 }
 
 /**
- * Recalculates all perks by simulating the exact draw order from World 0, Temple 0.
- * Dynamically injects selected perks into the state to affect subsequent temples.
+ * Recalculates all perks by simulating the path from Main World to the current PW.
  */
 export function renderPerkUI() {
     const listElement = document.getElementById('temple-list');
     if (!listElement) return;
     listElement.innerHTML = '';
 
-    // Bind static header controls
+    // Bind static header controls directly
     const pwLabel = document.getElementById('pw-label');
     const prevBtn = document.getElementById('prev-pw');
     const nextBtn = document.getElementById('next-pw');
     const lotteryInput = document.getElementById('lottery-count');
+    const acCheckbox = document.getElementById('show-always-casts');
+    const resetBtn = document.getElementById('reset-btn');
 
-    if (pwLabel) pwLabel.textContent = currentWorldIndex === 0 ? "Main World" : "PW " + currentWorldIndex;
+    if (pwLabel) {
+        if (currentPwIndex === 0) pwLabel.textContent = "Main World";
+        else if (currentPwIndex > 0) pwLabel.textContent = "East " + currentPwIndex;
+        else pwLabel.textContent = "West " + Math.abs(currentPwIndex);
+    }
     
-    if (prevBtn) {
-        prevBtn.disabled = currentWorldIndex === 0;
-        prevBtn.onclick = () => {
-            if (currentWorldIndex > 0) {
-                currentWorldIndex--;
-                renderPerkUI();
-            }
-        };
-    }
-
-    if (nextBtn) {
-        nextBtn.onclick = () => {
-            currentWorldIndex++;
-            renderPerkUI();
-        };
-    }
+    if (prevBtn) prevBtn.onclick = () => { currentPwIndex--; renderPerkUI(); };
+    if (nextBtn) nextBtn.onclick = () => { currentPwIndex++; renderPerkUI(); };
+    if (resetBtn) resetBtn.onclick = () => { 
+        pwRerolls = {}; 
+        uiSelectedPerks = {}; 
+        perkLotteryCount = 0;
+        if (lotteryInput) lotteryInput.value = 0;
+        currentPwIndex = 0;
+        renderPerkUI(); 
+    };
 
     if (lotteryInput) {
         lotteryInput.onchange = (e) => {
@@ -215,26 +213,37 @@ export function renderPerkUI() {
         };
     }
 
-    // 1. Prepare simulation state
+    if (acCheckbox) {
+        acCheckbox.checked = showAllAlwaysCasts;
+        acCheckbox.onchange = (e) => {
+            showAllAlwaysCasts = e.target.checked;
+            renderPerkUI();
+        };
+    }
+
     let pIdx = 0;
     let rIdx = null;
-    
     let accumulatedPickups = JSON.parse(JSON.stringify(perkPickups));
-    let accumulatedLottery = perkLotteryCount;
+
+    // 1. Build the path sequence (e.g. 0, -1, -2 for West 2)
+    let path = [0];
+    if (currentPwIndex > 0) {
+        for (let i = 1; i <= currentPwIndex; i++) path.push(i);
+    } else if (currentPwIndex < 0) {
+        for (let i = -1; i >= currentPwIndex; i--) path.push(i);
+    }
 
     // 2. The Unified Simulation Loop
-    for (let w = 0; w <= currentWorldIndex; w++) {
+    for (let w of path) {
         let tCount = getTempleCount(currentNg, w);
-        if (!worldRerolls[w]) worldRerolls[w] = new Array(tCount).fill(0);
-        let rerolls = worldRerolls[w];
+        if (!pwRerolls[w]) pwRerolls[w] = new Array(tCount).fill(0);
+        let rerolls = pwRerolls[w];
         
         for (let t = 0; t < tCount; t++) {
-            // A. Base Generation 
             let baseRoll = getTemplePerks(currentSeed, currentNg, w, t, pIdx, accumulatedPickups, gameMode);
             pIdx = baseRoll.perkIndex;
             let finalPerks = baseRoll.perks;
 
-            // B. Rerolls 
             let rCount = rerolls[t] || 0;
             for (let r = 0; r < rCount; r++) {
                 let reroll = rerollTemplePerks(currentSeed, currentNg, w, t, pIdx, rIdx, accumulatedPickups, gameMode);
@@ -242,50 +251,70 @@ export function renderPerkUI() {
                 finalPerks = reroll.perks;
             }
 
-            // C. Clean up selections
+            // Calculate Gamble AFTER pedestal is drawn
+            finalPerks.forEach(p => {
+                if (p.perk === 'GAMBLE') {
+                    p.hypotheticalGamble = getGamblePerks(currentSeed, currentNg, pIdx, accumulatedPickups, gameMode);
+                }
+            });
+
             const selectionKey = `${w}-${t}`;
             let selectedInTemple = uiSelectedPerks[selectionKey] || [];
             selectedInTemple = selectedInTemple.filter(perkId => finalPerks.some(p => p.perk === perkId));
             uiSelectedPerks[selectionKey] = selectedInTemple;
 
-            // Count any lotteries picked RIGHT NOW in this temple
-            let localLotteries = selectedInTemple.filter(id => id === 'PERKS_LOTTERY').length;
-            let currentTempleLotteryCount = accumulatedLottery + localLotteries;
-
-            // D. Render DOM
-            if (w === currentWorldIndex) {
+            if (w === currentPwIndex) {
                 const row = document.createElement('div');
                 row.className = 'temple-row';
 
-                const cardsHtml = finalPerks.map(p => {
-                    // Use the newly calculated currentTempleLotteryCount so it affects this temple immediately
-                    const luckyIndex = Math.min(currentTempleLotteryCount, p.luckyStates.length - 1);
+                // Reverse the array to display right-to-left as drawn in game
+                const displayPerks = finalPerks.slice();
+
+                const cardsHtml = displayPerks.map(p => {
+                    // Lucky states now rely purely on the global perkLotteryCount
+                    const luckyIndex = Math.min(perkLotteryCount, p.luckyStates.length - 1);
                     const isLucky = p.luckyStates[luckyIndex];
                     const luckyClass = isLucky ? 'lucky-perk' : '';
                     
                     const isSelected = selectedInTemple.includes(p.perk);
                     const selectedClass = isSelected ? 'selected-perk' : '';
                     
-                    let titleText = `${formatPerkName(p.perk)}${isLucky ? ' (Lucky)' : ''}`;
+                    let titleText = `${getPerkDisplayName(p.perk)}${isLucky ? ' (Lucky)' : ''}`;
                     let altText = `${p.perk}${isLucky ? ' (Lucky)' : ''}`;
 
-                    if (p.perk === 'ALWAYS_CAST' && p.alwaysCast) {
-                        const spellName = formatPerkName(p.alwaysCast);
-                        titleText += `\nSpell: ${spellName}`;
-                        altText += ` (Spell: ${spellName})`;
+                    let subIconsHtml = '';
+
+					// Gamble Preview (includes checking if Gamble gives Always Casts)
+                    if (p.perk === 'GAMBLE' && p.hypotheticalGamble) {
+                        subIconsHtml += `<div class="gamble-preview">
+                            ${p.hypotheticalGamble.perks.map(gp => {
+                                let gambleAcHtml = '';
+                                if (gp === 'ALWAYS_CAST') {
+                                    const gacSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
+                                    gambleAcHtml = `<img class="gamble-icon" title="Always Casts: ${getPerkDisplayName(gacSpell)}" src="data/spell_sprites/${gacSpell.id ? gacSpell.id.toLowerCase() : gacSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">`;
+                                }
+                                return `<img class="gamble-icon" title="${getPerkDisplayName(gp)}" src="data/perk_sprites/${gp.toLowerCase()}.png" onerror="this.src='data/perk_sprites/unknown.png'">${gambleAcHtml}`;
+                            }).join('')}
+                        </div>`;
                     }
 
-                    // Render Gamble Preview UI if applicable
-                    let gambleHtml = '';
-                    if (p.perk === 'GAMBLE' && p.hypotheticalGamble) {
-                        gambleHtml = `<div class="gamble-preview">
-                            ${p.hypotheticalGamble.perks.map(gp => `
-                                <img class="gamble-icon" 
-                                     title="${formatPerkName(gp)}" 
-                                     src="data/perk_sprites/${gp.toLowerCase()}.png" 
-                                     onerror="this.src='data/perk_sprites/unknown.png'">
-                            `).join('')}
-                        </div>`;
+                    // Main Always Casts
+                    let acSpell = p.alwaysCast;
+                    if (!acSpell && showAllAlwaysCasts) {
+                        acSpell = getAlwaysCasts(currentSeed, currentNg, p.x, p.y);
+                    }
+                    
+                    if (acSpell && (p.perk === 'ALWAYS_CAST' || showAllAlwaysCasts)) {
+                        const spellName = getDisplayName(acSpell);
+                        titleText += `\nAlways Casts: ${spellName}`;
+                        altText += ` (Always Casts: ${spellName})`;
+                        
+                        // Use a gamble-preview container to slot the spell card underneath
+                        subIconsHtml += `
+                            <div class="gamble-preview">
+                                <img class="gamble-icon" title="Always Casts: ${spellName}" src="data/spell_sprites/${acSpell.id ? acSpell.id.toLowerCase() : acSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">
+                            </div>
+                        `;
                     }
 
                     return `
@@ -295,7 +324,7 @@ export function renderPerkUI() {
                                  src="data/perk_sprites/${p.perk.toLowerCase()}.png" 
                                  alt="${altText}" 
                                  onerror="this.src='data/perk_sprites/unknown.png'">
-                            ${gambleHtml}
+                            ${subIconsHtml}
                         </div>
                     `;
                 }).join('');
@@ -313,46 +342,45 @@ export function renderPerkUI() {
                 listElement.appendChild(row);
             }
 
-            // E. Apply selected perks to the accumulated state for NEXT temple
+            // Apply selected perks to the accumulated state for NEXT temple
             selectedInTemple.forEach(perkId => {
-                accumulatedPickups = pickupPerk(perkId, accumulatedPickups);
-                if (perkId === 'PERKS_LOTTERY') {
-                    accumulatedLottery++;
-                }
-
-                // If Gamble is picked, advance the deck and ingest the two new perks
                 if (perkId === 'GAMBLE') {
-                    const gamblePerkObj = finalPerks.find(p => p.perk === 'GAMBLE');
-                    if (gamblePerkObj && gamblePerkObj.hypotheticalGamble) {
-                        pIdx = gamblePerkObj.hypotheticalGamble.perkIndex; // Advance deck
-                        
-                        gamblePerkObj.hypotheticalGamble.perks.forEach(gp => {
-                            accumulatedPickups = pickupPerk(gp, accumulatedPickups);
-                            if (gp === 'PERKS_LOTTERY') {
-                                accumulatedLottery++; // In case Gamble gives us a lottery!
-                            }
-                        });
-                    }
+                    const gambleResult = getGamblePerks(currentSeed, currentNg, pIdx, accumulatedPickups, gameMode);
+                    pIdx = gambleResult.perkIndex; 
+                    gambleResult.perks.forEach(gp => {
+                        accumulatedPickups = pickupPerk(gp, accumulatedPickups);
+                    });
+                } else {
+                    accumulatedPickups = pickupPerk(perkId, accumulatedPickups);
                 }
             });
         }
     }
 
-    // 3. Attach interactive events using Delegation
     listElement.onclick = (e) => {
         const card = e.target.closest('.perk-card');
         if (card) {
             const t = card.getAttribute('data-temple');
             const perkId = card.getAttribute('data-perk');
-            const key = `${currentWorldIndex}-${t}`;
+            const key = `${currentPwIndex}-${t}`;
             
             if (!uiSelectedPerks[key]) uiSelectedPerks[key] = [];
             
-            if (uiSelectedPerks[key].includes(perkId)) {
+            const isSelected = uiSelectedPerks[key].includes(perkId);
+            
+            if (isSelected) {
                 uiSelectedPerks[key] = uiSelectedPerks[key].filter(id => id !== perkId); 
+                if (perkId === 'PERKS_LOTTERY') {
+                    perkLotteryCount = Math.max(0, perkLotteryCount - 1);
+                }
             } else {
                 uiSelectedPerks[key].push(perkId); 
+                if (perkId === 'PERKS_LOTTERY') {
+                    perkLotteryCount = Math.min(6, perkLotteryCount + 1);
+                }
             }
+            
+            if (lotteryInput) lotteryInput.value = perkLotteryCount;
             renderPerkUI();
             return;
         }
@@ -360,8 +388,8 @@ export function renderPerkUI() {
         const minusBtn = e.target.closest('.minus-btn');
         if (minusBtn) {
             const t = parseInt(minusBtn.getAttribute('data-temple'), 10);
-            if (worldRerolls[currentWorldIndex][t] > 0) {
-                worldRerolls[currentWorldIndex][t]--;
+            if (pwRerolls[currentPwIndex][t] > 0) {
+                pwRerolls[currentPwIndex][t]--;
                 renderPerkUI();
             }
             return;
@@ -370,26 +398,22 @@ export function renderPerkUI() {
         const plusBtn = e.target.closest('.plus-btn');
         if (plusBtn) {
             const t = parseInt(plusBtn.getAttribute('data-temple'), 10);
-            worldRerolls[currentWorldIndex][t]++;
+            pwRerolls[currentPwIndex][t]++;
             renderPerkUI();
             return;
         }
     };
 }
 
-/**
- * Updates global state. 
- */
-export function updatePerksState(seed, ng, sequenceIndex = 0, newPerkPickups = {}, newGameMode = 'normal', lotteryCount = 0) {
+export function updatePerksState(seed, ng, pwIndex = 0, newPerkPickups = {}, newGameMode = 'normal', lotteryCount = 0) {
     currentSeed = seed;
     currentNg = ng;
-    currentWorldIndex = sequenceIndex; 
+    currentPwIndex = pwIndex; 
     perkPickups = newPerkPickups;
     gameMode = newGameMode;
     perkLotteryCount = lotteryCount;
     
-    // Clear history when root settings change
-    worldRerolls = {};
+    pwRerolls = {};
     uiSelectedPerks = {};
     
     const lotteryInput = document.getElementById('lottery-count');

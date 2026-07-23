@@ -153,20 +153,22 @@ export function getFungalShifts(seed, ngPlusCount = 0) {
             let toMaterial = toItem.material;
 
             for (const material of fromItem.materials) {
-                if (fromMaterials.length === 0 || material !== toMaterial) {
+                if (material != toMaterial) {
                     fromMaterials.push(material);
                     convertedAny = true;
                 }
             }
 
-            shifts.push({
-                flaskTo: flaskTo,
-                flaskFrom: flaskFrom,
-                fromMaterials: fromMaterials,
-                toMaterial: toMaterial,
-                goldToX: goldToX,
-                grassToX: grassToX
-            });
+            if (convertedAny) {
+                shifts.push({
+                    flaskTo: flaskTo,
+                    flaskFrom: flaskFrom,
+                    fromMaterials: fromItem.materials,
+                    toMaterial: toMaterial,
+                    goldToX: goldToX,
+                    grassToX: grassToX
+                });
+            }
 
             convertTries += 1;
         }

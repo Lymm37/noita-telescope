@@ -466,15 +466,6 @@
             border-color: #69db7c;
         }
 
-        /* Gamble Preview UI */
-        .gamble-preview {
-            display: flex;
-            gap: 4px;
-            margin-top: 4px;
-            padding-top: 4px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
         .gamble-icon {
             width: 16px;
             height: 16px;
@@ -573,6 +564,38 @@
             font-size: 1rem;
             width: 90px;
             text-align: center;
+        }
+
+        .header-options {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ac-toggle {
+            font-size: 0.85rem;
+            color: #ccc;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .reset-btn {
+            width: auto;
+            padding: 0 10px;
+            font-size: 0.8rem;
+        }
+
+        /* Adjust gamble preview to stack multiple mini-icons cleanly */
+        .gamble-preview {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
     </style>
@@ -939,13 +962,19 @@
             <label id="perks-label" style="text-decoration: underline;">Perk Deck ▼</label>
             <div id="perks-data" style="display:none;">
                 <div class="pw-control">
-                    <button id="prev-pw" class="reroll-btn">&lt;</button>
+                    <button id="prev-pw" class="reroll-btn" title="West">&lt;</button>
                     <h3 id="pw-label">Main World</h3>
-                    <button id="next-pw" class="reroll-btn">&gt;</button>
+                    <button id="next-pw" class="reroll-btn" title="East">&gt;</button>
                 </div>
-                <div class="lottery-control">
-                    <label for="lottery-count" title="Perk Lottery Pickups">(Global) Perk Lotteries:</label>
-                    <input type="number" id="lottery-count" value="0" min="0" max="6">
+                <div class="header-options">
+                    <label class="ac-toggle" title="Show what Always Cast would be in every position">
+                        <input type="checkbox" id="show-always-casts"> All ACs
+                    </label>
+                    <div class="lottery-control">
+                        <label for="lottery-count" title="Perk Lottery Pickups">(Global) Perk Lotteries:</label>
+                        <input type="number" id="lottery-count" value="0" min="0" max="6">
+                    </div>
+                    <button id="reset-btn" class="reroll-btn reset-btn">Reset</button>
                 </div>
                 <div id="temple-list" class="temple-list">
                     <!-- Perk rows for each holy mountain will be injected here -->

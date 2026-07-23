@@ -6,33 +6,40 @@ import { getWorldSize, roundHalfOfEven, shuffleTable } from "./utils.js";
 export const PERKS = [
   {
     "id": "CRITICAL_HIT",
+    "name": "Critical Hit +",
     "stackable": true,
     "usable_by_enemies": true
   },
   {
     "id": "BREATH_UNDERWATER",
+    "name": "Breathless",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "EXTRA_MONEY",
+    "name": "Greed",
     "stackable": true
   },
   {
     "id": "EXTRA_MONEY_TRICK_KILL",
+    "name": "Trick Greed",
     "stackable": true
   },
   {
     "id": "GOLD_IS_FOREVER",
+    "name": "Gold Is Forever",
     "stackable": false
   },
   {
     "id": "TRICK_BLOOD_MONEY",
+    "name": "Trick Blood Money",
     "stackable": false
   },
   {
     "id": "EXPLODING_GOLD",
+    "name": "Exploding Gold",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 6,
@@ -40,31 +47,37 @@ export const PERKS = [
   },
   {
     "id": "HOVER_BOOST",
+    "name": "Strong Levitation", // AI Suggestion: Hoverier Fast lmao
     "stackable": true,
     "max_in_perk_pool": 1
   },
   {
     "id": "FASTER_LEVITATION",
+    "name": "Faster Levitation",
     "stackable": true,
     "max_in_perk_pool": 1
   },
   {
     "id": "MOVEMENT_FASTER",
+    "name": "Faster Movement",
     "stackable": true,
     "max_in_perk_pool": 2,
     "usable_by_enemies": true
   },
   {
     "id": "STRONG_KICK",
+    "name": "Never Skip Leg Day",
     "stackable": true,
     "max_in_perk_pool": 1
   },
   {
     "id": "TELEKINESIS",
+    "name": "Telekinetic Kick",
     "stackable": false
   },
   {
     "id": "REPELLING_CAPE",
+    "name": "Repelling Cape",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 8,
@@ -73,40 +86,48 @@ export const PERKS = [
   },
   {
     "id": "EXPLODING_CORPSES",
+    "name": "Exploding Corpses",
     "remove_other_perks": ["PROTECTION_EXPLOSION"],
     "stackable": false,
   },
   {
     "id": "SAVING_GRACE",
+    "name": "Saving Grace",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "INVISIBILITY",
+    "name": "Invisibility",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "GLOBAL_GORE",
+    "name": "More Blood",
     "stackable": true,
     "max_in_perk_pool": 1
   },
   {
     "id": "REMOVE_FOG_OF_WAR",
+    "name": "All-Seeing Eye",
     "stackable": false
   },
   {
     "id": "LEVITATION_TRAIL",
+    "name": "Levitation Trail",
     "stackable": true,
     "stackable_is_rare": true,
     "max_in_perk_pool": 2
   },
   {
     "id": "VAMPIRISM",
+    "name": "Vampirism",
     "stackable": false
   },
   {
     "id": "EXTRA_HP",
+    "name": "Extra Health",
     "stackable": true,
     "max_in_perk_pool": 3,
     "one_off_effect": true,
@@ -114,6 +135,7 @@ export const PERKS = [
   },
   {
     "id": "HEARTS_MORE_EXTRA_HP",
+    "name": "Stronger Hearts",
     "stackable": true,
     "stackable_maximum": 9,
     "max_in_perk_pool": 2,
@@ -121,6 +143,7 @@ export const PERKS = [
   },
   {
     "id": "GLASS_CANNON",
+    "name": "Glass Cannon",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 2,
@@ -129,6 +152,7 @@ export const PERKS = [
   },
   {
     "id": "LOW_HP_DAMAGE_BOOST",
+    "name": "Living on the Edge",
     "stackable": true,
     "max_in_perk_pool": 2,
     "stackable_is_rare": true,
@@ -136,6 +160,7 @@ export const PERKS = [
   },
   {
     "id": "RESPAWN",
+    "name": "Extra Life",
     "one_off_effect": true,
     "do_not_remove": true,
     "stackable": true,
@@ -143,150 +168,181 @@ export const PERKS = [
   },
   {
     "id": "WORM_ATTRACTOR",
+    "name": "Worm Attractor",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "RADAR_ENEMY",
+    "name": "Enemy Radar",
     "stackable": false
   },
   {
     "id": "FOOD_CLOCK",
+    "name": "Eat Your Vegetables",
     "stackable": false
   },
   {
     "id": "IRON_STOMACH",
+    "name": "Iron Stomach",
     "stackable": false
   },
   {
     "id": "WAND_RADAR",
+    "name": "Wand Radar",
     "stackable": false
   },
   {
     "id": "ITEM_RADAR",
+    "name": "Item Radar",
     "stackable": false
   },
   {
     "id": "MOON_RADAR",
+    "name": "Moon Radar",
     "not_in_default_perk_pool": true,
     "stackable": false
   },
   {
     "id": "MAP",
+    "name": "Spatial Awareness",
     "not_in_default_perk_pool": true,
     "stackable": false
   },
   {
     "id": "PROTECTION_FIRE",
+    "name": "Fire Immunity",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "PROTECTION_RADIOACTIVITY",
+    "name": "Toxic Immunity",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "PROTECTION_EXPLOSION",
+    "name": "Explosion Immunity",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "PROTECTION_MELEE",
+    "name": "Melee Immunity",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "PROTECTION_ELECTRICITY",
+    "name": "Electricity Immunity",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "TELEPORTITIS",
+    "name": "Teleportitis",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "TELEPORTITIS_DODGE",
+    "name": "Teleportitis Dodge",
     "stackable": false
   },
   {
     "id": "STAINLESS_ARMOUR",
+    "name": "Stainless Armour",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "EDIT_WANDS_EVERYWHERE",
+    "name": "Tinker with Wands Everywhere",
     "stackable": false
   },
   {
     "id": "NO_WAND_EDITING",
+    "name": "No Wand Tinkering",
     "stackable": false
   },
   {
     "id": "WAND_EXPERIMENTER",
+    "name": "Wand Experimenter",
     "stackable": true,
     "stackable_is_rare": true
   },
   {
     "id": "ADVENTURER",
+    "name": "Healthy Exploration",
     "stackable": false
   },
   {
     "id": "ABILITY_ACTIONS_MATERIALIZED",
+    "name": "Bombs Materialized",
     "stackable": false
   },
   {
     "id": "PROJECTILE_HOMING",
+    "name": "Homing Shots",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "PROJECTILE_HOMING_SHOOTER",
+    "name": "Boomerang Spells",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "UNLIMITED_SPELLS",
+    "name": "Unlimited Spells",
     "stackable": false
   },
   {
     "id": "FREEZE_FIELD",
+    "name": "Freeze Field",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "FIRE_GAS",
+    "name": "Gas Fire",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "DISSOLVE_POWDERS",
+    "name": "Dissolve Powders",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "BLEED_SLIME",
+    "name": "Slime Blood",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "BLEED_OIL",
+    "name": "Oil Blood",
     "stackable": false,
     "remove_other_perks": ["PROTECTION_FIRE"],
     "usable_by_enemies": true
   },
   {
     "id": "BLEED_GAS",
+    "name": "Gas Blood",
     "stackable": false,
     "usable_by_enemies": true,
     "remove_other_perks": ["PROTECTION_RADIOACTIVITY"]
   },
   {
     "id": "SHIELD",
+    "name": "Permanent Shield",
     "stackable": true,
     "stackable_how_often_reappears": 10,
     "stackable_maximum": 5,
@@ -295,28 +351,33 @@ export const PERKS = [
   },
   {
     "id": "REVENGE_EXPLOSION",
+    "name": "Revenge Explosion",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "REVENGE_TENTACLE",
+    "name": "Revenge Tentacle",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "REVENGE_RATS",
+    "name": "Revenge Rats",
     "stackable": false
   },
   {
     "id": "REVENGE_BULLET",
+    "name": "Revenge Bullets",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "ATTACK_FOOT",
+    "name": "Lukki Mutation",
     "stackable": true,
     "stackable_maximum": 3,
     "max_in_perk_pool": 2,
@@ -325,6 +386,7 @@ export const PERKS = [
   },
   {
     "id": "LEGGY_FEET",
+    "name": "Leggy Mutation",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true,
@@ -332,6 +394,7 @@ export const PERKS = [
   },
   {
     "id": "PLAGUE_RATS",
+    "name": "Plague Rats",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 5,
@@ -339,28 +402,34 @@ export const PERKS = [
   },
   {
     "id": "VOMIT_RATS",
+    "name": "Spontaneous Generation",
     "stackable": false
   },
   {
     "id": "CORDYCEPS",
+    "name": "Cordyceps",
     "stackable": false
   },
   {
     "id": "MOLD",
+    "name": "Fungal Colony",
     "stackable": false
   },
   {
     "id": "WORM_SMALLER_HOLES",
+    "name": "Feared By Worms",
     "stackable": false,
   },
   {
     "id": "PROJECTILE_REPULSION",
+    "name": "Projectile Repulsion Field",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true,
   },
   {
     "id": "RISKY_CRITICAL",
+    "name": "Close Call",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 3,
@@ -368,6 +437,7 @@ export const PERKS = [
   },
   {
     "id": "FUNGAL_DISEASE",
+    "name": "Fungal Disease",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 3,
@@ -375,21 +445,25 @@ export const PERKS = [
   },
   {
     "id": "PROJECTILE_SLOW_FIELD",
+    "name": "Projectile Slower",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true,
   },
   {
     "id": "PROJECTILE_REPULSION_SECTOR",
+    "name": "Projectile Repulsion Sector",
     "stackable": true,
     "stackable_is_rare": true
   },
   {
     "id": "PROJECTILE_EATER_SECTOR",
+    "name": "Projectile Eater",
     "stackable": false
   },
   {
     "id": "ORBIT",
+    "name": "Phasing",
     "usable_by_enemies": true,
     "stackable": true,
     "max_in_perk_pool": 2,
@@ -397,11 +471,13 @@ export const PERKS = [
   },
   {
     "id": "ANGRY_GHOST",
+    "name": "Angry Ghost",
     "usable_by_enemies": true,
     "stackable": true
   },
   {
     "id": "HUNGRY_GHOST",
+    "name": "Hungry Ghost",
     "usable_by_enemies": true,
     "stackable": true,
     "stackable_maximum": 5,
@@ -409,27 +485,32 @@ export const PERKS = [
   },
   {
     "id": "DEATH_GHOST",
+    "name": "Mournful Spirit",
     "stackable": true,
     "stackable_is_rare": true
   },
   {
     "id": "HOMUNCULUS",
+    "name": "Homunculus",
     "stackable": true,
     "stackable_maximum": 10,
     "max_in_perk_pool": 2
   },
   {
     "id": "LUKKI_MINION",
+    "name": "Lukki Minion",
     "stackable": false
   },
   {
     "id": "ELECTRICITY",
+    "name": "Electricity",
     "stackable": false,
     "remove_other_perks": ["PROTECTION_ELECTRICITY"],
     "usable_by_enemies": true
   },
   {
     "id": "ATTRACT_ITEMS",
+    "name": "Attract Gold",
     "usable_by_enemies": false,
     "stackable": true,
     "stackable_maximum": 6,
@@ -437,76 +518,91 @@ export const PERKS = [
   },
   {
     "id": "EXTRA_KNOCKBACK",
+    "name": "Extra Knockback On Spells",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "LOWER_SPREAD",
+    "name": "Concentrated Spells",
     "stackable": true,
     "stackable_is_rare": true,
     "usable_by_enemies": true
   },
   {
     "id": "LOW_RECOIL",
+    "name": "Low Recoil",
     "stackable": false
   },
   {
     "id": "BOUNCE",
+    "name": "Bouncing Spells",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "FAST_PROJECTILES",
+    "name": "Faster Projectiles",
     "usable_by_enemies": true,
     "stackable": false
   },
   {
     "id": "ALWAYS_CAST",
+    "name": "Always Cast",
     "stackable": true,
     "one_off_effect": true
   },
   {
     "id": "EXTRA_MANA",
+    "name": "High Mana, Low Capacity",
     "stackable": true,
     "one_off_effect": true
   },
   {
     "id": "NO_MORE_SHUFFLE",
+    "name": "No More Shuffle",
     "stackable": false
   },
   {
     "id": "NO_MORE_KNOCKBACK",
+    "name": "No More Knockback",
     "stackable": false
   },
   {
     "id": "DUPLICATE_PROJECTILE",
+    "name": "Projectile Duplication",
     "stackable": true,
     "usable_by_enemies": true
   },
   {
     "id": "FASTER_WANDS",
+    "name": "Faster Wands",
     "stackable": true,
     "one_off_effect": true
   },
   {
     "id": "EXTRA_SLOTS",
+    "name": "Extra Wand Capacity",
     "stackable": true,
     "one_off_effect": true
   },
   {
     "id": "CONTACT_DAMAGE",
+    "name": "Contact Damage",
     "stackable": false,
     "usable_by_enemies": true
   },
   {
     "id": "EXTRA_PERK",
+    "name": "Extra Perk",
     "stackable": true,
     "stackable_maximum": 5,
     "max_in_perk_pool": 3
   },
   {
     "id": "PERKS_LOTTERY",
+    "name": "Perk Lottery",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 6,
@@ -514,42 +610,51 @@ export const PERKS = [
   },
   {
     "id": "GAMBLE",
+    "name": "Gamble",
     "stackable": true,
     "one_off_effect": true
   },
   {
     "id": "EXTRA_SHOP_ITEM",
+    "name": "Extra Item in Holy Mountain",
     "stackable": true,
     "stackable_maximum": 5,
     "max_in_perk_pool": 2
   },
   {
     "id": "GENOME_MORE_HATRED",
+    "name": "More Hatred",
     "stackable": true
   },
   {
     "id": "GENOME_MORE_LOVE",
+    "name": "More Love",
     "stackable": true
   },
   {
     "id": "PEACE_WITH_GODS",
+    "name": "Peace with Gods",
     "stackable": false
   },
   {
     "id": "MANA_FROM_KILLS",
+    "name": "Kills to Mana",
     "stackable": false
   },
   {
     "id": "ANGRY_LEVITATION",
+    "name": "Rage-fueled Levitation",
     "stackable": false
   },
   {
     "id": "LASER_AIM",
+    "name": "Pinpointer",
     "stackable": true,
     "stackable_is_rare": true
   },
   {
     "id": "PERSONAL_LASER",
+    "name": "Personal Plasma Beam",
     "stackable": true,
     "stackable_is_rare": true,
     "stackable_maximum": 5,
@@ -557,6 +662,7 @@ export const PERKS = [
   },
   {
     "id": "MEGA_BEAM_STONE",
+    "name": "Summon Sädekivi",
     "stackable": true,
     "one_off_effect": true
   }
@@ -666,7 +772,7 @@ function getLuckyStates(ws, ng, x, y) {
 	return states;
 }
 
-function getAlwaysCasts(ws, ng, x, y) {
+export function getAlwaysCasts(ws, ng, x, y) {
 	let goodCards = ["DAMAGE", "CRITICAL_HIT", "HOMING", "SPEED", "ACID_TRAIL", "SINEWAVE"];
 	let prng = new NollaPrng(0);
 	prng.SetRandomSeed(ws + ng, x, y);
@@ -713,7 +819,7 @@ function getNextPerk(ws, ng, perkIndex, perkPickups={}, gameMode='normal') {
 }
 
 // Still trying to decide how to use this, since picking it up requires adjusting future perks
-function getGamblePerks(ws, ng, perkIndex, perkPickups={}, gameMode='normal') {
+export function getGamblePerks(ws, ng, perkIndex, perkPickups={}, gameMode='normal') {
 	let count = 2;
 	let perks = [];
 	while (count > 0) {
