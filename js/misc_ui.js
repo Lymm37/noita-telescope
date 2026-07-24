@@ -57,11 +57,13 @@ export function renderFungalShifts(shiftsData) {
         // 3. Handle the special gold/grass shifts with inline colors
         let specialHtml = '';
         if (shift.goldToX !== null || shift.grassToX !== null) {
+            const goldLucky = (shift.goldToX === "gold") ? " lucky-perk" : "";
             const goldText = shift.goldToX !== null 
-                ? `<span class="material-hover" title="gold" style="${getColorStyle('gold')}">Gold</span> <span class="arrow">➔</span> <span class="material-hover" title="${shift.goldToX}" style="${getColorStyle(shift.goldToX)}">${capitalize(getDisplayName(shift.goldToX))}</span>` 
+                ? `<span class="material-hover" title="gold" style="${getColorStyle('gold')}">Gold</span>? <span class="arrow">➔</span> <span class="material-hover${goldLucky}" title="${shift.goldToX}" style="${getColorStyle(shift.goldToX)}">${capitalize(getDisplayName(shift.goldToX))}</span>`
                 : '';
+            const grassLucky = (shift.grassToX === "grass_holy") ? " lucky-perk" : "";
             const grassText = shift.grassToX !== null 
-                ? `<span class="material-hover" title="grass_holy" style="${getColorStyle('grass_holy')}">Divine Ground</span> <span class="arrow">➔</span> <span class="material-hover" title="${shift.grassToX}" style="${getColorStyle(shift.grassToX)}">${capitalize(getDisplayName(shift.grassToX))}</span>` 
+                ? `<span class="material-hover" title="grass_holy" style="${getColorStyle('grass_holy')}">Divine Ground</span>? <span class="arrow">➔</span> <span class="material-hover${grassLucky}" title="${shift.grassToX}" style="${getColorStyle(shift.grassToX)}">${capitalize(getDisplayName(shift.grassToX))}</span>` 
                 : '';
             
             const combinedSpecial = [goldText, grassText].filter(Boolean).join('<br>');

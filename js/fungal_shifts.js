@@ -133,14 +133,16 @@ export function getFungalShifts(seed, ngPlusCount = 0) {
                     flaskFrom = true;
                 } else {
                     flaskTo = true;
-                    if (randomNext(ws, 1, 1000, rndState) !== 1) {
+                    // Only one of these two happens depending on what you are holding, so they share an RNG state
+                    const rareRoll = randomNext(ws, 1, 1000, rndState);
+                    if (rareRoll !== 1) {
                         const greedyIndex = Math.floor(prng.Next() * greedyMaterials.length);
                         goldToX = greedyMaterials[greedyIndex];
                     }
 					else {
 						goldToX = "gold";
 					}
-					if (randomNext(ws, 1, 1000, rndState) !== 1) {
+					if (rareRoll !== 1) {
 						grassToX = "grass";
 					}
 					else {
