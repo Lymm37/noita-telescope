@@ -72,6 +72,8 @@ export const app = {
 	surfaceOverlayNightmarePW: null,
 	skyOverlayNightmarePW: null,
 
+	weatherOverlays: null,
+
 	ctxo: null, 
 	// Background maps, recolored by biome
 	recolorOffscreen: null,
@@ -1685,7 +1687,15 @@ export const app = {
 			"darkmoon": await loadPNGBitmap('../data/biome_maps/custom/darkmoon.png'),
 		};
 		
-		
+		this.weatherOverlays = {
+			"rain": await loadPNGBitmap('../data/biome_maps/custom/weather_rain.png'),
+			"rain_heavy": await loadPNGBitmap('../data/biome_maps/custom/weather_rain_heavy.png'),
+			"snow": await loadPNGBitmap('../data/biome_maps/custom/weather_snow.png'),
+			"slush": await loadPNGBitmap('../data/biome_maps/custom/weather_slush.png'),
+			"blood": await loadPNGBitmap('../data/biome_maps/custom/weather_blood.png'),
+			"acid": await loadPNGBitmap('../data/biome_maps/custom/weather_acid.png'),
+			"slime": await loadPNGBitmap('../data/biome_maps/custom/weather_slime.png'),
+		};
 	},
 
 	getViewArea() {
@@ -1970,6 +1980,39 @@ export const app = {
 							}
 						}
 					}
+				}
+			}
+		}
+
+		// Weather overlays
+		if (document.getElementById('custom-art').checked && this.weatherOverlays) {
+			// Only applies to main world, check whether the main world is in view
+			if (this.worldsInView.has('0,0')) {
+				const { shiftX, shiftY } = worldOffsets['0,0'];
+				let weatherOverlay;
+				if (this.weather.type === 'rain' && this.weatherOverlays['rain']) {
+					weatherOverlay = this.weatherOverlays['rain'];
+				}
+				else if (this.weather.type === 'rain_heavy' && this.weatherOverlays['rain_heavy']) {
+					weatherOverlay = this.weatherOverlays['rain_heavy'];
+				}
+				else if (this.weather.type === 'snow' && this.weatherOverlays['snow']) {
+					weatherOverlay = this.weatherOverlays['snow'];
+				}
+				else if (this.weather.type === 'slush' && this.weatherOverlays['slush']) {
+					weatherOverlay = this.weatherOverlays['slush'];
+				}
+				else if (this.weather.type === 'blood' && this.weatherOverlays['blood']) {
+					weatherOverlay = this.weatherOverlays['blood'];
+				}
+				else if (this.weather.type === 'acid' && this.weatherOverlays['acid']) {
+					weatherOverlay = this.weatherOverlays['acid'];
+				}
+				else if (this.weather.type === 'slime' && this.weatherOverlays['slime']) {
+					weatherOverlay = this.weatherOverlays['slime'];
+				}
+				if (weatherOverlay) {
+					this.ctx.drawImage(weatherOverlay, shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 - 5*512, shiftY + 5*512 + 416, 283*32, 142*32);
 				}
 			}
 		}

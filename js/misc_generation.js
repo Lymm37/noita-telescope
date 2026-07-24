@@ -308,6 +308,7 @@ const rainfallChance = 1/15.0;
 const rain_duration_on_run_start = 4 * 60 * 60;
 const snowTypes = [
 	{
+        type: "snow",
 		chance: 1.0,
 		rain_material: "snow",
 		rain_particles_min: 1,
@@ -315,6 +316,7 @@ const snowTypes = [
 		rain_duration: -1,
 	},
 	{
+        type: "slush",
 		chance: 0.25,
 		rain_material: "slush",
 		rain_particles_min: 3,
@@ -325,6 +327,7 @@ const snowTypes = [
 
 const rainTypes = [
 	{
+        type: "rain",
 		chance: 1.0, // light rain
 		rain_material: "water",
 		rain_particles_min: 4,
@@ -332,7 +335,7 @@ const rainTypes = [
 		rain_duration: rain_duration_on_run_start,
 	},
 	{
-
+        type: "rain_heavy",
 		chance: 0.05, // heavy rain
 		rain_material: "water",
 		rain_particles_min: 10,
@@ -340,6 +343,7 @@ const rainTypes = [
 		rain_duration: rain_duration_on_run_start / 2,
 	},
 	{
+        type: "blood",
 		chance: 0.001,
 		rain_material: "blood",
 		rain_particles_min: 10,
@@ -347,6 +351,7 @@ const rainTypes = [
 		rain_duration: rain_duration_on_run_start / 2,
 	},
 	{
+        type: "acid",
 		chance: 0.0002,
 		rain_material: "acid",
 		rain_particles_min: 10,
@@ -354,6 +359,7 @@ const rainTypes = [
 		rain_duration: rain_duration_on_run_start / 2,
 	},
 	{
+        type: "slime",
 		chance: 0.0001,
 		rain_material: "slime",
 		rain_particles_min: 1,
@@ -406,6 +412,7 @@ export function getStartingWeather(ws, ng) {
     }
 
     return {
+        type: weather.type || "sunny",
         material: weather.rain_material,
         fog: fog,
         clouds: clouds,
