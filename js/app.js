@@ -6,7 +6,7 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, isGlobalSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
@@ -249,7 +249,7 @@ export const app = {
 		// Horizontal
 		const pwInput = document.getElementById('pw');
 		pwInput.onchange = () => {
-			const refreshCurrentPWSearch = isSearchActive() && !document.getElementById('search-all-pw').checked;
+			const refreshCurrentPWSearch = isGlobalSearchActive() && !document.getElementById('search-all-pw').checked;
 			if (refreshCurrentPWSearch) cancelSearch();
 			this.pw = parseInt(pwInput.value) || 0;
 			this.checkBounds();
@@ -268,7 +268,7 @@ export const app = {
 		// Vertical
 		const pwInputVertical = document.getElementById('pw-vertical');
 		pwInputVertical.onchange = () => {
-			const refreshCurrentPWSearch = isSearchActive() && !document.getElementById('search-all-pw').checked;
+			const refreshCurrentPWSearch = isGlobalSearchActive() && !document.getElementById('search-all-pw').checked;
 			if (refreshCurrentPWSearch) cancelSearch();
 			this.pwVertical = parseInt(pwInputVertical.value) || 0;
 			this.checkBounds();
@@ -824,8 +824,8 @@ export const app = {
 				if (pwChange.x !== 0 || pwChange.y !== 0) {
 					// Clear highlighted PoIs *before* changing PW...
 					// TODO: Don't want to cancel search but not sure what to do differently
-					
-					if (isSearchActive() && !document.getElementById('search-all-pw').checked) {
+					const refreshCurrentPWSearch = isGlobalSearchActive() && !document.getElementById('search-all-pw').checked;
+					if (refreshCurrentPWSearch) {
 						clearHighlights(); // Clear without canceling
 					}
 					
@@ -836,8 +836,7 @@ export const app = {
 					document.getElementById('pw-vertical').value = this.pwVertical;
 					this.generate(false, false);
 					// Attempt to re-search in new PW
-					
-					if (isSearchActive() && !document.getElementById('search-all-pw').checked) {
+					if (refreshCurrentPWSearch) {
 						performSearch(false, false);
 					}
 					

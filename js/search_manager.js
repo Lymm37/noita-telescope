@@ -638,6 +638,10 @@ export function isSearchActive() {
     return searchActive;
 }
 
+export function isGlobalSearchActive() {
+    return searchActive && search.mode === 'pw';
+}
+
 // TODO: Sync...
 export function syncSettingsToSearchWorker() {
     updateSettingsFromUI();
