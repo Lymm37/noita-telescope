@@ -233,6 +233,33 @@ const EXTRA_TRANSLATIONS = {
 	'LANCE_HOLY': 'Holy Lance',
 	'LASER_LUMINOUS_DRILL': 'Luminous Drill With Timer',
 	'HITFX_PETRIFY': 'Petrify',
+
+	// Biome modifiers
+	'MOIST': 'Moist',
+	'FOG_OF_WAR_REAPPEARS': 'Darkness',
+	'HIGH_GRAVITY': 'High Gravity',
+	'LOW_GRAVITY': 'Low Gravity',
+	'CONDUCTIVE': 'Ionized',
+	'FREEZING': 'Freezing',
+	'HOT': 'Hot',
+	'GOLD_VEIN': 'Lucrative',
+	'GOLD_VEIN_SUPER': 'Extremely Lucrative',
+	'PLANT_INFESTED': 'Plant Infested',
+	'FURNISHED': 'Furnished',
+	'BOOBY_TRAPPED': 'Booby Trapped',
+	'PERFORATED': 'Perforated',
+	'SPOOKY': 'Spooky',
+	'GRAVITY_FIELDS': 'Gravity Fields',
+	'FUNGAL': 'Fungal',
+	'FLOODED': 'Flooded',
+	'GAS_FLOODED': 'Gas Flooded',
+	'SHIELDED': 'Shielded',
+	'PROTECTION_FIELDS': 'Protection Fields',
+	'OMINOUS': 'Ominous',
+	'INVISIBILITY': 'Invisibility',
+	'WORMY': 'Wormy',
+	'FREEZING_COSMETIC': 'Freezing (Cosmetic)',
+	'FOG_OF_WAR_CLEAR_AT_PLAYER': 'Gloomy',
 }
 
 export let TRANSLATIONS = {};

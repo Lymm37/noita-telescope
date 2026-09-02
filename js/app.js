@@ -677,7 +677,13 @@ export const app = {
 
 			const foundFlags = new Set();
 			const actionFlags = new Set();
-			const specialFlags = {};
+			// Make sure to reset special flags when loading a new folder
+			const specialFlags = {
+				sunGem: false,
+				darksunGem: false,
+				sunState: false,
+				darksunState: false
+			};
 
 			for (const file of fileList) {
 				let name = file.name.toLowerCase();
@@ -1391,8 +1397,7 @@ export const app = {
 				if (this.biomeModifiers && this.biomeModifiers[biomeResult.biome]) {
 					const biomeModifier = this.biomeModifiers[biomeResult.biome];
 					const biomeModifierName = getDisplayName(biomeModifier.id);
-					const requiresFlag = biomeModifier.requires_flag ? `<br>(requires flag: ${biomeModifier.requires_flag})` : '';
-					biomeName += `<br>Modifier: ${biomeModifierName}${requiresFlag}`;
+					biomeName += `<br>Modifier: ${biomeModifierName}`;
 				}
 			}
 			let materialName = '';

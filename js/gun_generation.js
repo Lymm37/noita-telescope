@@ -896,6 +896,53 @@ console.log(capacity_counts);
 */
 
 /*
+// Find exceptional tier 10 high-capacity wands from the precomputed RNG states.
+const T10 = await fetch('./data/rng/t10_high_capacity_seeds.json').then(res => res.json());
+const T10NS = await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(res => res.json());
+
+console.log("EoE GTC best wands:")
+for (const seed of T10) {
+    const chest = generateGreatChestStandalone(seed);
+    const producesTier = chest.items.some(item =>
+        item.type === 'wand' && item.wandType === 'wand_level_10'
+    );
+    if (!producesTier) continue;
+
+    const wand = generateGunStandalone(seed, 'wand_level_10');
+    if (wand.mana_max > 4700 && wand.deck_capacity > 50) {
+        console.log({
+            seed,
+            tier: 'wand_level_10',
+            chest,
+            manaMax: wand.mana_max,
+            capacity: wand.deck_capacity,
+            rare: Boolean(wand.is_rare),
+            wand: wand
+        });
+    }
+}
+
+console.log("Tiny/Nightmare best wands:")
+for (const [tier, seeds] of [
+    ['wand_level_10', T10],
+    ['wand_unshuffle_10', T10NS]
+]) {
+    for (const seed of seeds) {
+        const wand = generateGunStandalone(seed, tier);
+        if (wand.mana_max > 4700 && wand.deck_capacity > 55) {
+            console.log({
+                seed,
+                tier,
+                manaMax: wand.mana_max,
+                capacity: wand.deck_capacity,
+                rare: Boolean(wand.is_rare)
+            });
+        }
+    }
+}
+*/
+
+/*
 const orb_seeds = [];
 const high_y_seeds = [];
 const y_values = {};

@@ -5,6 +5,7 @@ import { getDateAndTime, getWorldCenter, getWorldSize } from "./utils.js";
 import { generateWand, getWandType, spawnWandAltar } from "./wand_generation.js";
 import { roundHalfOfEven } from "./utils.js";
 import { createPotion } from "./potion_generation.js";
+import { appSettings } from "./settings.js";
 
 // Eye Room
 
@@ -552,9 +553,11 @@ const FOG_OF_WAR_CLEAR_AT_PLAYER = {
     probability: 0.0,
 }
 export function getBiomeModifiers(ws, ng, snowing=false, flags={}) {
-    // For now, just set the required flags and we can just display a disclaimer that the biome modifier will only exist if the flag is active.
-    // It doesn't actually change the spawn probabilities at all, it just becomes no modifier if the flag isn't set and it gets rolled.
-    flags = {"moon_is_sun": true, "darkmoon_is_darksun": true};
+    flags = {
+        "moon_is_sun": appSettings.sunState,
+        "darkmoon_is_darksun": appSettings.darksunState,
+        ...flags
+    };
     const result = {};
     const getModifier = (modifierID) => {
         for (let modifier of BIOME_MODIFIERS) {
@@ -628,6 +631,7 @@ export function getBiomeModifiers(ws, ng, snowing=false, flags={}) {
     result["wandcave"] = FOG_OF_WAR_CLEAR_AT_PLAYER;
     result["wizardcave"] = FOG_OF_WAR_CLEAR_AT_PLAYER;
     result["alchemist_secret"] = FOG_OF_WAR_CLEAR_AT_PLAYER;
+    setModifierIfHasNone("rainforest_dark", "FOG_OF_WAR_REAPPEARS"); // This was somewhat hidden, being in a different file
     setModifierIfHasNone("mountain_top", "FREEZING");
     setModifierIfHasNone("mountain_floating_island", "FREEZING");
     setModifierIfHasNone("winter", "FREEZING");
