@@ -102,7 +102,8 @@ export function generateBiomeData(seed, ng, gameMode, baseImageData, width, heig
     }
     const orbs = [];
     
-    const isNightmare = (gameMode === 'nightmare');
+    // There is nothing special about Nightmare+
+    const isNightmare = (gameMode === 'nightmare' && ng === 0);
 
     // If NG+ is 0, we just return the base map (static)
     if (ng === 0 && !isNightmare) {
@@ -124,7 +125,7 @@ export function generateBiomeData(seed, ng, gameMode, baseImageData, width, heig
 
     // 1. Biome Colors (Standard Palette)
     let b = {
-        coal: (isNightmare && ng === 0) ? 0xFFD57917 : 0xFFD56517, 
+        coal: isNightmare ? 0xFFD57917 : 0xFFD56517, 
         coll: 0xFFD56517, 
         fungi: 0xFFE861F0, 
         excav: 0xFF124445,
@@ -205,7 +206,7 @@ export function generateBiomeData(seed, ng, gameMode, baseImageData, width, heig
             let t = b[k1]; b[k1] = b[k2]; b[k2] = t;
         }
     };
-    if (!isNightmare || ng > 0) {
+    if (!isNightmare) {
         swap('coal', 'coll');
     }
     else {
@@ -238,7 +239,7 @@ export function generateBiomeData(seed, ng, gameMode, baseImageData, width, heig
     // 5. Rect Areas
     painter.rect(32, 14, 3, 2, b.coal, 0);
     painter.rect(28, 15, 4, 1, b.coll, 1);
-    if (!isNightmare || ng > 0) {
+    if (!isNightmare) {
         painter.rect(28, 17, 4, 2, b.excav, 2);
         painter.rectSplit(28, 20, 7, 6, b.snow, b.hiisi, 3);
     }
@@ -249,7 +250,7 @@ export function generateBiomeData(seed, ng, gameMode, baseImageData, width, heig
     painter.rectSplit(28, 27, 7, 4, b.j1, b.j2, 4);
     painter.rectSplit(28, 29, 7, 5, b.j2, b.vault, 4);
     // Not listed in nightmare but I'm pretty sure it's the same? Actually nope
-    if (!isNightmare || ng > 0) {
+    if (!isNightmare) {
         painter.rect(29, 35, 11, 3, b.crypt, 0);
     }
 
@@ -271,7 +272,7 @@ export function generateBiomeData(seed, ng, gameMode, baseImageData, width, heig
 
     addOrb(51, 11, "Pyramid", 0xFFC88F5F);
     addOrb(33, 11, "Floating Island", 0xFFC08082);
-    if (!isNightmare || ng > 0) {
+    if (!isNightmare) {
         addOrb(rng.Random(0, 5) + 10, rng.Random(0, 2) + 18, "Vault", 0xFFFFD102);
         addOrb(rng.Random(0, 5) + 49, rng.Random(0, 3) + 17, "Pyramid (Inside)", 0xFFFFD104);
 

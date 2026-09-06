@@ -900,6 +900,9 @@ console.log(capacity_counts);
 const T10 = await fetch('./data/rng/t10_high_capacity_seeds.json').then(res => res.json());
 const T10NS = await fetch('./data/rng/t10ns_high_capacity_seeds.json').then(res => res.json());
 
+// Check for long sprite max capacity
+const LONG_SPRITES = ['wand_0483', 'wand_0207', 'wand_0657', 'wand_0213'];
+
 console.log("EoE GTC best wands:")
 for (const seed of T10) {
     const chest = generateGreatChestStandalone(seed);
@@ -909,7 +912,7 @@ for (const seed of T10) {
     if (!producesTier) continue;
 
     const wand = generateGunStandalone(seed, 'wand_level_10');
-    if (wand.mana_max > 4700 && wand.deck_capacity > 50) {
+    if ( wand.deck_capacity > 26 && LONG_SPRITES.includes(wand.sprite) && wand.shuffle_deck_when_empty == 0) {
         console.log({
             seed,
             tier: 'wand_level_10',
@@ -917,6 +920,8 @@ for (const seed of T10) {
             manaMax: wand.mana_max,
             capacity: wand.deck_capacity,
             rare: Boolean(wand.is_rare),
+            sprite: wand.sprite,
+            shuffle: wand.shuffle_deck_when_empty,
             wand: wand
         });
     }
@@ -929,13 +934,15 @@ for (const [tier, seeds] of [
 ]) {
     for (const seed of seeds) {
         const wand = generateGunStandalone(seed, tier);
-        if (wand.mana_max > 4700 && wand.deck_capacity > 55) {
+        if ( wand.deck_capacity >= 46 && LONG_SPRITES.includes(wand.sprite)) {
             console.log({
                 seed,
                 tier,
                 manaMax: wand.mana_max,
                 capacity: wand.deck_capacity,
-                rare: Boolean(wand.is_rare)
+                rare: Boolean(wand.is_rare),
+                sprite: wand.sprite,
+                wand: wand
             });
         }
     }
