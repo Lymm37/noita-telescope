@@ -86,7 +86,6 @@ export function spawnPotionAltar(ws, ng, x, y, biome, perks={}, gameMode = 'norm
 // TODO: Add perks for greed die, kind of pointless but technically necessary
 export function spawnItem(ws, ng, x, y, biome, perks={}, gameMode = 'normal') {
 	let item;// = null;
-	//let rx = roundRNGPos(x);
     if (biome === 'liquidcave') {
         item = generateItemLiquidcave(ws, ng, x, y, gameMode);
     }
@@ -207,9 +206,6 @@ function generateItemLiquidcave(ws, ng, x, y, gameMode = 'normal') {
 
 export function createPotion(ws, ng, x, y, type, gameMode = 'normal') {
 	const prng = new NollaPrng(0);
-	// Hopefully rounding it here is fine?
-	//prng.SetRandomSeed(ws + ng, roundRNGPos(x - 4.5), y - 4);
-	//prng.SetRandomSeed(ws + ng, roundRNGPos(x) - 4.5, y - 4);
 	prng.SetRandomSeed(ws + ng, x - 4.5, y - 4);
 	if (type === 'normal') {
 		if (gameMode === 'nightmare') {

@@ -8,7 +8,6 @@ import { MakeRandomSpell } from "./spell_generator.js";
 
 export function spawnChest(ws, ng, x, y, isTower=false, perks={}, gameMode='normal') {
     let prng = new NollaPrng(0);
-	//x = roundRNGPos(x); Testing with and without this, neither is really working correctly?
     prng.SetRandomSeed(ws + ng, x, y);
     let greedCurse = perks['greedCurse'] ? perks['greedCurse'] : false;
     let great_chest_rate = 2000;
@@ -28,7 +27,7 @@ export function spawnChest(ws, ng, x, y, isTower=false, perks={}, gameMode='norm
 export function generateGreatChest(ws, ng, x, y, perks={}, gameMode='normal') {
 	const prng = new NollaPrng(0);
 	const noMoreShuffle = perks['noMoreShuffle'] || false;
-	prng.SetRandomSeed(ws + ng, roundRNGPos(x), y);
+	prng.SetRandomSeed(ws + ng, roundRNGPos(x), roundRNGPos(y));
 	let items = [];
 	let count = 1;
 
@@ -274,7 +273,7 @@ export function generateGreatChestStandalone(seed) {
 export function generateChest(ws, ng, x, y, perks={}, gameMode='normal') {
 	const noMoreShuffle = perks['noMoreShuffle'] || false;
 	const prng = new NollaPrng(0);
-	prng.SetRandomSeed(ws + ng, roundRNGPos(x) + 509.7, y + 683.1);
+	prng.SetRandomSeed(ws + ng, roundRNGPos(x) + 509.7, roundRNGPos(y) + 683.1);
 	let items = [];
 	let count = 1;
 	while (count > 0) {
