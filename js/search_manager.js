@@ -88,7 +88,7 @@ function getSearchFilters() {
             if (!/\b(missing|progress)\b/.test(normalizedQuery)) return normalizedQuery ? [normalizedQuery] : [];
 
             const remainingQuery = normalizedQuery.replace(/\b(missing|progress)\b/g, '').trim();
-            const missingSpells = getMissingProgressSpells().map(spell => spell.toLowerCase().replace('_', ' '));
+            const missingSpells = getMissingProgressSpells().map(spell => `"${spell.toLowerCase().replace(/_/g, ' ')}"`);
             return [...(remainingQuery ? [remainingQuery] : []), ...missingSpells];
         });
     if (queryList.length === 0 && missingSpellSearch) {
