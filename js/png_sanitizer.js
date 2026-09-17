@@ -4,15 +4,6 @@ import { getFromZipFirst } from "./zip_extraction.js";
 // browser CDN URLs. `process` is injected by Node; browsers leave it undefined.
 const IS_NODE = typeof process !== 'undefined' && !!process?.versions?.node;
 
-// Lazy so Node can import this module without resolving the https URL.
-// In Node the browser CDN URL fails to resolve, so swap to the local npm copy.
-let _upngPromise = null;
-const loadUpng = () => _upngPromise ??= (
-    IS_NODE
-        ? import("upng-js").then(m => m.default || m)
-        : import("https://cdn.jsdelivr.net/npm/upng-js@2.1.0/+esm").then(m => m.default)
-);
-
 /**
  * sanitizes a PNG buffer by removing ancillary chunks (gAMA, iCCP, sRGB, etc.)
  * that cause browsers to alter pixel values.
@@ -75,9 +66,10 @@ async function readPngBufferNode(url) {
 
 // Updated version using UPNG
 
-export async function loadPNG(url) {
-    // TODO: Is this loading the library for every PNG?
-    const UPNG = await loadUpng();
+const decodeCanvas = new OffscreenCanvas(0, 0);
+const decodeCtx = decodeCanvas.getContext("2d", { willReadFrequently: true });
+
+export async function loadPNG(url, returnBitmap=false) {
     let originalBuffer;
     if (IS_NODE) {
         originalBuffer = await readPngBufferNode(url);
@@ -86,79 +78,40 @@ export async function loadPNG(url) {
         originalBuffer = await response.arrayBuffer();
     }
     
-    // 1. Sanitize the buffer (Remove gAMA, etc.)
-    const sanitizedUint8 = stripAncillaryChunks(originalBuffer);
-
-    try {
-        // 2. Decode using UPNG (Requires Uint8Array or ArrayBuffer)
-        const img = UPNG.decode(sanitizedUint8);
-        
-        // Convert to a simple RGBA8 array
-        const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
-
-        // 3. Create a bitmap for fast canvas rendering. Node has no
-        // `createImageBitmap` and the headless dump scripts never touch
-        // `.bitmap`, so skip it there.
-        let bitmap = null;
-        if (!IS_NODE) {
-            const blob = new Blob([sanitizedUint8], { type: 'image/png' });
-            bitmap = await createImageBitmap(blob);
-        }
-
-        //console.log(`Loaded and sanitized PNG: ${url.split('/').pop()} (Dimensions: ${img.width}x${img.height})`);
-        return {
-            data: rgba,
-            width: img.width,
-            height: img.height,
-            bitmap: bitmap
-        };
-    } catch (e) {
-        // Debugging block: If it fails, let's see what the first 8 bytes actually are
-        const header = Array.from(new Uint8Array(sanitizedUint8.buffer).slice(0, 8))
-            .map(b => b.toString(16).padStart(2, '0')).join(' ');
-        console.error(`UPNG Decode Failed. Header bytes: ${header}`);
-        throw e;
-    }
-}
-
-function stripAncillaryChunks(buffer) {
-    const view = new DataView(buffer);
-    const chunks = [];
-    
-    // PNG Signature (8 bytes)
-    chunks.push(new Uint8Array(buffer.slice(0, 8)));
-
-    let offset = 8;
-    while (offset < buffer.byteLength) {
-        const length = view.getUint32(offset);
-        const type = String.fromCharCode(
-            view.getUint8(offset + 4),
-            view.getUint8(offset + 5),
-            view.getUint8(offset + 6),
-            view.getUint8(offset + 7)
-        );
-
-        const isCritical = ['IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS'].includes(type);
-        
-        if (isCritical) {
-            // Grab the whole chunk: Length(4) + Type(4) + Data(length) + CRC(4)
-            chunks.push(new Uint8Array(buffer.slice(offset, offset + length + 12)));
-        }
-        offset += length + 12;
-    }
-
-    // Combine all Uint8Arrays into one single Uint8Array
-    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const combined = new Uint8Array(totalLength);
-    let currentOffset = 0;
-    for (const chunk of chunks) {
-        combined.set(chunk, currentOffset);
-        currentOffset += chunk.length;
+    if (IS_NODE) {
+        throw new Error("createImageBitmap is required, which Node does not support");
     }
     
-    return combined;
+    const blob = new Blob([originalBuffer], { type: 'image/png' });
+    
+    const bitmap = await createImageBitmap(blob, {
+        // Prevents color correction due to ancillary chunks
+        colorSpaceConversion: "none"
+    });
+
+    if (returnBitmap) {
+        return bitmap;
+    }
+
+    const { width, height } = bitmap;
+
+    decodeCanvas.width = width;
+    decodeCanvas.height = height;
+
+    decodeCtx.drawImage(bitmap, 0, 0);
+    const imgData = decodeCtx.getImageData(0, 0, width, height);
+
+    // Nothing that uses loadPNG ever refers to the returned bitmap.
+    // This results in every single texture passed to loadPNG to stay
+    // loaded separately in VRAM, without it actually being used.
+    bitmap.close();
+
+    return {
+        data: new Uint8Array(imgData.data.buffer),
+        width, height
+    };
 }
 
-export async function loadPNGBitmap(url) {
-    return loadPNG(url).then((data) => data.bitmap);
+export function loadPNGBitmap(url) {
+    return loadPNG(url, true);
 }

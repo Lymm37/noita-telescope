@@ -2,7 +2,7 @@ import { tileToWorldCoordinates, getBiomeAtWorldCoordinates, getResolvedBiome, g
 import { CHUNK_SIZE, TILE_SIZE, WORLD_CHUNK_CENTER_X, WORLD_CHUNK_CENTER_Y } from "./constants.js";
 import { GENERATOR_CONFIG } from "./generator_config.js";
 import { BIOME_SPAWN_FUNCTION_MAP } from "./spawn_function_config.js";
-import { getSpawnFunctionIndex, spawnSwitch } from "./spawn_functions.js";
+import { getSpawnFunctionIndex, getSpawnFunctionIndexMap, spawnSwitch } from "./spawn_functions.js";
 import { isDuplicateObject } from "./utils.js";
 import { generateHolyMountainShops } from "./temple_generation.js";
 import { 
@@ -46,30 +46,38 @@ function getTileScanPoint(worldX, worldY) {
     return { x: axis(worldX), y: axis(worldY) };
 }
 
-export function prescanPixelScene(imgData, sourceBiome) {
-    //const clearSpawnPixels = document.getElementById('clear-spawn-pixels').checked;
+export function prescanPixelScene(uint32, sWidth, sHeight, sourceBiome) {
     const clearSpawnPixels = appSettings.clearSpawnPixels;
     const detectedSpawns = [];
-    if (!imgData) return detectedSpawns;
 
-    const sWidth = imgData.width;
-    const sHeight = imgData.height;
+    const indexMap = getSpawnFunctionIndexMap(sourceBiome);
+    if (!indexMap) {
+        return [];
+    }
+
+    let idx = 0;
 
     for (let y = 0; y < sHeight; y++) {
         for (let x = 0; x < sWidth; x++) {
-            const idx = (y * sWidth + x) * 4;
-            const r = imgData.data[idx];
-            const g = imgData.data[idx + 1];
-            const b = imgData.data[idx + 2];
-            const a = imgData.data[idx + 3];
+            const currentIdx = idx++;
+            
+            // The Uint32Array view of the image data is low endian, which makes this
+            // of form AABBGGRR. This also means we need to swap endianness for colorInt.
+            const rgba = uint32[currentIdx];
+            const bgr = rgba & 0xFFFFFF;
 
             // Skip transparent or standard background pixels
-            if (a === 0) continue;
-            const colorInt = (r << 16) | (g << 8) | b;
-            if (colorInt === 0x000000 || colorInt === 0xffffff) continue;
+            if ((rgba & 0xFF000000) == 0) continue;
+            if (bgr == 0 || bgr == 0xFFFFFF) continue;
 
-            const index = getSpawnFunctionIndex(sourceBiome, colorInt);
-            if (index !== null) {
+            const colorInt = (
+                ((rgba & 0xFF) << 16)
+                | (((rgba >> 8) & 0xFF) << 8)
+                | ((rgba >> 16) & 0xFF)
+            );
+            
+            const index = indexMap.get(colorInt);
+            if (index !== undefined) {
                 // Pixel scenes are drawn at 1:1 scale in world units
                 // Note the positions are relative
                 detectedSpawns.push({
@@ -78,12 +86,10 @@ export function prescanPixelScene(imgData, sourceBiome) {
                     y: y,
                     spawnFunctionIndex: index
                 });
-            }
-            if (clearSpawnPixels && index !== null) {
-                imgData.data[idx] = 0;
-                imgData.data[idx + 1] = 0;
-                imgData.data[idx + 2] = 0;
-                imgData.data[idx + 3] = 0;
+
+                if (clearSpawnPixels) {
+                    uint32[currentIdx] = 0;
+                }
             }
         }
     }
@@ -263,10 +269,11 @@ export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
         const sourceBiome = layer.biomeName;
         const width = layer.width;
         const height = layer.mapH;
+        const indexMap = getSpawnFunctionIndexMap(sourceBiome);
         const sourceSpawnFunctions = BIOME_SPAWN_FUNCTION_MAP[sourceBiome] || [];
 
         // Probably no longer needed
-        if (!layer.buffer) {
+        if (!layer.buffer || !indexMap) {
             console.log("Skipping layer:", layer);
             continue;
         }
@@ -284,9 +291,9 @@ export function prescanSpawnFunctions(tileLayers, isNGP, gameMode='normal') {
 
                 if (colorInt === 0x000000 || colorInt === 0xffffff) continue;
 
-                const index = getSpawnFunctionIndex(sourceBiome, colorInt);
+                const index = indexMap.get(colorInt);
 
-                if (index !== null) {
+                if (index !== undefined) {
                     const coords = tileToWorldCoordinates(layer.minX, layer.minY, x, y - 4, 0, 0, isNGP, gameMode);
 
                     // Don't gate here: this prescan is PW0-only, but the NG+ stride

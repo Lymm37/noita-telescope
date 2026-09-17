@@ -117,9 +117,15 @@ export async function loadPixelSceneData() {
 				if (!PIXEL_SCENE_DATA[key]) {
 					const url = `../data/pixel_scenes/${getBiomeAlias(biome)}/${scene.name}.png`;
 					const imgData = await loadPNG(url);
-					makeBlackTransparent(imgData.data);
+					
+					// Create a Uint32Array view of the buffer for faster processing.
+					// Does not copy the buffer.
+					const uint32 = new Uint32Array(imgData.data.buffer);
+					
+					makeBlackTransparent(uint32);
 					// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
-					const spawnPoints = prescanPixelScene(imgData, biome);
+					const spawnPoints = prescanPixelScene(uint32, imgData.width, imgData.height, biome);
+
 					PIXEL_SCENE_SPAWN_DATA[key] = spawnPoints;
 					//console.log(`Loaded pixel scene ${key} with ${spawnPoints.length} spawn points.`);
 					PIXEL_SCENE_DATA[key] = {

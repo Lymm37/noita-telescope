@@ -61,17 +61,31 @@ const BIOME_TIERS = {
 0xff0aff: "load_pixel_scene",
 */
 
-export function getSpawnFunctionIndex(biomeName, color) {
-	if (!BIOME_SPAWN_FUNCTION_MAP[biomeName]) return null;
-	const spawnFunctions = BIOME_SPAWN_FUNCTION_MAP[biomeName];
-	for (let i = 0; i < spawnFunctions.length; i++) {
-		if (spawnFunctions[i].color === color) {
-			return i; // Ignore whether it's active here?
-			//if (spawnFunctions[i].active) return i;
-			//break;
-		}
+const spawnFunctionMapCache = {};
+
+// Generate a Map for every biome for efficient function index lookup
+export function getSpawnFunctionIndexMap(biomeName) {
+	const existing = spawnFunctionMapCache[biomeName];
+	if (existing) return existing;
+
+	const functions = BIOME_SPAWN_FUNCTION_MAP[biomeName];
+	if (!functions) return null;
+
+	const map = new Map();
+
+	for (let idx = 0; idx < functions.length; idx++) {
+		map.set(functions[idx].color, idx);
 	}
-	return null;
+
+	spawnFunctionMapCache[biomeName] = map;
+	return map;
+}
+
+export function getSpawnFunctionIndex(biomeName, color) {
+	const map = getSpawnFunctionIndexMap(biomeName);
+	if (!map) return null;
+
+	return map.get(color) ?? null;
 }
 
 function hiisi_safe(x, y) {

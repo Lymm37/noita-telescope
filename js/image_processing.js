@@ -758,11 +758,11 @@ export function createTileOverlaysExpanded(biomeData, recolorOffscreen, layers, 
     return overlays;
 }
 
-export function makeBlackTransparent(data) {
-    for (let i = 0; i < data.length; i += 4) {
-        // Check if R=0, G=0, B=0
-        if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0) {
-            data[i + 3] = 0; // Set Alpha to 0 (Transparent)
+export function makeBlackTransparent(uint32) {
+    // const rgb = 0xFFFFFF;
+    for (let i = 0; i < uint32.length; i++) {
+        if (uint32[i] == 0xFF000000) {
+            uint32[i] = 0;
         }
     }
 }
