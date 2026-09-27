@@ -941,11 +941,7 @@ export const app = {
 			this.saveSettings();
 			this.tileOverlaysByPW = {}; // Clear cached overlays so they will be regenerated with the new mode
 			invalidatePendingOverlays();
-			if (document.getElementById('debug-biome-overlay-mode').value !== 'none') {
-				// Settings are posted to this worker before this request, so it uses
-				// the newly selected mode without requiring a page reload.
-				getOrGenerateOverlay(this.pw, this.pwVertical);
-			}
+			// The CPU draw loop re-requests overlays for the worlds it draws.
 			this.draw();
 			//this.generate(true, true); // TODO: Probably don't need to completely regenerate tiles
 		};
@@ -2372,9 +2368,13 @@ export const app = {
 			//console.log("Synced data to workers.");
 
 			// Do initial overlay generation just for the main world since we need it for the initial render.
-			// Other worlds can be handled by workers asynchronously
+			// Other worlds can be handled by workers asynchronously. The GL pass draws
+			// terrain without overlays, so skip this ~1 s main-thread build under it;
+			// if GL falls back later, the CPU draw loop requests them.
 			const biomeOverlayMode = document.getElementById('debug-biome-overlay-mode').value;
-			if (!this.tileOverlaysByPW[`0,0`]) {
+			const glTerrainUsable = appSettings.terrainRenderer === 'gl'
+				&& !this.glTerrain?.failed && !this.glTerrain?.contextLost;
+			if (!glTerrainUsable && !this.tileOverlaysByPW[`0,0`]) {
 				let recolorMapUsed = this.recolorOffscreenBuffer;
 				if (biomeOverlayMode === 'expanded') {
 					this.tileOverlaysByPW[`0,0`] = createTileOverlaysExpanded(this.biomeData, recolorMapUsed, this.tileLayers, 0, 0, this.isNGP, this.gameMode);
@@ -2481,7 +2481,6 @@ export const app = {
 			return;
 		}
 		getOrGenerateWorld(pwX, pwY);
-		getOrGenerateOverlay(pwX, pwY);
 	},
 
 	async incrementSeed() {
@@ -2849,9 +2848,15 @@ export const app = {
 	evictOffscreenOverlays() {
 		const seen = (this.overlaySeen ??= new Map());
 		const tick = (this.overlaySeenTick = (this.overlaySeenTick || 0) + 1);
-		for (const k of this.worldsInView) seen.set(k, tick);
+		// In NG a row's worlds alias its PW-0 overlay, and getOrGenerateOverlay
+		// looks it up under `0,y`: evicting that key while the row is still in
+		// view makes the next world scrolling in rebuild it (~1 s in the worker).
+		const shared = !this.isNGP && this.gameMode !== 'nightmare';
+		const keep = new Set(this.worldsInView);
+		if (shared) for (const k of this.worldsInView) keep.add(`0,${k.split(',')[1]}`);
+		for (const k of keep) seen.set(k, tick);
 		const byPW = this.tileOverlaysByPW;
-		const offscreen = Object.keys(byPW).filter((k) => byPW[k] && !this.worldsInView.has(k));
+		const offscreen = Object.keys(byPW).filter((k) => byPW[k] && !keep.has(k));
 		if (offscreen.length <= OVERLAY_OFFSCREEN_KEEP) return;
 		offscreen.sort((a, b) => (seen.get(a) || 0) - (seen.get(b) || 0));
 		const dropped = new Set();
@@ -4128,15 +4133,9 @@ export const app = {
 						}
 					}
 					else {
-						// Check if there is an existing overlay request pending. If not, request it.
-						// Normally this does not need to be done, but race conditions can sometimes break it
-						/*
-						if (!isOverlayPending(pwX, pwY)) {
-							console.log(`Requesting overlay for PW ${pwX}, ${pwY} to fix race condition`);
-							getOrGenerateOverlay(pwX, pwY);
-						}
-						*/
-						// This doesn't seem to help actually
+						// The only overlay request: they are drawn nowhere else, so a world
+						// the GL pass covers never asks for one (~1 s of worker, ~30 MB each).
+						getOrGenerateOverlay(pwX, pwY);
 					}
 				}
 			}
