@@ -523,13 +523,45 @@ export function warmPixelScene(pixelScene, level = 0) {
 }
 
 export function getPixelSceneCanvas(pixelScene, level = 0) {
+	return getPixelSceneDrawable(pixelScene, level)?.bitmap ?? null;
+}
+
+/**
+ * getPixelSceneCanvas plus which cache entry answered: `cacheKey` names the
+ * pixels (the flat stand-in of a textured instance has the flat key), and
+ * `airMask` is that entry's FORCE AIR mask. The GL scene pass keys its atlas
+ * slots on `cacheKey`, so it can tell the stand-in from the real thing.
+ */
+export function getPixelSceneDrawable(pixelScene, level = 0) {
 	const entry = pixelSceneEntry(pixelScene, level);
 	if (!entry) return null;
 	entry.used = ++pixelSceneDrawTick;
 	const wanted = level > entry.maxLevel ? entry.maxLevel : level;
 	const bitmap = entry.levels[wanted];
 	evictPixelSceneBitmaps(entry);
-	return bitmap;
+	return { cacheKey: entry.cacheKey, bitmap, airMask: entry.airMask };
+}
+
+/**
+ * The cache keys a scene draws from at `level`, best first, without touching
+ * the cache: the per-instance textured key then its flat stand-in at level 0
+ * with material textures on, else just the flat key. Same rule as
+ * pixelSceneEntry.
+ */
+export function pixelSceneCacheKeys(pixelScene, level = 0) {
+	const flatKey = `${pixelScene.key}/${pixelScene.variantKey || ''}`;
+	if (pixelScenesTexturedAt(level)) return [`${flatKey}@${pixelScene.x},${pixelScene.y}`, flatKey];
+	return [flatKey];
+}
+
+/** Whether scenes at `level` draw per-instance textured builds (see pixelSceneEntry). */
+export function pixelScenesTexturedAt(level) {
+	return level === 0 && !!sceneTextureAtlas();
+}
+
+/** Bumped when the cache is cleared: pixels under an old key may have changed. */
+export function pixelSceneCacheEpoch() {
+	return sceneBitmapEpoch;
 }
 
 /**

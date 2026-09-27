@@ -18,6 +18,7 @@ import { debugBiomeEdgeNoise } from './edge_noise.js';
 import { drawBiomeBoundaryContour } from './biome_boundary.js';
 import { GLTerrainRenderer } from './gl/terrain_renderer.js';
 import { GLBackdropRenderer } from './gl/backdrop_renderer.js';
+import { GLSceneRenderer } from './gl/scene_renderer.js';
 import { getPixelSceneAirMask, getPixelSceneCacheStats, getPixelSceneCanvas, pendingPixelSceneBitmaps, PIXEL_SCENE_MAX_MIP, pixelSceneBitmapVersion, pixelSceneMipLevel, loadPixelSceneData, reloadPixelSceneCache, PIXEL_SCENE_DATA, warmPixelScene } from './pixel_scene_generation.js';
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
@@ -3125,7 +3126,9 @@ export const app = {
 	// Returns a predicate telling drawNow which parallel worlds the pass covered, or
 	// null when GL is unavailable (no WebGL2, context loss, resource build failure) —
 	// the CPU bake then draws everything, unchanged.
-	drawTerrainGL() {
+	// With `scenes` (layer 5 enabled), the pixel scenes are drawn into the terrain
+	// canvas before the blit (js/gl/scene_renderer.js); this.scenesOnGL says so.
+	drawTerrainGL(worldOffsets, viewRect, scenes, prof) {
 		if (!this.glTerrain) this.glTerrain = new GLTerrainRenderer();
 		const terrain = this.glTerrain;
 		// Nothing to do if every world in view is one the GL pass does not cover.
@@ -3173,12 +3176,50 @@ export const app = {
 			engineTerrain: appSettings.engineTerrain,
 		});
 		if (!glCanvas) return null;
+		if (prof) markLayer(prof, 'terrainGL');
+		if (scenes) {
+			this.scenesOnGL = this.drawScenesGL(terrain, worldOffsets, viewRect);
+			if (prof) markLayer(prof, 'scenesGL');
+		}
 
 		this.ctx.save();
 		this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 		this.ctx.drawImage(glCanvas, 0, 0);
 		this.ctx.restore();
 		return (pwY) => terrain.rendersWorld(pwY);
+	},
+
+	drawScenesGL(terrain, worldOffsets, viewRect) {
+		if (!this.pixelScenesByPW) return false;
+		if (!this.glScenes) this.glScenes = new GLSceneRenderer();
+		const worldCenter = getWorldCenter(this.isNGP, this.gameMode) * 512;
+		const worldSize = getWorldSize(this.isNGP, this.gameMode) * 512;
+		const worlds = [];
+		for (const worldKey of this.worldsInView) {
+			const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+			const list = this.pixelScenesByPW[`${pwX},${pwY}`];
+			if (!list) continue;
+			worlds.push({ list, relOffX: worldCenter - pwX * worldSize, relOffY: 14 * 512 - pwY * 24576, shiftX, shiftY });
+		}
+		const budgetMB = appSettings.renderEverything
+			? Math.max(appSettings.pixelSceneBitmapBudgetMB || 256, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 256);
+		const drawn = this.glScenes.draw(terrain, {
+			width: this.canvas.width,
+			height: this.canvas.height,
+			originX: this.cam.x - (this.canvas.width / 2) / this.cam.z,
+			originY: this.cam.y - (this.canvas.height / 2) / this.cam.z,
+			zoom: this.cam.z,
+			level: pixelSceneMipLevel(this.detailZoom()),
+			frame: this.frameSerial,
+			budgetBytes: budgetMB * 1024 * 1024,
+			viewRect,
+			worlds,
+		});
+		const wait = this.glScenes.redrawInMs;
+		if (drawn && wait != null && !this.sceneRedrawTimer) {
+			this.sceneRedrawTimer = setTimeout(() => { this.sceneRedrawTimer = null; this.draw(); }, Math.max(0, wait));
+		}
+		return drawn;
 	},
 
 	// Stamps the checkerboard over every uncovered chunk of every horizontal parallel
@@ -3619,13 +3660,16 @@ export const app = {
 			});
 			renderHud.setStat('bakes', () => {
 				const b = sceneBakeStats();
-				return `${b.count} world scene bakes · ${(b.bytes / 1048576).toFixed(0)} MB (largest ${(b.maxBytes / 1048576).toFixed(0)} MB)`;
+				const g = this.glScenes?.stats();
+				return `${b.count} world scene bakes · ${(b.bytes / 1048576).toFixed(0)} MB (largest ${(b.maxBytes / 1048576).toFixed(0)} MB)`
+					+ (g ? `\n         GL scene atlas: ${g.pages} pages · ${(g.bytes / 1048576).toFixed(0)} MB · ${g.slots} images` : '');
 			});
 			renderHud.setEnabled(appSettings.debugRenderHud, document.getElementById('view'));
 		}
 		const prof = this.startLayerProfile();
 		this.colorProbe.x = -1; // the tooltip's cached readback belongs to the old frame
 		this.frameSerial++;     // ... and so does the decal probe's (decalTexelAt)
+		this.scenesOnGL = false;
 		this.ctx.fillStyle = '#050505';
 		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
 		if (!this.biomeData) return;
@@ -4049,7 +4093,7 @@ export const app = {
 			// GLTerrainRenderer.rendersWorld). Returns null when GL is off or
 			// unavailable, in which case the CPU bake below draws everything.
 			const glCovers = (biomeOverlayMode !== 'none' && appSettings.terrainRenderer === 'gl')
-				? this.drawTerrainGL()
+				? this.drawTerrainGL(worldOffsets, viewRect, L.pixelScenes, prof)
 				: null;
 			if (prof) markLayer(prof, 'terrainGL');
 
@@ -4191,11 +4235,11 @@ export const app = {
 			// Warm margin: half a screen on every side (see the cull below).
 			const warmLeft = viewLeft - halfViewW, warmRight = viewRight + halfViewW;
 			const warmTop = viewTop - halfViewH, warmBottom = viewBottom + halfViewH;
+			let airErased = false;
 			for (let worldKey of this.worldsInView) {
 				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 
 				// Render pixel scenes (after overlays)
-				let airErased = false;
 				// Hand-drawn tiles that stand in for a scene's appearance
 				// (js/pixel_scene_art.js). Collected here rather than blitted in
 				// place so they land on top of every scene AND on top of the
@@ -4215,10 +4259,13 @@ export const app = {
 					// Zoomed far out, the whole copy's scenes come from one bake (see
 					// sceneBake); the loop below then only collects the art stand-ins.
 					const inWorld = this.sceneInWorld(pwX, pwY);
-					const bake = (!appSettings.renderEverything && 512 * this.cam.z <= SCENE_BAKE_MAX_CHUNK_PX)
+					// With the GL scene pass the images are already in the terrain canvas
+					// (drawTerrainGL); only the art stand-ins are left to collect.
+					const onGL = this.scenesOnGL;
+					const bake = (!onGL && !appSettings.renderEverything && 512 * this.cam.z <= SCENE_BAKE_MAX_CHUNK_PX)
 						? this.sceneBake(this.pixelScenesByPW[`${pwX},${pwY}`], sceneOffX - shiftX, sceneOffY - shiftY, inWorld) : null;
 					if (bake) this.ctx.drawImage(bake.bitmap, bake.x + shiftX, bake.y + shiftY, bake.w, bake.h);
-					for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
+					if (!onGL || sceneArtOn) for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
 						const drawX = scene.x + sceneOffX;
 						const drawY = scene.y + sceneOffY;
 
@@ -4232,13 +4279,13 @@ export const app = {
 						if (!sceneData) continue;
 						if (drawX + sceneData.width < viewLeft || drawX > viewRight ||
 							drawY + sceneData.height < viewTop || drawY > viewBottom) {
-							if (!(bake && inWorld(scene)) && !(drawX + sceneData.width < warmLeft || drawX > warmRight ||
+							if (!onGL && !(bake && inWorld(scene)) && !(drawX + sceneData.width < warmLeft || drawX > warmRight ||
 								drawY + sceneData.height < warmTop || drawY > warmBottom)) {
 								warmPixelScene(scene, sceneMipLevel);
 							}
 							continue;
 						}
-						if (bake && inWorld(scene)) {
+						if (onGL || (bake && inWorld(scene))) {
 							if (sceneArtOn) {
 								const tile = sceneArtTile(scene.key, { app: this, pwX, pwY, cauldronVariation: getCauldronVariation });
 								const bitmap = tile && this.surfaceOverlayScenes[tile];
@@ -4276,23 +4323,8 @@ export const app = {
 					}
 				}
 
-				// Put the biome background back behind the holes the masks just punched.
-				// `destination-out` erases everything under the air, layer 1 included, which
-				// would leave a carved room reading as two colors: page black where a scene
-				// forced air, the biome background where the scene simply painted nothing.
-				// `destination-over` only reaches pixels that are still transparent -- the
-				// canvas is opaque everywhere else from drawNow's base fill -- so one blit
-				// per world refills exactly those holes with what layer 1 would have shown.
-				//
-				// Skipped when the background layer is off: then nothing is meant to be
-				// behind the terrain, and forced air correctly reads as empty.
-				if (airErased && L.biomeBackground) {
-					this.ctx.globalCompositeOperation = 'destination-over';
-					this.drawBackgroundStack(worldOffsets, viewRect, offscreen, true, prof);
-					this.ctx.globalCompositeOperation = 'source-over';
-				}
-
-				// The scene art stand-ins, on top of every scene and of the refill.
+				// The scene art stand-ins, on top of every scene (the refill below
+				// only reaches pixels still transparent, so it lands under them).
 				for (const [bitmap, x, y, w, h] of sceneArt) this.ctx.drawImage(bitmap, x, y, w, h);
 
 				// Orb rooms. Their tile comes from the general scene-art pass above,
@@ -4338,6 +4370,25 @@ export const app = {
 						}
 					}
 				});
+			}
+
+			// Put the biome background back behind the holes the masks punched.
+			// `destination-out` erases everything under the air, layer 1 included, which
+			// would leave a carved room reading as two colors: page black where a scene
+			// forced air, the biome background where the scene simply painted nothing.
+			// `destination-over` only reaches pixels that are still transparent -- the
+			// canvas is opaque everywhere else from drawNow's base fill -- so one pass
+			// of the stack (it covers every world in view) refills exactly those holes.
+			// Once for all worlds: per world it redrew the whole stack N times.
+			//
+			// Skipped when the background layer is off: then nothing is meant to be
+			// behind the terrain, and forced air correctly reads as empty.
+			if (airErased && L.biomeBackground) {
+				// Close the scene bucket first, or the refill's first step is billed for it.
+				if (prof) markLayer(prof, 'pixelScenes');
+				this.ctx.globalCompositeOperation = 'destination-over';
+				this.drawBackgroundStack(worldOffsets, viewRect, offscreen, true, prof);
+				this.ctx.globalCompositeOperation = 'source-over';
 			}
 
 			// (The cauldron room's tile used to be blitted here from a hardcoded
@@ -4641,7 +4692,8 @@ export const app = {
 					if (runs && !this.backdropBake(runs)) ok = false;
 				}
 				const relOffX = getWorldCenter(this.isNGP, this.gameMode) * 512;
-				for (const pwY of [0, -1, 1]) {
+				// The GL scene pass never draws from a scene bake.
+				for (const pwY of this.scenesOnGL ? [] : [0, -1, 1]) {
 					const list = this.pixelScenesByPW && this.pixelScenesByPW[`0,${pwY}`];
 					if (list && !this.sceneBake(list, relOffX, 14 * 512 - pwY * 24576, this.sceneInWorld(0, pwY))) ok = false;
 				}
