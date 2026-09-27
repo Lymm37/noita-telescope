@@ -301,6 +301,11 @@ export function backgroundArtLoaded() {
 	return artLoaded;
 }
 
+/** The decoded backdrop image for a run's imageIndex, or null. */
+export function backdropBitmap(imageIndex) {
+	return ART_BITMAPS.get(BACKGROUND_IMAGE_PATHS[imageIndex]) ?? null;
+}
+
 /** The real strip art for one buildBackgroundEdges record, or null. */
 export function edgeStripArt(e) {
 	return e.art ? ART_BITMAPS.get(e.art) ?? null : null;

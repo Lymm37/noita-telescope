@@ -17,6 +17,7 @@ import { COALMINE_ALT_SCENES } from './pixel_scene_config.js';
 import { debugBiomeEdgeNoise } from './edge_noise.js';
 import { drawBiomeBoundaryContour } from './biome_boundary.js';
 import { GLTerrainRenderer } from './gl/terrain_renderer.js';
+import { GLBackdropRenderer } from './gl/backdrop_renderer.js';
 import { getPixelSceneAirMask, getPixelSceneCacheStats, getPixelSceneCanvas, pendingPixelSceneBitmaps, PIXEL_SCENE_MAX_MIP, pixelSceneBitmapVersion, pixelSceneMipLevel, loadPixelSceneData, reloadPixelSceneCache, PIXEL_SCENE_DATA, warmPixelScene } from './pixel_scene_generation.js';
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
@@ -40,7 +41,7 @@ import { getFungalShifts } from './fungal_shifts.js';
 import { pickAlchemyMaterials } from './alchemy.js';
 import {
 	BACKGROUND_VOID, backgroundLayerColor, buildBackdropRuns, buildBackgroundEdges,
-	drawBackdropRuns, drawGlobalBackgroundImages, drawSceneBackgrounds, drawStaticTileBackdrops,
+	backdropBitmap, drawBackdropRuns, drawGlobalBackgroundImages, drawSceneBackgrounds, drawStaticTileBackdrops,
 	backgroundArtLoaded, edgeStripArt, loadBackgroundArt, loadBackgroundEdgeMasks, loadStaticTileBackgroundMasks,
 	STATIC_TILE_BACKGROUNDS, tintedEdgeStrip, UNLIMITED_BACKDROP_BIOMES,
 } from './biome_backgrounds.js';
@@ -3402,6 +3403,7 @@ export const app = {
 			if (512 * this.detailZoom() >= 8) {
 				const useBake = 512 * this.detailZoom() <= BACKDROP_BAKE_MAX_CHUNK_PX;
 				steps.push(['backdrops', () => {
+					if (!useBake && this.drawBackdropsGL()) return;
 					for (let worldKey of this.worldsInView) {
 						const { pwY, shiftX, shiftY } = worldOffsets[worldKey];
 						const runs = pwY === 0 ? this.backdropRuns
@@ -3461,6 +3463,43 @@ export const app = {
 			step();
 			if (prof) markLayer(prof, bucket + name);
 		}
+	},
+
+	// The clipped backdrop run loop as one WebGL pass covering every world copy
+	// in view (js/gl/backdrop_renderer.js); the zoomed-in path of the backdrops
+	// step issued one drawImage per visible tile. Drawn in screen space like
+	// drawTerrainGL. False when GL is off or unavailable, or before the art has
+	// loaded -- the 2D run loop then draws as before.
+	drawBackdropsGL() {
+		if (appSettings.terrainRenderer !== 'gl' || !backgroundArtLoaded()) return false;
+		if (!this.glBackdrops) this.glBackdrops = new GLBackdropRenderer();
+		const ok = this.glBackdrops.ensure(
+			[this.backdropRuns, this.backdropRunsHeaven, this.backdropRunsHell],
+			this.w, this.h, backdropBitmap);
+		if (!ok) return false;
+		let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+		for (const worldKey of this.worldsInView) {
+			const [pwX, pwY] = worldKey.split(',').map(Number);
+			minX = Math.min(minX, pwX - this.pw); maxX = Math.max(maxX, pwX - this.pw);
+			minY = Math.min(minY, pwY - this.pwVertical); maxY = Math.max(maxY, pwY - this.pwVertical);
+		}
+		if (minX > maxX) return true;
+		const glCanvas = this.glBackdrops.render({
+			frame: this.frameSerial,
+			width: this.canvas.width,
+			height: this.canvas.height,
+			camX: this.cam.x,
+			camY: this.cam.y,
+			camZ: this.cam.z,
+			pwVertical: this.pwVertical,
+			copyRange: [minX, maxX, minY, maxY],
+		});
+		if (!glCanvas) return false;
+		this.ctx.save();
+		this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+		this.ctx.drawImage(glCanvas, 0, 0);
+		this.ctx.restore();
+		return true;
 	},
 
 	drawBackgroundEdges(worldOffsets, viewRect, offscreen) {
