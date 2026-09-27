@@ -12,9 +12,11 @@
 // resolved from the draw-space position itself (copies repeat every mapW*512
 // horizontally and every 24576 vertically, the same shifts drawNow's
 // worldOffsets use), and tiles are aligned to the ABSOLUTE draw frame, i.e.
-// texel = pmod(drawPos, imageSize), nearest-sampled like the 2D path.
+// texel = pmod(drawPos, imageSize), filtered by pixelFilterGLSL (box when
+// zoomed out, sharp bilinear when zoomed in) instead of the 2D path's nearest.
 
 import { shelfPack } from './atlas.js';
+import { pixelFilterGLSL } from './shaders.js';
 
 const VS = `#version 300 es
 void main() {
@@ -46,9 +48,14 @@ out vec4 outColor;
 int fdiv(int a, int m) { return a >= 0 ? a / m : -((m - 1 - a) / m); }
 int pmod(int a, int m) { return a - m * fdiv(a, m); }
 
+// Premultiplied atlas texel of image rect r at draw-space cell q (tiles wrap).
+vec4 backdropTexel(ivec4 r, ivec2 q) { return texelFetch(u_atlas, r.xy + ivec2(pmod(q.x, r.z), pmod(q.y, r.w)), 0); }
+${pixelFilterGLSL('backdropFiltered', 'ivec4 r', 'backdropTexel(r, q)')}
+
 void main() {
     vec2 frag = vec2(gl_FragCoord.x, u_screenH - gl_FragCoord.y);
-    ivec2 p = u_originInt + ivec2(floor(u_originFrac + frag * u_invZoom));
+    vec2 off = u_originFrac + frag * u_invZoom;
+    ivec2 p = u_originInt + ivec2(floor(off));
     int copyX = fdiv(p.x, u_pitch.x);
     int copyY = fdiv(p.y, u_pitch.y);
     if (copyX < u_copyRange.x || copyX > u_copyRange.y
@@ -60,7 +67,7 @@ void main() {
     uint slot = texelFetch(u_slotTex, ivec2(cx, variant * u_mapH + cy), 0).r;
     if (slot == 0u) discard;
     ivec4 r = texelFetch(u_imgTab, ivec2(int(slot) - 1, 0), 0);
-    outColor = texelFetch(u_atlas, r.xy + ivec2(pmod(p.x, r.z), pmod(p.y, r.w)), 0);
+    outColor = backdropFiltered(r, p, off - floor(off), vec2(u_invZoom));
 }`;
 
 const UNIFORMS = [

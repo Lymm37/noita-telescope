@@ -25,6 +25,7 @@ import {
     pixelSceneCacheEpoch, pixelSceneCacheKeys, pixelScenesTexturedAt, warmPixelScene,
 } from '../pixel_scene_generation.js';
 import { renderHud } from '../render_hud.js';
+import { pixelFilterGLSL } from './shaders.js';
 
 const VS = `#version 300 es
 layout(location = 0) in ivec4 a_rect;   // scene rect in list space: x, y, w, h (world px)
@@ -55,17 +56,32 @@ precision highp float;
 precision highp int;
 uniform sampler2D u_atlas;
 uniform bool u_air;
+uniform float u_zoom;
 in vec2 v_local;
 flat in ivec4 v_src;
 flat in ivec2 v_size;
 out vec4 outColor;
+// Texels are premultiplied (UNPACK_PREMULTIPLY_ALPHA_WEBGL), so they average directly.
+vec4 sceneTexel(ivec2 q) { return texelFetch(u_atlas, v_src.xy + clamp(q, ivec2(0), v_src.zw - 1), 0); }
+${pixelFilterGLSL('sceneFiltered', '', 'sceneTexel(q)')}
 void main() {
-    // Nearest, like the 2D path's drawImage with smoothing off: the bitmap
-    // (any mip level) is stretched over the scene's full-resolution rect.
-    ivec2 t = clamp(ivec2(floor(v_local * vec2(v_src.zw) / vec2(v_size))), ivec2(0), v_src.zw - 1);
-    vec4 c = texelFetch(u_atlas, v_src.xy + t, 0);
+    // The bitmap (any mip level) is stretched over the scene's full-resolution rect.
+    vec2 scale = vec2(v_src.zw) / vec2(v_size);
+    vec2 tc = v_local * scale;
+    ivec2 t = clamp(ivec2(floor(tc)), ivec2(0), v_src.zw - 1);
+    if (u_air) {
+        // The air mask stays nearest and binary: it erases, it does not blend.
+        if (texelFetch(u_atlas, v_src.xy + t, 0).a == 0.0) discard;
+        outColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+    vec4 c = sceneFiltered(t, tc - floor(tc), scale / u_zoom);
+    // Coverage never drops below the nearest texel's: a one-pixel seam between a
+    // scene and the terrain must not turn translucent (see halveWithoutHoles).
+    vec4 n = sceneTexel(t);
+    if (c.a < n.a) c = c.a > 0.0 ? c * (n.a / c.a) : n;
     if (c.a == 0.0) discard;
-    outColor = u_air ? vec4(0.0, 0.0, 0.0, 1.0) : c;
+    outColor = c;
 }`;
 
 const UNIFORMS = ['u_copyInt', 'u_copyFrac', 'u_zoom', 'u_screen', 'u_air', 'u_atlas'];

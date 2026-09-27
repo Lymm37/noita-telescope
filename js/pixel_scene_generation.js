@@ -407,6 +407,10 @@ export function overlayVisualArt(raw, width, height, art) {
 // (the block's lower-right pixel, which is what a nearest-neighbour downscale picks) and
 // falls back to whichever of the other three is painted when that one is air. Painted
 // area can only grow, never perforate, and alpha stays binary all the way down.
+//
+// Only the coverage is point-sampled: the color is the alpha-weighted average of the
+// block's painted pixels. A point-sampled color bakes moire into every level of a
+// regular pattern (brick walls), and averaging painted pixels alone opens no crack.
 export function halveWithoutHoles(img) {
 	const sw = img.width, sh = img.height, s = img.data;
 	// Round up, so an odd-sized level keeps its last row/column instead of dropping it -
@@ -421,14 +425,24 @@ export function halveWithoutHoles(img) {
 			const colLo = Math.min(x * 2 + 1, sw - 1);
 			const colHi = x * 2;
 			let p = (rowLo + colLo) * 4;
+			const b = (rowLo + colHi) * 4, c = (rowHi + colLo) * 4, e = (rowHi + colHi) * 4;
 			if (s[p + 3] !== 255) {
-				const b = (rowLo + colHi) * 4, c = (rowHi + colLo) * 4, e = (rowHi + colHi) * 4;
 				if (s[b + 3] > s[p + 3]) p = b;
 				if (s[c + 3] > s[p + 3]) p = c;
 				if (s[e + 3] > s[p + 3]) p = e;
 			}
 			const o = (y * w + x) * 4;
-			d[o] = s[p]; d[o + 1] = s[p + 1]; d[o + 2] = s[p + 2]; d[o + 3] = s[p + 3];
+			// An odd trailing row/column reuses a pixel; counting it twice is harmless.
+			const wa = s[p + 3] + s[b + 3] + s[c + 3] + s[e + 3];
+			if (wa === 0) {
+				d[o] = s[p]; d[o + 1] = s[p + 1]; d[o + 2] = s[p + 2];
+			} else {
+				const pa = s[p + 3], ba = s[b + 3], ca = s[c + 3], ea = s[e + 3];
+				for (let k = 0; k < 3; k++) {
+					d[o + k] = Math.round((s[p + k] * pa + s[b + k] * ba + s[c + k] * ca + s[e + k] * ea) / wa);
+				}
+			}
+			d[o + 3] = s[p + 3];
 		}
 	}
 	return out;

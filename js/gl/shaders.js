@@ -36,6 +36,59 @@ import { PALETTE_ALPHA_CHUNK_FG, PALETTE_ALPHA_SKIP } from './palette.js';
 
 const SIGNS_GLSL = `const int SIGNS[48] = int[48](${EDGE_SIGNS.join(', ')});`;
 
+/**
+ * GLSL for a pixel-art texel filter over a texture only reachable through
+ * texelFetch (integer formats, atlas sub-rects with their own wrap/clamp).
+ * Emits `vec4 name(params, ivec2 cell, vec2 sub, vec2 z)`: `cell` is the texel
+ * under the screen pixel's center, `sub` that center's position inside it in
+ * [0,1), `z` texels per screen pixel. `fetch` is a premultiplied-RGBA
+ * expression of the texel cell `q`.
+ *
+ * Minified (z > 1): box filter over the pixel's footprint, up to 4x4 taps --
+ * nearest decimation of a regular pattern (bricks) is what produced the moire.
+ * Magnified: "sharp bilinear" -- nearest inside a texel, a one-screen-pixel
+ * blend at its edges, so a fractional zoom no longer draws texels alternately
+ * N and N+1 pixels wide. Exactly 1:1 stays nearest (a sub-pixel camera offset
+ * would otherwise soften every texel).
+ */
+export function pixelFilterGLSL(name, params, fetch) {
+    return `
+vec4 ${name}(${params ? `${params}, ` : ''}ivec2 cell, vec2 sub, vec2 z) {
+    float zm = max(z.x, z.y);
+    ivec2 q;
+    if (zm > 1.0) {
+        int n = min(int(ceil(zm)), 4);
+        vec2 st = z / float(n);
+        vec2 p0 = sub - 0.5 * z + 0.5 * st;
+        vec4 acc = vec4(0.0);
+        for (int j = 0; j < 4; j++) {
+            if (j >= n) break;
+            for (int i = 0; i < 4; i++) {
+                if (i >= n) break;
+                q = cell + ivec2(floor(p0 + vec2(float(i), float(j)) * st));
+                acc += ${fetch};
+            }
+        }
+        return acc / float(n * n);
+    }
+    q = cell;
+    vec4 c00 = ${fetch};
+    if (zm >= 0.999) return c00;
+    vec2 d = sub - 0.5;
+    vec2 f = clamp((abs(d) - 0.5) / max(z, vec2(1e-4)) + 0.5, 0.0, 0.5);
+    if (f.x == 0.0 && f.y == 0.0) return c00;
+    ivec2 s = ivec2(d.x < 0.0 ? -1 : 1, d.y < 0.0 ? -1 : 1);
+    q = cell + ivec2(s.x, 0);
+    vec4 c10 = ${fetch};
+    q = cell + ivec2(0, s.y);
+    vec4 c01 = ${fetch};
+    q = cell + s;
+    vec4 c11 = ${fetch};
+    return mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y);
+}
+`;
+}
+
 // One triangle covering the viewport; no attributes, no buffers, no VAO state.
 export const TERRAIN_VS = `#version 300 es
 void main() {
@@ -145,14 +198,20 @@ vec4 chunkForeground(ivec2 p) {
 // cell in the engine, so they paint nothing; partial texel alpha IS the baked
 // cell's compositing alpha (the baked color is the texel, alpha included).
 // Output premultiplied for the canvas blit.
-bool materialTexel(int entry, ivec2 w, out vec4 color) {
-    uvec4 m = texelFetch(u_matMetaTex, ivec2(entry - 1, 0), 0); // x,y,w,h
+vec4 matTexelAt(uvec4 m, ivec2 w) {
     ivec2 t = ivec2(pmod(w.x, int(m.z)), pmod(w.y, int(m.w)));
     uvec4 c = texelFetch(u_matAtlasTex, ivec2(int(m.x) + t.x, int(m.y) + t.y), 0);
-    if (c.a == 0u) { color = vec4(0.0); return false; }
     float a = float(c.a) / 255.0;
-    color = vec4(vec3(c.rgb) / 255.0 * a, a);
-    return true;
+    return vec4(vec3(c.rgb) / 255.0 * a, a);
+}
+${pixelFilterGLSL('matTexelFiltered', 'uvec4 m', 'matTexelAt(m, q)')}
+// Fragment center's position inside its world cell w, set once in main().
+vec2 g_sub;
+
+bool materialTexel(int entry, ivec2 w, out vec4 color) {
+    uvec4 m = texelFetch(u_matMetaTex, ivec2(entry - 1, 0), 0); // x,y,w,h
+    color = matTexelFiltered(m, w, g_sub, vec2(u_invZoom));
+    return color.a > 0.0;
 }
 
 // Material entry of a chunk's fill material, on chunkForeground's texel grid.
@@ -922,6 +981,7 @@ void main() {
     vec2 pix = vec2(gl_FragCoord.x - float(u_vpOrigin.x), u_screenSize.y - (gl_FragCoord.y - float(u_vpOrigin.y)));
     vec2 off = u_originFrac + pix * u_invZoom;
     ivec2 w = u_originInt + ivec2(floor(off));
+    g_sub = off - floor(off);
 
     outColor = vec4(0.0);
 
