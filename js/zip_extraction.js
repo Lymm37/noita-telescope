@@ -7,6 +7,8 @@ const availableZipBundles = [
 	{ prefix: "../data/pixel_scenes/", zipUrl: "../data/pixel_scenes.zip" },
 	{ prefix: "../data/wang_tiles/", zipUrl: "../data/wang_tiles.zip" },
 	{ prefix: "../data/biome_maps/", zipUrl: "../data/biome_maps.zip" },
+	{ prefix: "../data/weather_gfx/", zipUrl: "../data/weather_gfx.zip" },
+	{ prefix: "../data/backgrounds/", zipUrl: "../data/backgrounds.zip" },
 ];
 
 const loadedZipBundles = {};
@@ -38,10 +40,12 @@ export async function getFromZipFirst(url) {
 				const zip = await loadZipLib();
                 return entry.getData(new zip.BlobWriter());
             }
+            // Worth a warning: the bundle is stale (tools/build_asset_zips.sh).
+            console.warn(`${relativePath} missing from ${bundle.zipUrl}, fetching it on its own`);
+            break;
         }
     }
 
-    console.log(`Not found in zip bundles, fetching from network: ${url}`);
 	const dataUrl = new URL(url, import.meta.url);
 	return fetch(dataUrl).then(response => response.blob());
 }

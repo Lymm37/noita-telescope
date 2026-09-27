@@ -142,12 +142,10 @@ overlayWorker.onmessage = async (e) => {
 };
 
 export function syncOverlayWorkerData() {
-	// The worker recolors from the base images and never draws the visual-art
-	// overlays (those apply at main-thread bitmap build), so don't clone the
-	// ~80MB of decoded art into it.
+	// The worker decodes each scene's pixels and art itself the first time it
+	// needs them (ensureScenePixels), so never clone any the main thread holds.
 	const pixelSceneCache = Object.fromEntries(Object.entries(PIXEL_SCENE_DATA)
-		.map(([k, v]) => [k, v.visualArt ? { ...v, visualArt: null } : v]));
-	artSentToWorker.clear();   // the worker's copy of the art goes with the old metadata
+		.map(([k, v]) => [k, (v.imgElement || v.visualArt) ? { ...v, imgElement: null, visualArt: null } : v]));
 	overlayWorker.postMessage({
 		cmd: 'SYNC_METADATA',
 		pixelSceneCache,
@@ -205,16 +203,9 @@ export function recolorPixelScenes(pixelSceneList) {
 	}
 }
 
-// Scene bitmaps are built in the worker (pixel_scene_generation.js). The visual
-// art a scene may carry is deliberately left out of SYNC_METADATA (~90 MB of
-// decoded PNGs); it rides along with the first bitmap request per scene key
-// after each sync, and the worker keeps it from then on.
-const artSentToWorker = new Set();
-setPixelSceneBitmapRequester((request, sceneData) => {
-	if (sceneData.visualArt && !artSentToWorker.has(request.key)) {
-		artSentToWorker.add(request.key);
-		request.visualArt = sceneData.visualArt;
-	}
+// Scene bitmaps are built in the worker (pixel_scene_generation.js), which
+// decodes the scene's pixels and visual art on its own.
+setPixelSceneBitmapRequester((request) => {
 	request.traceId = renderTrace.begin('scene', `${request.key}${request.textured ? ' (tex)' : ''}`, 'pixelScenes');
 	overlayWorker.postMessage(request);
 });

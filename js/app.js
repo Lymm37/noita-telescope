@@ -19,7 +19,7 @@ import { drawBiomeBoundaryContour } from './biome_boundary.js';
 import { GLTerrainRenderer } from './gl/terrain_renderer.js';
 import { GLBackdropRenderer } from './gl/backdrop_renderer.js';
 import { GLSceneRenderer } from './gl/scene_renderer.js';
-import { getPixelSceneAirMask, getPixelSceneCacheStats, getPixelSceneCanvas, pendingPixelSceneBitmaps, PIXEL_SCENE_MAX_MIP, pixelSceneBitmapVersion, pixelSceneMipLevel, loadPixelSceneData, reloadPixelSceneCache, PIXEL_SCENE_DATA, warmPixelScene } from './pixel_scene_generation.js';
+import { getPixelSceneAirMask, getPixelSceneCacheStats, getPixelSceneCanvas, pendingPixelSceneBitmaps, PIXEL_SCENE_MAX_MIP, pixelSceneBitmapVersion, pixelSceneMipLevel, loadPixelSceneData, reloadPixelSceneCache, PIXEL_SCENE_DATA, setScenePixelsListener, warmPixelScene } from './pixel_scene_generation.js';
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings, updateSettingsFromUI, updateSpellFlags, updateSpecialFlags, RENDER_LAYERS, readRenderLayersFromUI } from './settings.js';
@@ -2206,6 +2206,12 @@ export const app = {
 			} catch(e) { console.error("Base assets failed to load."); console.error(e); }
 			console.log("Loading pixel scene data...");
 			await loadPixelSceneData();
+			// The hover readout found a scene whose pixels were not decoded yet.
+			setScenePixelsListener(() => {
+				if (this.lastHoverEvent && document.getElementById('coords').style.display === 'block') {
+					this.hover(this.lastHoverEvent);
+				}
+			});
 
 			if (document.getElementById('custom-art').checked) {
 				try {

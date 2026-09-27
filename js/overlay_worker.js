@@ -1,6 +1,6 @@
 // overlay_worker.js
 import {
-	bitmapFromPixels, buildTexturedScenePixels, halveWithoutHoles, initPixelSceneTextures, injectPixelSceneData,
+	bitmapFromPixels, buildTexturedScenePixels, ensureScenePixels, halveWithoutHoles, initPixelSceneTextures, injectPixelSceneData,
 	overlayVisualArt, PIXEL_SCENE_DATA, pixelSceneMaterialGrid, recolorPixelScene, recolorPixelSceneForBiome,
 } from './pixel_scene_generation.js';
 import * as bandSelect from './engine_resolve/band_select.js';
@@ -43,7 +43,7 @@ self.onmessage = async function(e) {
 	jobBusyStep();
 	runningJobs.add(job);
 	if (data.cmd === 'GENERATE_PIXEL_SCENES') {
-		generatePixelSceneImagesWorker(data.pixelSceneKeys, data.variantKeys);
+		await generatePixelSceneImagesWorker(data.pixelSceneKeys, data.variantKeys);
 	}
 	else if (data.cmd === 'GENERATE_OVERLAY') {
 		generateOverlayWorker(data.seed, data.ngPlusCount, data.pw, data.pwVertical, data.gameMode);
@@ -101,7 +101,7 @@ function variantPixels(key, variantKey) {
 }
 
 async function buildSceneBitmapsWorker(req) {
-	const { epoch, cacheKey, key, variantKey, x, y, textured, maxLevel, visualArt } = req;
+	const { epoch, cacheKey, key, variantKey, x, y, textured, maxLevel } = req;
 	// Every request must be answered: the main thread holds cacheKey as pending
 	// until a reply lands, and a textured request that never answers occupies
 	// one of its few in-flight slots for good.
@@ -112,9 +112,9 @@ async function buildSceneBitmapsWorker(req) {
 	try {
 		const data = PIXEL_SCENE_DATA[key];
 		if (!data) return fail(`no PIXEL_SCENE_DATA entry for "${key}" in the worker (${Object.keys(PIXEL_SCENE_DATA || {}).length} entries synced)`);
-		// The cell-color override art is not part of the metadata sync (~90 MB);
-		// the main thread ships it with the first request that needs it.
-		if (visualArt) data.visualArt = visualArt;
+		// Neither the pixels nor the colors-file art are part of the metadata
+		// sync; each scene is decoded here the first time it is drawn.
+		await ensureScenePixels(data);
 		let pixels = null, airMask = null;
 		if (textured) {
 			const modules = await initPixelSceneTextures();
@@ -212,6 +212,10 @@ async function generateEdgeDecalTileWorker(msg) {
 		// both shifts are whole chunks for every shipped map width, but the stamp
 		// clips to its own chunk so pass it rather than assume.
 		const mapWidth = getWorldSize(ngPlusCount > 0, gameMode);
+		// A scene whose pixels are not decoded yet has no grid, and the grid
+		// cache would keep that null, so decode first.
+		await Promise.all((scenes || []).map(s => ensureScenePixels(PIXEL_SCENE_DATA[s.key], { art: false })
+			.catch(err => console.error(`[edge decals] pixel scene ${s.key} failed to decode:`, err))));
 		const sceneGrids = (scenes || []).map(sceneGridFor).filter(Boolean);
 		const tGrid = performance.now();
 		// The stamp's pixel statistics cost two extra passes over the tile;
@@ -257,15 +261,18 @@ async function generateEdgeDecalTileWorker(msg) {
 	}, bitmap ? [bitmap] : []);
 }
 
-function generatePixelSceneImagesWorker(pixelSceneKeys, variantKeys) {
+async function generatePixelSceneImagesWorker(pixelSceneKeys, variantKeys) {
 	let outputPixelSceneKeys = [];
 	let outputVariantKeys = [];
 	let arraybuffers = [];
 
+	await Promise.all(pixelSceneKeys.map(k => ensureScenePixels(PIXEL_SCENE_DATA[k], { art: false })
+		.catch(err => console.error(`pixel scene ${k} failed to decode:`, err))));
 	for (let i = 0; i < pixelSceneKeys.length; i++) {
 		const pixelSceneKey = pixelSceneKeys[i];
 		const variantKey = variantKeys[i];
 		const pixelSceneData = PIXEL_SCENE_DATA[pixelSceneKey];
+		if (!ArrayBuffer.isView(pixelSceneData?.imgElement)) continue;
 		// Split variant key to recolor in parts
 		const variantParts = variantKey.split('&');
 		let recoloredPixelScene = pixelSceneData.imgElement;

@@ -160,5 +160,9 @@ function stripAncillaryChunks(buffer) {
 }
 
 export async function loadPNGBitmap(url) {
-    return loadPNG(url).then((data) => data.bitmap);
+    // Only the bitmap is wanted, so skip loadPNG's JS decode to RGBA.
+    if (IS_NODE) return null;
+    const response = await getFromZipFirst(url);
+    const sanitized = stripAncillaryChunks(await response.arrayBuffer());
+    return createImageBitmap(new Blob([sanitized], { type: 'image/png' }));
 }

@@ -103,6 +103,7 @@ export function sceneColorsFileName(dir, name) {
 
 // This was originally constant but it sometimes needs to be cleared to regenerate the cache...
 export let PIXEL_SCENE_DATA = {};
+let pixelSceneLoadGen = 0;
 export let PIXEL_SCENE_SPAWN_DATA = {}; // Populated during the prescan of pixel scenes, keyed by biome and scene name, used for looking up spawn points during generation without needing to access the image data again
 // ---------------------------------------------------------------------------
 // Pixel scene bitmap cache (PERF_PLAN Step 1)
@@ -447,7 +448,15 @@ export function injectPixelSceneSpawnData(cachedData) {
 }
 
 export function injectPixelSceneData(cachedData) {
-    PIXEL_SCENE_DATA = cachedData;
+	// A re-sync of the same load (every seed change) keeps the pixels this
+	// thread already decoded; a reload (e.g. clearSpawnPixels toggled) does not.
+	for (const [key, rec] of Object.entries(cachedData)) {
+		const old = PIXEL_SCENE_DATA[key];
+		if (old?.loadGen === undefined || old.loadGen !== rec.loadGen) continue;
+		rec.imgElement ??= old.imgElement;
+		rec.visualArt ??= old.visualArt;
+	}
+	PIXEL_SCENE_DATA = cachedData;
 }
 
 // How close a biome's background color may sit to its fill color before air
@@ -481,6 +490,7 @@ const PIXEL_SCENE_AIR_TRANSPARENCY_EXCEPTIONS = {
 export async function reloadPixelSceneCache() {
 	clearPixelSceneBitmapCache();
 	PIXEL_SCENE_DATA = {};
+	pixelSceneLoadGen++;
 	await loadPixelSceneData();
 }
 
@@ -616,11 +626,10 @@ function getPixelSceneKey(biomeName, sceneName) {
 	return biomeName + "/" + sceneName;
 }
 
-export async function loadPixelSceneData() {
-	// The material atlas + band tables the textured build needs. Started here (main
-	// thread, once, well before the first draw) rather than on demand, so the draw
-	// path can stay synchronous and simply fall back to flat colors until it lands.
-	initPixelSceneTextures();
+// Every scene key the generators can place, with the (biome, scene) that first
+// names it. The first biome wins because a key's spawn indices are per-biome
+// and several biomes collapse onto one key (getPixelSceneKey).
+function pixelSceneJobs(skip = {}) {
 	const jobs = [];
 	const queued = new Set();
 	for (const biome of Object.keys(PIXEL_SCENE_BIOME_MAP)) {
@@ -629,29 +638,71 @@ export async function loadPixelSceneData() {
 			for (const scene of sceneList) {
 				if (scene.name === "") continue; // Skip the "no scene" option
 				const key = getPixelSceneKey(biome, scene.name);
-				if (PIXEL_SCENE_DATA[key] || queued.has(key)) continue;
+				if (skip[key] || queued.has(key)) continue;
 				queued.add(key);
-				jobs.push({ biome, scene, key });
+				// `dir` overrides the folder for the entries whose PNG does not live
+				// under their own biome's name: the pyramid's interior rooms are
+				// data/biome_impl/crypt/*.png (PYRAMID_SCENES).
+				jobs.push({ biome, scene, key, alias: scene.dir ?? getBiomeAlias(biome) });
 			}
 		}
+	}
+	return jobs;
+}
+
+// Everything the app needs from a scene's PNGs except the pixels themselves,
+// precomputed by tools/gen_pixel_scene_meta.mjs so startup decodes no images.
+// A scene missing from it (the file is stale) is decoded at load, as before.
+const PIXEL_SCENE_META_URL = new URL('../data/pixel_scene_meta.json', import.meta.url);
+let sceneMetaPromise = null;
+function loadSceneMeta() {
+	return sceneMetaPromise ??= (async () => {
+		if (PIXEL_SCENE_META_URL.protocol === 'file:') {
+			const fs = await import('node:fs/promises');
+			return JSON.parse(await fs.readFile(PIXEL_SCENE_META_URL, 'utf8'));
+		}
+		const response = await fetch(PIXEL_SCENE_META_URL);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		return response.json();
+	})().catch((err) => {
+		console.warn('pixel_scene_meta.json unavailable; decoding every pixel scene at load:', err);
+		sceneMetaPromise = null;
+		return null;
+	});
+}
+
+export async function loadPixelSceneData() {
+	// The material atlas + band tables the textured build needs. Started here (main
+	// thread, once, well before the first draw) rather than on demand, so the draw
+	// path can stay synchronous and simply fall back to flat colors until it lands.
+	initPixelSceneTextures();
+	const jobs = pixelSceneJobs(PIXEL_SCENE_DATA);
+	const meta = (await loadSceneMeta())?.scenes ?? {};
+	const results = new Array(jobs.length);
+	const undecoded = [];
+	jobs.forEach((job, i) => {
+		const m = meta[job.key];
+		if (m) results[i] = recordFromMeta(job, m);
+		else undecoded.push(i);
+	});
+	if (undecoded.length && Object.keys(meta).length) {
+		console.warn(`${undecoded.length} pixel scenes missing from pixel_scene_meta.json, decoding them now; rerun tools/gen_pixel_scene_meta.mjs`);
 	}
 
 	// Bounded fan-out: fetch/unzip/decode overlap across scenes, without firing
 	// hundreds of requests at once.
-	const results = new Array(jobs.length);
 	let next = 0;
 	const worker = async () => {
-		while (next < jobs.length) {
-			const i = next++;
-			const { biome, scene, key } = jobs[i];
+		while (next < undecoded.length) {
+			const i = undecoded[next++];
 			try {
-				results[i] = await loadPixelSceneRecord(biome, scene, key);
+				results[i] = await loadPixelSceneRecord(jobs[i]);
 			} catch (err) {
-				console.error(`pixel scene ${key} failed to load:`, err);
+				console.error(`pixel scene ${jobs[i].key} failed to load:`, err);
 			}
 		}
 	};
-	await Promise.all(Array.from({ length: Math.min(16, jobs.length) }, worker));
+	await Promise.all(Array.from({ length: Math.min(16, undecoded.length) }, worker));
 
 	// Insert in the original order so PIXEL_SCENE_DATA iterates as it did before.
 	let loaded = 0;
@@ -661,69 +712,123 @@ export async function loadPixelSceneData() {
 		PIXEL_SCENE_DATA[r.record.key] = r.record;
 		loaded++;
 	}
-	console.log(`Loaded ${loaded}/${jobs.length} pixel scenes.`);
+	console.log(`Loaded ${loaded}/${jobs.length} pixel scenes (${undecoded.length} decoded).`);
 }
 
-async function loadPixelSceneRecord(biome, scene, key) {
-	const alias = scene.dir ?? getBiomeAlias(biome);
-	const url = `../data/pixel_scenes/${alias}/${scene.name}.png`;
-	const imgData = await loadPNG(url, { bitmap: false });
+// The contents of pixel_scene_meta.json, rebuilt from the PNGs. Spawn points
+// are flat [x, y, spawnFunctionIndex, ...]; artMask is run lengths over the
+// scene's pixels in row order, alternating uncovered/covered, starting uncovered.
+export async function buildPixelSceneMeta() {
+	const scenes = {};
+	for (const job of pixelSceneJobs()) {
+		const { meta } = await decodeSceneForMeta(job);
+		scenes[job.key] = meta;
+	}
+	return { version: 1, scenes };
+}
+
+function sceneUrl(dir, name) {
+	return `../data/pixel_scenes/${dir}/${name}.png`;
+}
+
+async function decodeSceneForMeta({ biome, scene, alias }) {
+	const imgData = await loadPNG(sceneUrl(alias, scene.name), { bitmap: false });
 	makeBlackTransparent(imgData.data);
-	// The cell-color override art, kept as-is (its black pixels are
-	// real art, so no makeBlackTransparent here). A failed fetch just
-	// means this scene renders material-derived, like any other.
+	// The cell-color override art, kept as-is (its black pixels are real art, so
+	// no makeBlackTransparent here). A failed fetch just means this scene renders
+	// material-derived, like any other.
 	let visualArt = null;
-	let artMask = null;
+	let artMaskRuns = null;
 	const artName = sceneColorsFileName(alias, scene.name);
 	if (artName) {
 		try {
-			const vis = await loadPNG(`../data/pixel_scenes/${alias}/${artName}.png`, { bitmap: false });
+			const vis = await loadPNG(sceneUrl(alias, artName), { bitmap: false });
 			visualArt = { data: vis.data, width: vis.width, height: vis.height };
-			// Bit-packed "art covers this scene pixel" mask, for the hover
-			// readout's "Art:" line (app.js pushOriginLines) -- small enough
-			// to clone into the overlay worker, unlike the art itself.
-			// It plays NO part in the edge-decal pass: the art overrides
-			// cell colors only, never materials, so edges are decided from
-			// the material grid alone.
-			artMask = new Uint8Array((imgData.width * imgData.height + 7) >> 3);
-			const aw = Math.min(imgData.width, vis.width), ah = Math.min(imgData.height, vis.height);
-			for (let y = 0; y < ah; y++) {
-				for (let x = 0; x < aw; x++) {
-					if (vis.data[(y * vis.width + x) * 4 + 3] >= 128) {
-						const p = y * imgData.width + x;
-						artMask[p >> 3] |= 0x80 >> (p & 7);
-					}
-				}
-			}
+			artMaskRuns = artCoverageRuns(imgData.width, imgData.height, visualArt);
 		} catch (err) {
 			console.warn(`visual art ${artName}.png missing for ${alias}/${scene.name}:`, err);
 		}
 	}
-	// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
+	// Clears the spawn pixels in place when clearSpawnPixels is on; the classes
+	// below never involve a spawn color, so they do not depend on that setting.
 	const spawnPoints = prescanPixelScene(imgData, biome);
-	//console.log(`Loaded pixel scene ${key} with ${spawnPoints.length} spawn points.`);
-	const record = {
+	const meta = {
+		width: imgData.width,
+		height: imgData.height,
+		...classifyPixelSceneColors(imgData.data),
+		spawns: spawnPoints.flatMap(p => [p.x, p.y, p.spawnFunctionIndex]),
+	};
+	if (artMaskRuns) meta.artMask = artMaskRuns;
+	return { meta, pixels: imgData.data, visualArt };
+}
+
+// Where the art covers the scene (alpha >= 128), for the hover readout's "Art:"
+// line (app.js pushOriginLines) and the edge-decal gate. It plays no part in
+// which materials the edge pass sees: the art overrides cell colors only.
+function artCoverageRuns(width, height, vis) {
+	const runs = [];
+	let covered = false, run = 0;
+	for (let y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			const c = x < vis.width && y < vis.height && vis.data[(y * vis.width + x) * 4 + 3] >= 128;
+			if (c !== covered) { runs.push(run); run = 0; covered = c; }
+			run++;
+		}
+	}
+	runs.push(run);
+	return runs;
+}
+
+// Bit-packed MSB-first, one bit per scene pixel.
+function artMaskFromRuns(runs, width, height) {
+	const mask = new Uint8Array((width * height + 7) >> 3);
+	let p = 0, covered = false;
+	for (const n of runs) {
+		const end = p + n;
+		if (covered) for (; p < end; p++) mask[p >> 3] |= 0x80 >> (p & 7);
+		p = end;
+		covered = !covered;
+	}
+	return mask;
+}
+
+function recordFromMeta(job, m) {
+	const { biome } = job;
+	const spawnPoints = [];
+	for (let i = 0; i < m.spawns.length; i += 3) {
+		spawnPoints.push({ sourceBiome: biome, x: m.spawns[i], y: m.spawns[i + 1], spawnFunctionIndex: m.spawns[i + 2] });
+	}
+	const artMask = m.artMask ? artMaskFromRuns(m.artMask, m.width, m.height) : null;
+	return { record: pixelSceneRecord(job, m, spawnPoints, artMask), spawnPoints };
+}
+
+function pixelSceneRecord({ biome, scene, key, alias }, m, spawnPoints, artMask) {
+	return {
 		key: key,
 		biome: biome,
 		name: scene.name,
 		dir: alias, // data/pixel_scenes/<dir>/<name>.png -- the key can differ (getPixelSceneKey)
-		imgElement: imgData.data, // Store the image data directly since we need to manipulate it for recoloring
-		width: imgData.width,
-		height: imgData.height,
-		//spawnPoints: spawnPoints,
+		loadGen: pixelSceneLoadGen, // which reloadPixelSceneCache() built this (injectPixelSceneData)
+		// The base RGBA pixels, decoded on first use (ensureScenePixels): only the
+		// overlay worker and the hover readout ever read them.
+		imgElement: null,
+		width: m.width,
+		height: m.height,
 		isCosmetic: spawnPoints.length === 0, // If there are no spawn points, we can consider it purely cosmetic and can optionally skip some checks during generation
 		// Which recolor classes this scene actually contains, so it only
 		// pays for a per-chunk variant when one of them depends on the
 		// chunk it lands in (underlyingBiomeSuffix).
-		...classifyPixelSceneColors(imgData.data),
+		hasAir: m.hasAir,
+		hasBiomeFill: m.hasBiomeFill,
 		// The game's `skip_edge_textures`: this scene's cells still erase
 		// the terrain decal pass under them, but the scene runs no decal
 		// pass of its own (js/pixel_scene_edge_flags.js).
 		skipEdgeTextures: SKIP_EDGE_TEXTURE_SCENES.has(`${alias}/${scene.name}`),
-		visualArt, // per-pixel cell-color override art, or null
+		visualArt: null, // per-pixel cell-color override art, decoded on first use (ensureScenePixels)
 		// Basename of the colors file that art came from, for the hover
 		// readout -- not always `${name}_visual` (SCENE_COLORS_FILE_ALIASES).
-		artName,
+		// Null when the scene has no art, or its file failed to load.
+		artName: artMask ? sceneColorsFileName(alias, scene.name) : null,
 		artMask, // bit-packed art coverage (MSB-first), or null
 		// Repo-relative path of this scene's background sprite, or null.
 		// Just a string: the bitmap itself is owned by the background
@@ -732,6 +837,73 @@ async function loadPixelSceneRecord(biome, scene, key) {
 		backgroundArt: SCENE_BACKGROUNDS[`${alias}/${scene.name}`] ?? null,
 		variants: {}, // Used for color material changes, keyed as `${color}=${material}`
 	};
+}
+
+// Decodes a scene's base pixels (and, with `art`, its colors-file art) onto its
+// record, once per record. Records are structured-cloned between threads, so the
+// in-flight loads are tracked here rather than on the record itself.
+const scenePixelLoads = new WeakMap();
+const sceneArtLoads = new WeakMap();
+
+export function ensureScenePixels(data, { art = true } = {}) {
+	if (!data) return Promise.resolve();
+	const loads = [];
+	if (!ArrayBuffer.isView(data.imgElement)) loads.push(onceFor(scenePixelLoads, data, decodeScenePixels));
+	if (art && data.artName && !data.visualArt) loads.push(onceFor(sceneArtLoads, data, decodeSceneArt));
+	return Promise.all(loads);
+}
+
+// For synchronous readers (the hover readout): start decoding a scene's base
+// pixels and call the registered listener when they land, so the reader can
+// ask again.
+let scenePixelsListener = null;
+export function setScenePixelsListener(fn) {
+	scenePixelsListener = fn;
+}
+export function requestScenePixels(data) {
+	ensureScenePixels(data, { art: false })
+		.then(() => scenePixelsListener?.(data))
+		.catch(err => console.error(`pixel scene ${data?.key} failed to decode:`, err));
+}
+
+function onceFor(loads, data, load) {
+	let p = loads.get(data);
+	if (!p) {
+		p = load(data).catch((err) => {
+			loads.delete(data);   // let a later request retry
+			throw err;
+		});
+		loads.set(data, p);
+	}
+	return p;
+}
+
+async function decodeScenePixels(data) {
+	const img = await loadPNG(sceneUrl(data.dir, data.name), { bitmap: false });
+	if (img.width !== data.width || img.height !== data.height) {
+		console.warn(`pixel scene ${data.key} is ${img.width}x${img.height} but pixel_scene_meta.json says ${data.width}x${data.height}; rerun tools/gen_pixel_scene_meta.mjs`);
+	}
+	makeBlackTransparent(img.data);
+	if (appSettings.clearSpawnPixels) prescanPixelScene(img, data.biome);
+	data.imgElement = img.data;
+}
+
+async function decodeSceneArt(data) {
+	try {
+		const vis = await loadPNG(sceneUrl(data.dir, data.artName), { bitmap: false });
+		data.visualArt = { data: vis.data, width: vis.width, height: vis.height };
+	} catch (err) {
+		console.warn(`visual art ${data.artName}.png missing for ${data.dir}/${data.name}:`, err);
+	}
+}
+
+// A scene pixel_scene_meta.json does not know: decode it now, and keep the
+// pixels since they are already in hand.
+async function loadPixelSceneRecord(job) {
+	const { meta, pixels, visualArt } = await decodeSceneForMeta(job);
+	const { record, spawnPoints } = recordFromMeta(job, meta);
+	record.imgElement = pixels;
+	record.visualArt = visualArt;
 	return { record, spawnPoints };
 }
 

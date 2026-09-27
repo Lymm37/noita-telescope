@@ -3,7 +3,7 @@ import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TILES } from './generator_config
 import { GetBiomeOffset, ComputeMagicValueFromDoubles } from './edge_noise.js';
 import { biomeEdgeNoiseFlag } from './wobble_flags.js';
 import { MATERIAL_COLOR_LOOKUP } from './potion_config.js';
-import { PIXEL_SCENE_DATA, sceneDensityClassAt } from './pixel_scene_generation.js';
+import { PIXEL_SCENE_DATA, requestScenePixels, sceneDensityClassAt } from './pixel_scene_generation.js';
 import { appSettings } from './settings.js';
 
 export const CONTAINER_TYPES = [
@@ -502,6 +502,7 @@ export function getMaterialProvenanceAtWorldCoordinates(tileLayers, pixelScenes,
                 imgData = PIXEL_SCENE_DATA[scene.key].variants[shortenedVariantKey];
             } else {
                 imgData = PIXEL_SCENE_DATA[scene.key].imgElement;
+                if (!imgData) requestScenePixels(PIXEL_SCENE_DATA[scene.key]);
             }
             if (!imgData) continue; // Hasn't been generated yet?
             const pixelIdx = (localY * scene.width + localX) * 4; // RGBA in one array
