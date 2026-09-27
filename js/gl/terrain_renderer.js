@@ -25,6 +25,7 @@
 
 import { CHUNK_SIZE, WORLD_CHUNK_CENTER_Y } from '../constants.js';
 import { getWorldCenter, getWorldSize } from '../utils.js';
+import { renderHud } from '../render_hud.js';
 import { buildChunkTextures, buildNoiseTable512 } from './chunk_textures.js';
 import {
     buildEngineResources, buildEngineTable, buildMatColorTable, buildSinHashAndGrids, surfaceNoisePhase,
@@ -100,6 +101,47 @@ export class GLTerrainRenderer {
         this.lutKey = null;
         this.stats = null;
         this.buildMs = 0;
+        this.timerExt = undefined; // EXT_disjoint_timer_query_webgl2, looked up once
+        this.gpuQueries = [];
+        renderHud.addPoller(() => this.pollGpuTimers());
+    }
+
+    // --- GPU timing for the render HUD (render_hud.js). Only while the HUD is
+    // on; one TIME_ELAPSED query may be open at a time, so callers never nest.
+    gpuTimerBegin() {
+        if (!renderHud.on || !this.gl || this.contextLost) return null;
+        const gl = this.gl;
+        if (this.timerExt === undefined) {
+            this.timerExt = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+            renderHud.setGpuTimerState(this.timerExt ? 'yes' : 'unavailable');
+        }
+        if (!this.timerExt) return null;
+        const q = gl.createQuery();
+        gl.beginQuery(this.timerExt.TIME_ELAPSED_EXT, q);
+        return q;
+    }
+
+    gpuTimerEnd(q, onMs) {
+        if (!q) return;
+        this.gl.endQuery(this.timerExt.TIME_ELAPSED_EXT);
+        this.gpuQueries.push({ q, onMs });
+        // Results that never land (driver quirk) must not pile up.
+        if (this.gpuQueries.length > 64) this.gl.deleteQuery(this.gpuQueries.shift().q);
+    }
+
+    pollGpuTimers() {
+        if (!this.gpuQueries.length) return;
+        const gl = this.gl;
+        if (!gl || this.contextLost) { this.gpuQueries = []; return; }
+        // A disjoint event (clock change, context switch) voids every pending result.
+        const disjoint = gl.getParameter(this.timerExt.GPU_DISJOINT_EXT);
+        const keep = [];
+        for (const e of this.gpuQueries) {
+            if (!disjoint && !gl.getQueryParameter(e.q, gl.QUERY_RESULT_AVAILABLE)) { keep.push(e); continue; }
+            if (!disjoint) e.onMs(gl.getQueryParameter(e.q, gl.QUERY_RESULT) / 1e6);
+            gl.deleteQuery(e.q);
+        }
+        this.gpuQueries = keep;
     }
 
     /** True once a context exists and resources are uploaded. */
@@ -341,7 +383,9 @@ export class GLTerrainRenderer {
         gl.uniform2i(u.u_vpOrigin, 0, 0);
         gl.uniform1i(u.u_materialIdOut, 0);
 
+        const q = this.gpuTimerBegin();
         gl.drawArrays(gl.TRIANGLES, 0, 3);
+        this.gpuTimerEnd(q, (ms) => renderHud.sample('terrainGL', 'gpu', ms));
         return this.canvas;
     }
 
@@ -387,7 +431,7 @@ export class GLTerrainRenderer {
      *          bottom-up; edge_decal_layer.js decodeMaterialIdTile turns it into
      *          ids), or null when the pass is unavailable
      */
-    resolveMaterialTiles(rects) {
+    resolveMaterialTiles(rects, onGpuMs = null) {
         if (!this.engineReady || !rects.length) return Promise.resolve(null);
         const gl = this.gl, u = this.uniforms;
         const tw = rects[0].w, th = rects[0].h;
@@ -429,6 +473,7 @@ export class GLTerrainRenderer {
         gl.uniform1i(u.u_engineTerrain, 1);
         gl.uniform1f(u.u_surfacePhase, this.surfacePhase ?? 0);
         gl.uniform1i(u.u_materialIdOut, 1);
+        const q = this.gpuTimerBegin();
         for (let i = 0; i < rects.length; i++) {
             const vx = (i % cols) * tw, vy = Math.floor(i / cols) * th;
             gl.viewport(vx, vy, tw, th);
@@ -436,6 +481,10 @@ export class GLTerrainRenderer {
             gl.uniform2i(u.u_originInt, rects[i].x0, rects[i].y0);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
         }
+        this.gpuTimerEnd(q, (ms) => {
+            renderHud.sample('edgeDecals', 'gpu', ms);
+            onGpuMs?.(ms);
+        });
         gl.uniform1i(u.u_materialIdOut, 0);
         gl.uniform2i(u.u_vpOrigin, 0, 0);
 
@@ -460,6 +509,7 @@ export class GLTerrainRenderer {
             // Copying out of the buffer is a memcpy per tile; a few per timer
             // tick keeps a big batch from landing in one frame.
             const copyStep = () => {
+                const c0 = performance.now();
                 gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo);
                 for (let n = 0; n < 8 && out.length < rects.length; n++) {
                     const bytes = new Uint8Array(tileBytes);
@@ -467,6 +517,7 @@ export class GLTerrainRenderer {
                     out.push(bytes);
                 }
                 gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+                renderHud.sample('edgeDecals', 'main', performance.now() - c0);
                 if (out.length < rects.length) { setTimeout(copyStep, 0); return; }
                 gl.deleteBuffer(pbo);
                 resolve(out);

@@ -137,6 +137,7 @@ export function updateSettingsFromUI() {
 		renderLayers: readRenderLayersFromUI(),
 		terrainRenderer: document.getElementById('debug-terrain-renderer')?.value || 'gl',
 		debugLayerTimings: document.getElementById('debug-layer-timings')?.checked || false,
+		debugRenderHud: document.getElementById('debug-render-hud')?.checked || false,
 		renderEverything: document.getElementById('debug-render-everything')?.checked || false,
 		checkerboardUnpainted: document.getElementById('debug-unpainted-checkerboard')?.checked ?? true,
 		biomeBoundaryContour: document.getElementById('debug-biome-boundary-contour')?.checked ?? false,

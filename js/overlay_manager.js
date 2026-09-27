@@ -6,6 +6,7 @@ import { PIXEL_SCENE_DATA, putPixelSceneBitmaps, setPixelSceneBitmapRequester } 
 import { appSettings, updateSettingsFromUI } from './settings.js';
 import { CHUNK_SIZE } from './constants.js';
 import { getWorldCenter, getWorldStride } from './utils.js';
+import { renderTrace } from './render_hud.js';
 
 export const overlayWorker = new Worker(new URL('./overlay_worker.js', import.meta.url), { type: 'module' });
 // A worker whose script fails to load/parse (stale cache, syntax error) dies
@@ -22,7 +23,13 @@ const pendingOverlayRequests = new Set();
 overlayWorker.onmessage = async (e) => {
 	const msg = e.data;
 
-	if (msg.type === 'STATUS') {
+	if (msg.type === 'JOB_START') {
+		renderTrace.stage(msg.traceId, 'running');
+	}
+	else if (msg.type === 'JOB_DONE') {
+		renderTrace.end(msg.traceId, { workerMs: msg.ms });
+	}
+	else if (msg.type === 'STATUS') {
 		app.setLoading(true, msg.msg);
 	}
 	else if (msg.type === 'PIXEL_SCENES_GENERATED') {
@@ -137,7 +144,8 @@ export function recolorPixelScenes(pixelSceneList) {
 		const payload = {
 			cmd: 'GENERATE_PIXEL_SCENES',
 			pixelSceneKeys,
-			variantKeys
+			variantKeys,
+			traceId: renderTrace.begin('recolor', `${pixelSceneKeys.length} scene variants`, 'pixelScenes'),
 		};
 		overlayWorker.postMessage(payload);
 	}
@@ -153,6 +161,7 @@ setPixelSceneBitmapRequester((request, sceneData) => {
 		artSentToWorker.add(request.key);
 		request.visualArt = sceneData.visualArt;
 	}
+	request.traceId = renderTrace.begin('scene', `${request.key}${request.textured ? ' (tex)' : ''}`, 'pixelScenes');
 	overlayWorker.postMessage(request);
 });
 
@@ -181,7 +190,8 @@ export function getOrGenerateOverlay(pw, pwVertical) {
 		ngPlusCount: app.ngPlusCount,
 		pw,
 		pwVertical,
-		gameMode: app.gameMode
+		gameMode: app.gameMode,
+		traceId: renderTrace.begin('overlay', `PW ${pwKey}`, 'tileOverlays'),
 	};
 
 	overlayWorker.postMessage(payload);
@@ -214,16 +224,21 @@ export function requestEdgeDecalTiles(worldKey, tiles) {
 		seed: app.seed, ngPlusCount: app.ngPlusCount, gameMode: app.gameMode,
 	};
 	const post = (job, rgba) => {
-		const msg = { ...base, tx: job.tx, ty: job.ty, scenes: job.scenes, matRGBA: rgba || null, size };
+		renderTrace.stage(job.traceId, 'queued');
+		const msg = { ...base, tx: job.tx, ty: job.ty, scenes: job.scenes, matRGBA: rgba || null, size, traceId: job.traceId };
 		overlayWorker.postMessage(msg, rgba ? [rgba.buffer] : []);
 	};
 	const terrain = app.glTerrain;
-	if (!terrain || !terrain.engineReady) {
+	const gpu = !!(terrain && terrain.engineReady);
+	for (const job of jobs) job.traceId = renderTrace.begin('decal', `tile ${job.tx},${job.ty}`, 'edgeDecals', gpu ? 'gpu' : 'queued');
+	if (!gpu) {
 		for (const job of jobs) post(job, null);
 		return accepted;
 	}
 	const rects = jobs.map(j => ({ x0: j.tx * EDGE_DECAL_TILE - P, y0: j.ty * EDGE_DECAL_TILE - P, w: size, h: size }));
-	terrain.resolveMaterialTiles(rects).then((grids) => {
+	// The batch's GPU time, split evenly over its tiles for the HUD.
+	const onGpuMs = (ms) => { for (const job of jobs) renderTrace.gpu(job.traceId, ms / jobs.length, jobs.length); };
+	terrain.resolveMaterialTiles(rects, onGpuMs).then((grids) => {
 		jobs.forEach((job, i) => post(job, grids ? grids[i] : null));
 	});
 	return accepted;

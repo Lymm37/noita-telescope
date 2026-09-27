@@ -25,6 +25,7 @@ import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } fr
 import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, invalidatePendingOverlays, requestEdgeDecalTiles } from './overlay_manager.js';
 import { drawEdgeDecals, edgeDecalAt, invalidateEdgeDecals, pendingEdgeDecalTiles } from './edge_decal_layer.js';
 import { runRenderBenchmark } from './render_benchmark.js';
+import { renderHud, renderTrace } from './render_hud.js';
 import { getMaterialAtlas, initMaterialAtlas, materialAlpha, materialAtlasEntry, materialTexelInfo } from './gl/material_atlas.js';
 import { ENGINE_MODE_FALLBACK, ENGINE_MODE_TOPO2 } from './gl/engine_resources.js';
 import { MATERIAL_BY_NAME } from './potion_config.js';
@@ -449,6 +450,7 @@ function markLayer(prof, key) {
 		prof.buckets.set(key, bucket);
 	}
 	bucket.ms += now - prof.t;
+	prof.frameLayers[key] = (prof.frameLayers[key] || 0) + (now - prof.t);
 	bucket.images += drawCounter.images - prof.images;
 	bucket.ops += drawCounter.ops - prof.ops;
 	prof.t = now;
@@ -840,6 +842,7 @@ export const app = {
 		document.getElementById('debug-unpainted-checkerboard').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-biome-boundary-contour').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-layer-timings').onchange = () => {this.saveSettings(); this.draw();};
+		document.getElementById('debug-render-hud').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-render-everything').onchange = () => {this.saveSettings(); this.draw();};
 		document.getElementById('debug-run-benchmark').onclick = async () => {
 			const status = document.getElementById('debug-benchmark-status');
@@ -2896,9 +2899,10 @@ export const app = {
 		this.draw();
 	},
 
-	// Returns a profiling handle for this frame, or null when debug-layer-timings is off.
+	// Returns a profiling handle for this frame, or null when neither
+	// debug-layer-timings nor the render HUD wants it.
 	startLayerProfile() {
-		if (!appSettings.debugLayerTimings) {
+		if (!appSettings.debugLayerTimings && !renderHud.on) {
 			removeDrawCounter();
 			this.layerProfile = null;
 			return null;
@@ -2909,6 +2913,8 @@ export const app = {
 		}
 		const prof = this.layerProfile;
 		prof.t = performance.now();
+		prof.frameT0 = prof.t;
+		prof.frameLayers = {};
 		prof.images = drawCounter.images;
 		prof.ops = drawCounter.ops;
 		return prof;
@@ -2919,7 +2925,14 @@ export const app = {
 		if (!prof) return;
 		prof.frames++;
 		const now = performance.now();
+		renderHud.frame(prof.frameLayers, now - prof.frameT0);
 		if (now - prof.lastReport < 1000) return;
+		if (!appSettings.debugLayerTimings) {
+			prof.buckets.clear();
+			prof.frames = 0;
+			prof.lastReport = now;
+			return;
+		}
 		const rows = {};
 		let totalMs = 0;
 		for (const [key, bucket] of prof.buckets) {
@@ -3138,6 +3151,7 @@ export const app = {
 		let bake = this.backdropBakes.get(runs);
 		if (bake) return bake;
 		if (!backgroundArtLoaded()) return null;
+		const t0 = performance.now();
 		// An ImageBitmap, not a canvas: a canvas this large is software-backed
 		// in Chrome and re-uploaded on every draw (measured 4-8 ms a frame).
 		const scratch = new OffscreenCanvas(
@@ -3148,6 +3162,7 @@ export const app = {
 		drawBackdropRuns(bctx, runs, 0, 0, { left: 0, top: 0, right: this.w * 512, bottom: this.h * 512 });
 		bake = scratch.transferToImageBitmap();
 		this.backdropBakes.set(runs, bake);
+		renderTrace.done('bake', 'backdrop', 'biomeBackground', performance.now() - t0);
 		return bake;
 	},
 
@@ -3190,6 +3205,7 @@ export const app = {
 		// are drawn on top -- a burst of worker replies costs their scenes, not
 		// the whole world's again.
 		const { bctx, drawn } = bake;
+		const drawnBefore = drawn.size;
 		if (bake.bitmap) bctx.drawImage(bake.bitmap, bake.x, bake.y, bake.w, bake.h);
 		for (const scene of list) {
 			if (drawn.has(scene)) continue;
@@ -3204,6 +3220,9 @@ export const app = {
 		bake.bitmap = bake.canvas.transferToImageBitmap();
 		bake.version = version;
 		bake.builtAt = now;
+		if (drawn.size > drawnBefore) {
+			renderTrace.done('bake', `scenes +${drawn.size - drawnBefore}/${list.length}`, 'pixelScenes', performance.now() - now);
+		}
 		return bake;
 	},
 
@@ -3266,6 +3285,7 @@ export const app = {
 		if (bake && bake.bitmap) bake.bitmap.close?.();
 		bake = { key, zoomBucket, z, bitmap: canvas.transferToImageBitmap(), x: minX, y: minY, w: w / z, h: h / z };
 		poiBakes.set(list, bake);
+		renderTrace.done('bake', `pois (${items.length})`, 'pois', performance.now() - now);
 		return bake;
 	},
 
@@ -3455,6 +3475,10 @@ export const app = {
 		// (js/settings.js). `prof` is null unless debug-layer-timings is on, so every
 		// markLayer() call below is a single null check when profiling is off.
 		const L = appSettings.renderLayers;
+		if (renderHud.on !== !!appSettings.debugRenderHud) {
+			renderHud.setPendingSource(() => this.asyncRenderPending());
+			renderHud.setEnabled(appSettings.debugRenderHud, document.getElementById('view'));
+		}
 		const prof = this.startLayerProfile();
 		this.colorProbe.x = -1; // the tooltip's cached readback belongs to the old frame
 		this.frameSerial++;     // ... and so does the decal probe's (decalTexelAt)
@@ -4468,6 +4492,7 @@ export const app = {
 			idle(() => {
 				this.bakePrebuildScheduled = false;
 				if (!this.backdropRuns) return;
+				const t0 = performance.now();
 				// Either bake can decline (background art still decoding, no
 				// scene bitmaps yet); then the next frame schedules another try.
 				// The heaven/hell rows come into view a little past the overview
@@ -4482,6 +4507,7 @@ export const app = {
 					if (list && !this.sceneBake(list, relOffX, 14 * 512 - pwY * 24576)) ok = false;
 				}
 				this.bakesPrebuilt = ok;
+				renderHud.sample('idle bakes', 'main', performance.now() - t0);
 			});
 		}
 	},
@@ -4621,6 +4647,7 @@ export const app = {
 			renderLayers: readRenderLayersFromUI(),
 			terrainRenderer: document.getElementById('debug-terrain-renderer').value,
 			debugLayerTimings: document.getElementById('debug-layer-timings').checked,
+			debugRenderHud: document.getElementById('debug-render-hud').checked,
 			renderEverything: document.getElementById('debug-render-everything').checked,
 			checkerboardUnpainted: document.getElementById('debug-unpainted-checkerboard').checked,
 			biomeBoundaryContour: document.getElementById('debug-biome-boundary-contour').checked,
@@ -4725,6 +4752,7 @@ export const app = {
 				document.getElementById('debug-terrain-renderer').value = settings.terrainRenderer || 'gl';
 				settings.terrainRenderer = document.getElementById('debug-terrain-renderer').value;
 				document.getElementById('debug-layer-timings').checked = settings.debugLayerTimings || false;
+				document.getElementById('debug-render-hud').checked = settings.debugRenderHud || false;
 				document.getElementById('debug-render-everything').checked = settings.renderEverything || false;
 				settings.renderEverything = document.getElementById('debug-render-everything').checked;
 				document.getElementById('debug-unpainted-checkerboard').checked = settings.checkerboardUnpainted ?? true;

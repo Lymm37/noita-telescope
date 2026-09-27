@@ -31,7 +31,18 @@ self.onmessage = async function(e) {
 		// Unlocks not needed here, hopefully
 		return; 
 	}
-	else if (data.cmd === 'GENERATE_PIXEL_SCENES') {
+	// Render HUD tracing (render_hud.js): a request carrying a traceId gets a
+	// JOB_START when it leaves the FIFO and a JOB_DONE with this thread's time
+	// for it. The reply itself is posted by the job as usual. Jobs that await
+	// overlap, so elapsed time is shared out among the jobs running at the time
+	// (jobBusyStep) -- otherwise ten jobs awaiting one atlas load would each
+	// claim the whole wait and the worker would read as 1000% busy.
+	const traceId = data.traceId;
+	if (traceId) self.postMessage({ type: 'JOB_START', traceId });
+	const job = { ms: 0 };
+	jobBusyStep();
+	runningJobs.add(job);
+	if (data.cmd === 'GENERATE_PIXEL_SCENES') {
 		generatePixelSceneImagesWorker(data.pixelSceneKeys, data.variantKeys);
 	}
 	else if (data.cmd === 'GENERATE_OVERLAY') {
@@ -43,7 +54,21 @@ self.onmessage = async function(e) {
 	else if (data.cmd === 'BUILD_SCENE_BITMAPS') {
 		await buildSceneBitmapsWorker(data);
 	}
+	jobBusyStep();
+	runningJobs.delete(job);
+	if (traceId) self.postMessage({ type: 'JOB_DONE', traceId, ms: job.ms });
 };
+
+const runningJobs = new Set();
+let jobBusyAt = 0;
+function jobBusyStep() {
+	const t = performance.now();
+	if (runningJobs.size) {
+		const share = (t - jobBusyAt) / runningJobs.size;
+		for (const j of runningJobs) j.ms += share;
+	}
+	jobBusyAt = t;
+}
 
 // ---------------------------------------------------------------------------
 // Scene bitmaps (pixel_scene_generation.js "Bitmaps are BUILT IN THE OVERLAY
