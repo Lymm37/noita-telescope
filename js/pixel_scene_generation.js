@@ -148,6 +148,10 @@ const VARIANT_RELEASED = { released: true };
 // ---------------------------------------------------------------------------
 let sceneBitmapRequester = null;   // (request, sceneData) => void, set by overlay_manager
 const pendingSceneBitmaps = new Map();   // cacheKey -> textured (in flight at the worker)
+// Cumulative, for the Render HUD. A refetch is a request for a key that was
+// already delivered once -- evicted and wanted back, the signature of thrash.
+const sceneBitmapCounters = { requests: 0, refetches: 0, evictions: 0, failures: 0 };
+const deliveredSceneBitmaps = new Set();
 // Bumped whenever the cache is cleared, so a reply for the old contents is dropped.
 let sceneBitmapEpoch = 0;
 // In-flight caps. The worker is FIFO and cannot cancel: with no cap a pan at the
@@ -179,6 +183,8 @@ function requestSceneBitmaps(pixelScene, cacheKey, textured) {
 	const texturedCap = appSettings.renderEverything ? 32 : MAX_INFLIGHT_TEXTURED;
 	if (inflight >= (textured ? texturedCap : MAX_INFLIGHT_FLAT)) return;
 	pendingSceneBitmaps.set(cacheKey, textured);
+	sceneBitmapCounters.requests++;
+	if (deliveredSceneBitmaps.has(cacheKey)) sceneBitmapCounters.refetches++;
 	sceneBitmapRequester({
 		cmd: 'BUILD_SCENE_BITMAPS',
 		epoch: sceneBitmapEpoch,
@@ -235,6 +241,7 @@ export function putPixelSceneBitmaps(msg) {
 		pixelSceneCacheBytes += bytes;
 	}
 	PIXEL_SCENE_BITMAP_CACHE.set(entry.cacheKey, entry);
+	deliveredSceneBitmaps.add(entry.cacheKey);
 	// The bitmap is now the only copy this thread needs of a biome-recolored
 	// variant: material lookups (utils.js) read the pre-biome variants, which are
 	// left alone, and the worker rebuilds any variant from the base image.
@@ -253,6 +260,7 @@ const sceneBitmapFailures = new Map();   // cacheKey -> count
 function logSceneBitmapFailure(msg) {
 	const n = (sceneBitmapFailures.get(msg.cacheKey) || 0) + 1;
 	sceneBitmapFailures.set(msg.cacheKey, n);
+	sceneBitmapCounters.failures++;
 	if (n <= 3 || n % 50 === 0) {
 		const data = PIXEL_SCENE_DATA[msg.key];
 		console.error(`[scene bitmaps] worker returned no bitmap for ${msg.cacheKey}${msg.textured ? ' (tex)' : ''}`
@@ -268,7 +276,12 @@ export function sceneMaxMipLevel(width, height) {
 }
 
 export function getPixelSceneCacheStats() {
-	return { entries: PIXEL_SCENE_BITMAP_CACHE.size, bytes: pixelSceneCacheBytes, pending: pendingSceneBitmaps.size };
+	let pendingTextured = 0;
+	for (const t of pendingSceneBitmaps.values()) if (t) pendingTextured++;
+	return {
+		entries: PIXEL_SCENE_BITMAP_CACHE.size, bytes: pixelSceneCacheBytes, budgetBytes: sceneBitmapBudgetBytes(),
+		pending: pendingSceneBitmaps.size, pendingTextured, ...sceneBitmapCounters,
+	};
 }
 
 function releasePixelSceneEntry(entry) {
@@ -286,24 +299,30 @@ export function clearPixelSceneBitmapCache() {
 	for (const entry of [...PIXEL_SCENE_BITMAP_CACHE.values()]) releasePixelSceneEntry(entry);
 	pixelSceneCacheBytes = 0;
 	pendingSceneBitmaps.clear();
+	deliveredSceneBitmaps.clear();
 	sceneBitmapEpoch++;
 	sceneBitmapVersion++;
 }
 
-function evictPixelSceneBitmaps(keep) {
-	// Under Render Everything the full-res textured instances of a whole
-	// overview view (~270 MB, more at 4K) do not fit the default budget, and
-	// evicting them only re-requests them next frame: the cache would thrash
-	// and never converge. Give the debug mode room instead.
+// Under Render Everything the full-res textured instances of a whole overview
+// view (~270 MB, more at 4K) do not fit the default budget, and evicting them
+// only re-requests them next frame: the cache would thrash and never converge.
+// Give the debug mode room instead.
+function sceneBitmapBudgetBytes() {
 	const budgetMB = appSettings.renderEverything
 		? Math.max(appSettings.pixelSceneBitmapBudgetMB || 512, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 512);
-	const budget = budgetMB * 1024 * 1024;
+	return budgetMB * 1024 * 1024;
+}
+
+function evictPixelSceneBitmaps(keep) {
+	const budget = sceneBitmapBudgetBytes();
 	if (pixelSceneCacheBytes <= budget) return;
 	const entries = [...PIXEL_SCENE_BITMAP_CACHE.values()].sort((a, b) => a.used - b.used);
 	for (const entry of entries) {
 		if (pixelSceneCacheBytes <= budget) break;
 		if (entry === keep) continue; // never drop the one we are about to draw
 		releasePixelSceneEntry(entry);
+		sceneBitmapCounters.evictions++;
 	}
 }
 

@@ -20,6 +20,56 @@ overlayWorker.addEventListener('messageerror', () =>
 // Keep track of pending generation requests so we don't spam the worker
 const pendingOverlayRequests = new Set();
 
+// Overlay builds take the worker 0.5-1.2 s each and it is FIFO: posted as asked,
+// a scroll across worlds queued one per world passed, and the ones on screen
+// waited behind them all (20+ s, with scene bitmaps and decals stuck behind as
+// well). Hold them here instead, a couple in flight at a time, and drop any
+// whose world has left the view by the time a slot frees -- it is asked for
+// again (loadWorld) if the world comes back.
+const MAX_INFLIGHT_OVERLAYS = 2;
+let overlayQueue = [];   // { sourceKey, pw, pwVertical, shared }
+let overlaysInFlight = 0;
+
+function overlayStillWanted(job) {
+	const inView = app.worldsInView;
+	if (!inView) return true;
+	// A shared (NG) overlay serves its whole row.
+	if (job.shared) {
+		for (const k of inView) if (k.endsWith(`,${job.pwVertical}`)) return true;
+		return false;
+	}
+	return inView.has(job.sourceKey);
+}
+
+function pumpOverlayQueue() {
+	while (overlaysInFlight < MAX_INFLIGHT_OVERLAYS && overlayQueue.length) {
+		const job = overlayQueue.shift();
+		if (!overlayStillWanted(job)) {
+			pendingOverlayRequests.delete(job.sourceKey);
+			continue;
+		}
+		overlaysInFlight++;
+		overlayWorker.postMessage({
+			cmd: 'GENERATE_OVERLAY',
+			seed: app.seed,
+			ngPlusCount: app.ngPlusCount,
+			pw: job.pw,
+			pwVertical: job.pwVertical,
+			gameMode: app.gameMode,
+			traceId: renderTrace.begin('overlay', `PW ${job.sourceKey}`, 'tileOverlays'),
+		});
+	}
+}
+
+function overlayJobFinished() {
+	overlaysInFlight = Math.max(0, overlaysInFlight - 1);
+	pumpOverlayQueue();
+}
+
+export function overlayQueueStats() {
+	return { queued: overlayQueue.length, inFlight: overlaysInFlight };
+}
+
 overlayWorker.onmessage = async (e) => {
 	const msg = e.data;
 
@@ -70,6 +120,7 @@ overlayWorker.onmessage = async (e) => {
 			console.warn(`Outdated overlay generation discarded for PW ${msg.pw},${msg.pwVertical}`);
 			pendingOverlayRequests.delete(pwKey);
 			app.tileOverlaysByPW[pwKey] = null;
+			overlayJobFinished();
 			// Surprisingly this still didn't fix it
 			return;
 		}
@@ -83,6 +134,7 @@ overlayWorker.onmessage = async (e) => {
 
 		// Clear it from the pending list
 		pendingOverlayRequests.delete(pwKey);
+		overlayJobFinished();
 
 		// Draw (otherwise we can see blank regions)
 		app.draw();
@@ -110,6 +162,8 @@ export function syncOverlayWorkerData() {
 		}
 	});
 	pendingOverlayRequests.clear();
+	overlayQueue = [];
+	overlaysInFlight = 0;
 }
 
 export function syncSettingsToOverlayWorker() {
@@ -168,9 +222,14 @@ setPixelSceneBitmapRequester((request, sceneData) => {
 export function getOrGenerateOverlay(pw, pwVertical) {
 	const pwKey = `${pw},${pwVertical}`;
 
-	// Speedup for NG where we can reuse the same overlay
-	if (!app.isNGP && app.gameMode !== 'nightmare' && app.tileOverlaysByPW[`0,${pwVertical}`]) {
-		app.tileOverlaysByPW[pwKey] = app.tileOverlaysByPW[`0,${pwVertical}`];
+	// Speedup for NG where we can reuse the same overlay: every world in a row
+	// shares its PW-0 overlay. Ask only for that one -- requesting per world
+	// while it was still generating gave each world in view its own full copy
+	// (a few hundred MB each), kept for the rest of the session.
+	const shared = !app.isNGP && app.gameMode !== 'nightmare';
+	const sourceKey = shared ? `0,${pwVertical}` : pwKey;
+	if (shared && app.tileOverlaysByPW[sourceKey]) {
+		app.tileOverlaysByPW[pwKey] = app.tileOverlaysByPW[sourceKey];
 		return;
 	}
 
@@ -178,23 +237,13 @@ export function getOrGenerateOverlay(pw, pwVertical) {
 		return; // Overlay is already generated and cached
 	}
 
-	if (pendingOverlayRequests.has(pwKey)) {
+	if (pendingOverlayRequests.has(sourceKey)) {
 		return; // Overlay is already being generated
 	}
 
-	pendingOverlayRequests.add(pwKey);
-
-	const payload = {
-		cmd: 'GENERATE_OVERLAY',
-		seed: app.seed,
-		ngPlusCount: app.ngPlusCount,
-		pw,
-		pwVertical,
-		gameMode: app.gameMode,
-		traceId: renderTrace.begin('overlay', `PW ${pwKey}`, 'tileOverlays'),
-	};
-
-	overlayWorker.postMessage(payload);
+	pendingOverlayRequests.add(sourceKey);
+	overlayQueue.push({ sourceKey, pw: shared ? 0 : pw, pwVertical, shared });
+	pumpOverlayQueue();
 }
 
 /**
@@ -300,4 +349,6 @@ export function invalidatePendingOverlays() {
 	// Worker jobs cannot be cancelled, but clearing this set allows replacement
 	// requests immediately. Their results are rejected by the overlay-mode check.
 	pendingOverlayRequests.clear();
+	overlayQueue = [];
+	overlaysInFlight = 0;
 }

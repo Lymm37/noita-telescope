@@ -8,7 +8,7 @@ import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
 import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
-import { getBiomeAtWorldCoordinates, getMaterialProvenanceAtWorldCoordinates, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
+import { getBiomeAtWorldCoordinates, getMaterialProvenanceAtWorldCoordinates, getWorldCenter, getWorldSize, getWorldStride, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { camZFromLogZoom, cameraFromWorld, formatViewParams, logZoomFromCamZ, parseViewParams, worldFromCamera } from './view_url.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
@@ -17,12 +17,12 @@ import { COALMINE_ALT_SCENES } from './pixel_scene_config.js';
 import { debugBiomeEdgeNoise } from './edge_noise.js';
 import { drawBiomeBoundaryContour } from './biome_boundary.js';
 import { GLTerrainRenderer } from './gl/terrain_renderer.js';
-import { getPixelSceneAirMask, getPixelSceneCanvas, pendingPixelSceneBitmaps, PIXEL_SCENE_MAX_MIP, pixelSceneBitmapVersion, pixelSceneMipLevel, loadPixelSceneData, reloadPixelSceneCache, PIXEL_SCENE_DATA, warmPixelScene } from './pixel_scene_generation.js';
+import { getPixelSceneAirMask, getPixelSceneCacheStats, getPixelSceneCanvas, pendingPixelSceneBitmaps, PIXEL_SCENE_MAX_MIP, pixelSceneBitmapVersion, pixelSceneMipLevel, loadPixelSceneData, reloadPixelSceneCache, PIXEL_SCENE_DATA, warmPixelScene } from './pixel_scene_generation.js';
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings, updateSettingsFromUI, updateSpellFlags, updateSpecialFlags, RENDER_LAYERS, readRenderLayersFromUI } from './settings.js';
 import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
-import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, invalidatePendingOverlays, requestEdgeDecalTiles } from './overlay_manager.js';
+import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, invalidatePendingOverlays, requestEdgeDecalTiles, overlayQueueStats } from './overlay_manager.js';
 import { drawEdgeDecals, edgeDecalAt, invalidateEdgeDecals, pendingEdgeDecalTiles } from './edge_decal_layer.js';
 import { runRenderBenchmark } from './render_benchmark.js';
 import { renderHud, renderTrace } from './render_hud.js';
@@ -365,7 +365,38 @@ const SCENE_BAKE_MAX_CHUNK_PX = 512 / SCENE_BAKE_SCALE;
 const SCENE_BAKE_MIN_INTERVAL_MS = 300;
 const POI_BAKE_MAX_CHUNK_PX = 64;
 const POI_BAKE_SETTLE_MS = 150;
-const sceneBakes = new WeakMap();   // placement list -> { version, builtAt, bitmap, x, y, w, h, complete }
+// Render HUD line for the scene bitmap cache: fill against budget, builds in
+// flight, and event rates over the HUD's 2 s window. Refetches (a delivered
+// bitmap asked for again) tracking evictions means the budget is too small
+// for the view and the cache is thrashing.
+function sceneCacheStatLine() {
+	const snaps = [];
+	const MB = 1024 * 1024;
+	return () => {
+		const s = getPixelSceneCacheStats();
+		const t = performance.now();
+		snaps.push({ t, s });
+		while (snaps.length > 1 && snaps[0].t < t - 2000) snaps.shift();
+		const first = snaps[0], dt = (t - first.t) / 1000;
+		const rate = (k) => (dt > 0 ? (s[k] - first.s[k]) / dt : 0).toFixed(0);
+		return `${(s.bytes / MB).toFixed(0)} / ${(s.budgetBytes / MB).toFixed(0)} MB (${(100 * s.bytes / s.budgetBytes).toFixed(0)}%)`
+			+ ` · ${s.entries} bitmaps · ${s.pending} building (${s.pendingTextured} tex)\n`
+			+ `         /s: ${rate('requests')} req · ${rate('refetches')} refetch · ${rate('evictions')} evict · ${rate('failures')} fail`;
+	};
+}
+
+const sceneBakes = new Map();   // placement list -> { version, builtAt, bitmap, x, y, w, h, drawn }, LRU order
+const SCENE_BAKE_MAX = 16;     // ~14 MB each at most (a whole world at 1/16)
+const OVERLAY_OFFSCREEN_KEEP = 2;   // off-screen worlds' tile overlays kept (~30 MB each)
+export function sceneBakeStats() {
+	let bytes = 0, maxBytes = 0;
+	for (const b of sceneBakes.values()) {
+		const n = (b.w / SCENE_BAKE_SCALE) * (b.h / SCENE_BAKE_SCALE) * 4;
+		bytes += n;
+		if (n > maxBytes) maxBytes = n;
+	}
+	return { count: sceneBakes.size, bytes, maxBytes };
+}
 const poiBakes = new WeakMap();     // poi list -> { key, bitmap, x, y, w, h }
 
 function poiHighlightChecksum(list) {
@@ -2806,6 +2837,34 @@ export const app = {
 				this.loadWorld(x, y);
 			}
 		}
+		this.evictOffscreenOverlays();
+	},
+
+	// Tile overlays are ~30 MB a world, and outside NG each world has its own
+	// (NG+ strides are 8 px short of whole tiles, so the edge noise lands
+	// differently in every world). Kept for every world ever viewed, a scroll
+	// across dozens of worlds held gigabytes. Keep the worlds in view plus the
+	// most recently seen few; one that scrolls back in is re-requested by
+	// loadWorld like any world entering the view.
+	evictOffscreenOverlays() {
+		const seen = (this.overlaySeen ??= new Map());
+		const tick = (this.overlaySeenTick = (this.overlaySeenTick || 0) + 1);
+		for (const k of this.worldsInView) seen.set(k, tick);
+		const byPW = this.tileOverlaysByPW;
+		const offscreen = Object.keys(byPW).filter((k) => byPW[k] && !this.worldsInView.has(k));
+		if (offscreen.length <= OVERLAY_OFFSCREEN_KEEP) return;
+		offscreen.sort((a, b) => (seen.get(a) || 0) - (seen.get(b) || 0));
+		const dropped = new Set();
+		for (const k of offscreen.slice(0, offscreen.length - OVERLAY_OFFSCREEN_KEEP)) {
+			dropped.add(byPW[k]);
+			delete byPW[k];
+			seen.delete(k);
+		}
+		// NG worlds alias one overlay per row: close it only once nothing uses it.
+		const live = new Set(Object.values(byPW));
+		for (const overlay of dropped) {
+			if (!live.has(overlay)) for (const bitmap of overlay) bitmap?.close?.();
+		}
 	},
 
 	// Coalesce redraws: mousemove can fire several times per displayed frame, and
@@ -3170,17 +3229,36 @@ export const app = {
 	// relative to the world copy's shift (see the header note above getPoiRadius).
 	// Scenes whose bitmap has not arrived are left out and asked for; the bake is
 	// rebuilt once they land.
-	sceneBake(list, relOffX, relOffY) {
+	// Whether a scene starts inside world (pwX, pwY)'s own rect, in placement-list
+	// coordinates (scene positions carry the PW stride). A world's bake covers
+	// only these; see sceneBake.
+	sceneInWorld(pwX, pwY) {
+		const left = pwX * getWorldStride(this.isNGP, this.gameMode) - getWorldCenter(this.isNGP, this.gameMode) * 512;
+		const right = left + getWorldSize(this.isNGP, this.gameMode) * 512;
+		const top = pwY * 24576 - 14 * 512;
+		return (s) => s.x >= left && s.x < right && s.y >= top && s.y < top + 24576;
+	},
+
+	sceneBake(list, relOffX, relOffY, inWorld) {
 		const version = pixelSceneBitmapVersion();
 		let bake = sceneBakes.get(list);
 		const now = performance.now();
-		if (bake && (bake.version === version || now - bake.builtAt < SCENE_BAKE_MIN_INTERVAL_MS)) return bake;
+		if (bake) {
+			sceneBakes.delete(list);   // re-insert: Map order is the LRU order
+			sceneBakes.set(list, bake);
+			bake.frame = this.frameSerial;
+			if (bake.version === version || now - bake.builtAt < SCENE_BAKE_MIN_INTERVAL_MS) return bake;
+		}
 		if (!bake) {
-			// Bounds from the whole list, so they never move as scenes land.
+			// Bounds from the world's own scenes, so they never move as scenes land.
+			// A list can also carry scenes placed in another world (the spliced
+			// statics sit at main-world coordinates in every list): those are left
+			// to the per-scene path, or the bake would stretch across every world in
+			// between -- hundreds of MB per world copy.
 			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 			for (const scene of list) {
 				const data = PIXEL_SCENE_DATA[scene.key];
-				if (!data) continue;
+				if (!data || !inWorld(scene)) continue;
 				const x = scene.x + relOffX, y = scene.y + relOffY;
 				if (x < minX) minX = x;
 				if (y < minY) minY = y;
@@ -3198,7 +3276,17 @@ export const app = {
 			bctx.scale(1 / SCENE_BAKE_SCALE, 1 / SCENE_BAKE_SCALE);
 			bctx.translate(-minX, -minY);
 			bake = { version, builtAt: now, canvas, bctx, bitmap: null, x: minX, y: minY, w, h, drawn: new Set() };
+			bake.frame = this.frameSerial;
 			sceneBakes.set(list, bake);
+			// One bake per world copy ever viewed adds up while panning across
+			// parallel worlds; keep only the most recently drawn ones. Never one
+			// drawn this frame: a far zoom can show more copies than the cap.
+			for (const [oldList, old] of sceneBakes) {
+				if (sceneBakes.size <= SCENE_BAKE_MAX) break;
+				if (old.frame === this.frameSerial) continue;
+				old.bitmap?.close?.();
+				sceneBakes.delete(oldList);
+			}
 		}
 		// Incremental: transferToImageBitmap empties the canvas, so the previous
 		// bitmap is put back first and only the scenes that have landed since
@@ -3210,7 +3298,7 @@ export const app = {
 		for (const scene of list) {
 			if (drawn.has(scene)) continue;
 			const data = PIXEL_SCENE_DATA[scene.key];
-			if (!data) continue;
+			if (!data || !inWorld(scene)) continue;
 			const bitmap = getPixelSceneCanvas(scene, PIXEL_SCENE_MAX_MIP);
 			if (!bitmap) continue;
 			bctx.drawImage(bitmap, scene.x + relOffX, scene.y + relOffY, data.width, data.height);
@@ -3477,6 +3565,18 @@ export const app = {
 		const L = appSettings.renderLayers;
 		if (renderHud.on !== !!appSettings.debugRenderHud) {
 			renderHud.setPendingSource(() => this.asyncRenderPending());
+			renderHud.setStat('scenes', sceneCacheStatLine());
+			renderHud.setStat('overlays', () => {
+				const all = new Set(Object.values(this.tileOverlaysByPW || {}).filter(Boolean));
+				let bytes = 0;
+				for (const o of all) for (const b of o) bytes += (b?.width || 0) * (b?.height || 0) * 4;
+				const q = overlayQueueStats();
+				return `${all.size} tile overlays · ${(bytes / 1048576).toFixed(0)} MB · ${Object.keys(this.tileOverlaysByPW || {}).length} worlds mapped · ${q.inFlight} building, ${q.queued} queued`;
+			});
+			renderHud.setStat('bakes', () => {
+				const b = sceneBakeStats();
+				return `${b.count} world scene bakes · ${(b.bytes / 1048576).toFixed(0)} MB (largest ${(b.maxBytes / 1048576).toFixed(0)} MB)`;
+			});
 			renderHud.setEnabled(appSettings.debugRenderHud, document.getElementById('view'));
 		}
 		const prof = this.startLayerProfile();
@@ -4076,8 +4176,9 @@ export const app = {
 					const sceneOffY = 14*512 - pwY*24576 + shiftY;
 					// Zoomed far out, the whole copy's scenes come from one bake (see
 					// sceneBake); the loop below then only collects the art stand-ins.
+					const inWorld = this.sceneInWorld(pwX, pwY);
 					const bake = (!appSettings.renderEverything && 512 * this.cam.z <= SCENE_BAKE_MAX_CHUNK_PX)
-						? this.sceneBake(this.pixelScenesByPW[`${pwX},${pwY}`], sceneOffX - shiftX, sceneOffY - shiftY) : null;
+						? this.sceneBake(this.pixelScenesByPW[`${pwX},${pwY}`], sceneOffX - shiftX, sceneOffY - shiftY, inWorld) : null;
 					if (bake) this.ctx.drawImage(bake.bitmap, bake.x + shiftX, bake.y + shiftY, bake.w, bake.h);
 					for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
 						const drawX = scene.x + sceneOffX;
@@ -4093,13 +4194,13 @@ export const app = {
 						if (!sceneData) continue;
 						if (drawX + sceneData.width < viewLeft || drawX > viewRight ||
 							drawY + sceneData.height < viewTop || drawY > viewBottom) {
-							if (!bake && !(drawX + sceneData.width < warmLeft || drawX > warmRight ||
+							if (!(bake && inWorld(scene)) && !(drawX + sceneData.width < warmLeft || drawX > warmRight ||
 								drawY + sceneData.height < warmTop || drawY > warmBottom)) {
 								warmPixelScene(scene, sceneMipLevel);
 							}
 							continue;
 						}
-						if (bake) {
+						if (bake && inWorld(scene)) {
 							if (sceneArtOn) {
 								const tile = sceneArtTile(scene.key, { app: this, pwX, pwY, cauldronVariation: getCauldronVariation });
 								const bitmap = tile && this.surfaceOverlayScenes[tile];
@@ -4504,7 +4605,7 @@ export const app = {
 				const relOffX = getWorldCenter(this.isNGP, this.gameMode) * 512;
 				for (const pwY of [0, -1, 1]) {
 					const list = this.pixelScenesByPW && this.pixelScenesByPW[`0,${pwY}`];
-					if (list && !this.sceneBake(list, relOffX, 14 * 512 - pwY * 24576)) ok = false;
+					if (list && !this.sceneBake(list, relOffX, 14 * 512 - pwY * 24576, this.sceneInWorld(0, pwY))) ok = false;
 				}
 				this.bakesPrebuilt = ok;
 				renderHud.sample('idle bakes', 'main', performance.now() - t0);

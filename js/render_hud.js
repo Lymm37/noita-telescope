@@ -41,9 +41,10 @@ const frames = [];           // { t, ms } drawNow wall time
 const active = new Map();    // id -> item
 const history = [];
 const pollers = [];
+const statSources = new Map();   // name -> () => string, one line (or lines) under Caches
 let nextId = 1;
 let on = false;
-let root = null, barsCanvas = null, stripCanvas = null, headEl = null, totalEl = null, queueEl = null, historyEl = null;
+let root = null, barsCanvas = null, stripCanvas = null, headEl = null, totalEl = null, queueEl = null, cachesEl = null, historyEl = null;
 let timer = 0;
 let pendingSource = null;    // () => number of async render items in flight (traced or not)
 let gpuTimerState = 'unknown';
@@ -73,6 +74,9 @@ export const renderHud = {
 
 	/** Count of async render work in flight, including work posted before the HUD was on. */
 	setPendingSource(fn) { pendingSource = fn; },
+
+	/** A named line of state for the Caches section, re-read every tick. Setting a name again replaces it. */
+	setStat(name, fn) { statSources.set(name, fn); },
 
 	/** Called each tick; the GL renderer resolves its timer queries here. */
 	addPoller(fn) { pollers.push(fn); },
@@ -188,6 +192,7 @@ function buildDom(container) {
 	};
 	root.append(headEl, legend, barsCanvas, totalEl, stripCanvas);
 	queueEl = section('Queue');
+	cachesEl = section('Caches');
 	historyEl = section('Recently completed — ms; wkr = worker time, gpu = its share of a batched GPU pass');
 	container.appendChild(root);
 }
@@ -228,6 +233,7 @@ function tick() {
 	drawBars(sorted, laneTotals);
 	drawStrip(t);
 	renderQueue(t);
+	renderCaches();
 	renderHistory();
 }
 
@@ -362,6 +368,16 @@ function renderQueue(t) {
 		`${pad(i.stage, 8)} ${pad(i.kind, 7)} ${pad(i.label, 24)} ${ms(t - i.t0).padStart(6)} ago`);
 	if (items.length > QUEUE_ROWS) lines.push(`… ${items.length - QUEUE_ROWS} more`);
 	queueEl.pre.textContent = lines.join('\n');
+}
+
+function renderCaches() {
+	const lines = [];
+	for (const [name, fn] of statSources) {
+		let text;
+		try { text = fn(); } catch (err) { text = `(error: ${err?.message ?? err})`; }
+		if (text) lines.push(`${pad(name, 8)} ${text}`);
+	}
+	cachesEl.pre.textContent = lines.length ? lines.join('\n') : '(none)';
 }
 
 function renderHistory() {
