@@ -69,6 +69,19 @@ const ENTRIES_BY_ID = MATERIAL_NAMES_BY_ID.map(
 const TYPE_BY_ID = Int8Array.from(MATERIAL_NAMES_BY_ID.map(
     name => (name && MATERIAL_TYPE_BY_NAME[name]) ?? 0));
 
+/** How far (Chebyshev) any stamp can paint from the cell that rolled it
+ *  (blitEdgeSprite): a stripe image paints one column (horizontal stripe) or
+ *  row (vertical) along its short side, any other image up to half its longer
+ *  side (it may be transposed); plus the stripes' 1px nudge. A caller that
+ *  crops the result (opts.inset) only needs cells within this of the kept rect
+ *  scanned. */
+const STAMP_REACH = 1 + EDGE_IMAGES.reduce((r, img) => {
+    const iw = img[2], ih = img[3], flags = img[6];
+    if (flags & IMG_FLAG_HORIZONTAL_STRIPE) return Math.max(r, ih >> 1);
+    if (flags & IMG_FLAG_VERTICAL_STRIPE) return Math.max(r, iw >> 1);
+    return Math.max(r, iw >> 1, ih >> 1);
+}, 0);
+
 // ---------------------------------------------------------------------------
 // the seam-band gate: <Topology skip_edge_textures>, per chunk
 // ---------------------------------------------------------------------------
@@ -177,6 +190,14 @@ function pickAngleImage(images, angle, start) {
     return -1;
 }
 
+// The 16 ray end offsets, computed once.
+const RAY_OX = new Float64Array(16), RAY_OY = new Float64Array(16);
+for (let i = 0; i < 16; i++) {
+    const a = i * (Math.PI / 8);
+    RAY_OX[i] = -5 * Math.sin(a);
+    RAY_OY[i] = 5 * Math.cos(a);
+}
+
 /**
  * BiomeGen_ComputeEdgeSurfaceNormal @0x00920100 — 16 rays of length 5 from the
  * cell, each stopping at the first cell that does not match. The hits' directions
@@ -187,8 +208,7 @@ function pickAngleImage(images, angle, start) {
 function surfaceNormalAngle(mat, width, height, cx, cy, id, typeId, sameType) {
     let sumX = 0, sumY = 0, hits = 0;
     for (let i = 0; i < 16; i++) {
-        const a = i * (Math.PI / 8);
-        const ox = -5 * Math.sin(a), oy = 5 * Math.cos(a);
+        const ox = RAY_OX[i], oy = RAY_OY[i];
         const dx = ox / 5, dy = oy / 5;
         let lastI = -1;
         for (let t = 1; t * t < 25; t++) {
@@ -236,13 +256,16 @@ function cardinalAngle(m, count) {
  * @param {number} originY  world y of row 0
  * @param {number} worldSeed
  * @param {{chunkShiftX?: number, chunkShiftY?: number, scenes?: Array<object>,
- *          biomeData?: object, mapWidth?: number}} [opts]
+ *          biomeData?: object, mapWidth?: number, inset?: number}} [opts]
  *        chunkShiftX/Y: world coordinate of a chunk boundary, mod 512 (the biome
  *        grid's x_shift / y_shift). scenes: pixel-scene material grids
  *        (pixelSceneMaterialGrid) overlapping the rect, in paint order — each
  *        runs the engine's scene-time decal pass after the terrain passes.
  *        biomeData + mapWidth: the biome map, which gates the seam pass per
  *        chunk (SKIP_SEAM_EDGE_BIOMES); omit them to leave the seam ungated.
+ *        inset: the caller keeps only the rect inset this far on every side
+ *        (the halo it crops off); cells whose stamps cannot reach it are not
+ *        scanned, and the output outside it is then incomplete.
  * @returns {Uint8ClampedArray} RGBA over the padded rect; composite it over the
  *          terrain with plain source-over, after cropping the halo off.
  */
@@ -255,34 +278,14 @@ export function stampEdgeDecals(mat, width, height, originX, originY, worldSeed,
     const shiftX = opts.chunkShiftX || 0;
     const shiftY = opts.chunkShiftY || 0;
     const mask = new Uint8Array(9);
+    // The scan window [x0, x1) x [y0, y1): every cell with a full 3x3, less
+    // those too far from the kept rect for any stamp of theirs to reach it.
+    const scanMargin = Math.max(1, (opts.inset || 0) - STAMP_REACH);
+    const win = {
+        x0: scanMargin, x1: Math.max(scanMargin, width - scanMargin),
+        y0: scanMargin, y1: Math.max(scanMargin, height - scanMargin),
+    };
 
-    // The cells that can stamp at all, found once in a tight pass: solid, of a
-    // material with edge entries, and not interior -- the outer gate: a cell
-    // with 8 or 9 same-material cells in its 3x3 (itself included, so 7 or 8
-    // matching neighbours) never stamps, whatever the entry says. Most of a
-    // tile is air or interior, and the two passes below used to pay the seam
-    // arithmetic, the entries lookup and the full 3x3 mask for every solid
-    // cell before finding that out.
-    const cand = new Uint8Array(width * height);
-    for (let y = 1; y < height - 1; y++) {
-        const row = y * width;
-        for (let x = 1; x < width - 1; x++) {
-            const i = row + x;
-            const id = mat[i];
-            if (id <= 0 || !ENTRIES_BY_ID[id]) continue;
-            let same = 0;
-            if (mat[i - 1] === id) same++;
-            if (mat[i + 1] === id) same++;
-            if (mat[i - width] === id) same++;
-            if (mat[i + width] === id) same++;
-            if (mat[i - width - 1] === id) same++;
-            if (mat[i - width + 1] === id) same++;
-            if (mat[i + width - 1] === id) same++;
-            if (mat[i + width + 1] === id) same++;
-            if (same >= 7) continue;
-            cand[i] = 1;
-        }
-    }
     // Chunk-local coordinates and seam-band membership, per column and row.
     const localXs = new Int32Array(width), localYs = new Int32Array(height);
     const seamXs = new Uint8Array(width), seamYs = new Uint8Array(height);
@@ -297,111 +300,138 @@ export function stampEdgeDecals(mat, width, height, originX, originY, worldSeed,
         seamYs[y] = (ly < SEAM || ly >= CHUNK - SEAM) ? 1 : 0;
     }
 
+    // The cells that can stamp at all, found once in a tight pass: solid, of a
+    // material with edge entries, and not interior -- the outer gate: a cell
+    // with 8 or 9 same-material cells in its 3x3 (itself included, so 7 or 8
+    // matching neighbours) never stamps, whatever the entry says. Most of a
+    // tile is air or interior, so the two passes below walk these lists (in
+    // scan order, split by pass) instead of the whole rect.
+    const genCells = new Int32Array((win.x1 - win.x0) * (win.y1 - win.y0));
+    const seamCells = new Int32Array(genCells.length);
+    let nGen = 0, nSeam = 0;
+    for (let y = win.y0; y < win.y1; y++) {
+        const row = y * width;
+        const seamY = seamYs[y];
+        for (let x = win.x0; x < win.x1; x++) {
+            const i = row + x;
+            const id = mat[i];
+            if (id <= 0 || !ENTRIES_BY_ID[id]) continue;
+            let same = 0;
+            if (mat[i - 1] === id) same++;
+            if (mat[i + 1] === id) same++;
+            if (mat[i - width] === id) same++;
+            if (mat[i + width] === id) same++;
+            if (mat[i - width - 1] === id) same++;
+            if (mat[i - width + 1] === id) same++;
+            if (mat[i + width - 1] === id) same++;
+            if (mat[i + width + 1] === id) same++;
+            if (same >= 7) continue;
+            if ((seamY | seamXs[x]) === 1) seamCells[nSeam++] = i;
+            else genCells[nGen++] = i;
+        }
+    }
+
     // The generation pass skips the chunk's outer 8px and clips every stamp to
     // its own chunk; the seam pass dresses that band later, once the neighbour
     // chunks exist, and can therefore stamp across the boundary. Only the seam
     // pass answers to the biome's <Topology skip_edge_textures>.
     const seamGate = makeSeamGate(opts.biomeData, opts.mapWidth);
     for (let pass = 0; pass < 2; pass++) {
-        for (let y = 1; y < height - 1; y++) {
-            const localY = localYs[y];
-            const seamY = seamYs[y];
-            const row = y * width;
-            for (let x = 1; x < width - 1; x++) {
-                const i = row + x;
-                if (cand[i] === 0) continue;
-                const localX = localXs[x];
-                const seam = (seamY | seamXs[x]) === 1;
-                if (seam !== (pass === 1)) continue;
-                // The gate belongs to the chunk the cell lives in, whichever
-                // side of the border the stamp then reaches.
-                if (pass === 1 && seamGate &&
-                    seamGate(originX + x - localX, originY + y - localY)) continue;
+        const cells = pass === 0 ? genCells : seamCells;
+        const n = pass === 0 ? nGen : nSeam;
+        for (let c = 0; c < n; c++) {
+            const i = cells[c];
+            const y = (i / width) | 0;
+            const x = i - y * width;
+            const localX = localXs[x], localY = localYs[y];
+            // The gate belongs to the chunk the cell lives in, whichever
+            // side of the border the stamp then reaches.
+            if (pass === 1 && seamGate &&
+                seamGate(originX + x - localX, originY + y - localY)) continue;
 
-                const id = mat[i];
-                const entries = ENTRIES_BY_ID[id];
+            const id = mat[i];
+            const entries = ENTRIES_BY_ID[id];
 
-                // The 3x3 masks and their counts, centre included.
-                const typeId = TYPE_BY_ID[id];
-                let matCount = 0, typeCount = 0;
-                for (let dy = -1; dy <= 1; dy++) {
-                    for (let dx = -1; dx <= 1; dx++) {
-                        const m = mat[i + dy * width + dx];
-                        const k = (dy + 1) * 3 + (dx + 1);
-                        // bit 0 = same material type, bit 1 = same material
-                        if (m === id) { matCount++; typeCount++; mask[k] = 3; }
-                        else if (m > 0 && TYPE_BY_ID[m] === typeId) { typeCount++; mask[k] = 1; }
-                        else mask[k] = 0;
-                    }
+            // The 3x3 masks and their counts, centre included.
+            const typeId = TYPE_BY_ID[id];
+            let matCount = 0, typeCount = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const m = mat[i + dy * width + dx];
+                    const k = (dy + 1) * 3 + (dx + 1);
+                    // bit 0 = same material type, bit 1 = same material
+                    if (m === id) { matCount++; typeCount++; mask[k] = 3; }
+                    else if (m > 0 && TYPE_BY_ID[m] === typeId) { typeCount++; mask[k] = 1; }
+                    else mask[k] = 0;
+                }
+            }
+
+            const wx = originX + x, wy = originY + y;
+            for (let e = 0; e < entries.length; e++) {
+                const [type, percent, overwrite, reqSameMat, reqSameType, colorARGB, images] = entries[e];
+                // The roll always happens, before any gate.
+                if (rand01(hash32(wx, wy, worldSeed, e, 0)) > percent) continue;
+
+                // The inner gate, types 0/1/2 only: the 4-neighbourhood of the
+                // chosen mask must hold 2 or 3 — an interior cell has 4.
+                if (type !== EDGE_TYPE_NORMAL_BASED && (reqSameMat || reqSameType)) {
+                    const bit = reqSameMat ? 1 : 0;
+                    const s = ((mask[1] >> bit) & 1) + ((mask[3] >> bit) & 1) +
+                        ((mask[5] >> bit) & 1) + ((mask[7] >> bit) & 1);
+                    if (s !== 2 && s !== 3) continue;
                 }
 
-                const wx = originX + x, wy = originY + y;
-                for (let e = 0; e < entries.length; e++) {
-                    const [type, percent, overwrite, reqSameMat, reqSameType, colorARGB, images] = entries[e];
-                    // The roll always happens, before any gate.
-                    if (rand01(hash32(wx, wy, worldSeed, e, 0)) > percent) continue;
-
-                    // The inner gate, types 0/1/2 only: the 4-neighbourhood of the
-                    // chosen mask must hold 2 or 3 — an interior cell has 4.
-                    if (type !== EDGE_TYPE_NORMAL_BASED && (reqSameMat || reqSameType)) {
-                        const bit = reqSameMat ? 1 : 0;
-                        const s = ((mask[1] >> bit) & 1) + ((mask[3] >> bit) & 1) +
-                            ((mask[5] >> bit) & 1) + ((mask[7] >> bit) & 1);
-                        if (s !== 2 && s !== 3) continue;
-                    }
-
-                    let image, angle = 0;
-                    if (type === EDGE_TYPE_EVERYWHERE) {
-                        const r = rand01(hash32(wx, wy, worldSeed, e, 1));
-                        image = images[Math.min(images.length - 1, (r * images.length) | 0)];
-                    } else if (type === EDGE_TYPE_CARDINAL_DIRECTIONS || type === EDGE_TYPE_NORMAL_BASED) {
-                        if (type === EDGE_TYPE_NORMAL_BASED) {
-                            angle = surfaceNormalAngle(mat, width, height, x, y, id, typeId, !!reqSameType);
-                            if (angle < 0) continue;
-                        } else if (reqSameMat) {
-                            angle = cardinalAngle(bitMask(mask, 1), matCount);
-                        } else {
-                            angle = cardinalAngle(bitMask(mask, 0), typeCount);
-                        }
-                        const start = hash32(wx, wy, worldSeed, e, 1) % images.length;
-                        image = pickAngleImage(images, angle, start);
-                        if (image < 0) continue;
-                    } else if (type === EDGE_TYPE_COLOR_EDGE_PIXELS) {
-                        const a = (colorARGB >>> 24) & 0xff;
-                        if (!a || (!overwrite && painted[i])) continue;
-                        const o = i * 4;
-                        out[o] = (colorARGB >>> 16) & 0xff;
-                        out[o + 1] = (colorARGB >>> 8) & 0xff;
-                        out[o + 2] = colorARGB & 0xff;
-                        out[o + 3] = a;
-                        painted[i] = 1;
-                        continue;
+                let image, angle = 0;
+                if (type === EDGE_TYPE_EVERYWHERE) {
+                    const r = rand01(hash32(wx, wy, worldSeed, e, 1));
+                    image = images[Math.min(images.length - 1, (r * images.length) | 0)];
+                } else if (type === EDGE_TYPE_CARDINAL_DIRECTIONS || type === EDGE_TYPE_NORMAL_BASED) {
+                    if (type === EDGE_TYPE_NORMAL_BASED) {
+                        angle = surfaceNormalAngle(mat, width, height, x, y, id, typeId, !!reqSameType);
+                        if (angle < 0) continue;
+                    } else if (reqSameMat) {
+                        angle = cardinalAngle(bitMask(mask, 1), matCount);
                     } else {
-                        continue;
+                        angle = cardinalAngle(bitMask(mask, 0), typeCount);
                     }
-
-                    // Types 2 and 3 nudge the stamp by a pixel for the stripe
-                    // images, depending on which quadrant the angle is in.
-                    let sx = x, sy = y;
-                    const flags = EDGE_IMAGES[image][6];
-                    if (type !== EDGE_TYPE_EVERYWHERE &&
-                        (flags & (IMG_FLAG_HORIZONTAL_STRIPE | IMG_FLAG_VERTICAL_STRIPE))) {
-                        if (angle >= 135 && angle < 225) sx += 1;
-                        else if (angle >= 225 && angle < 315) sy += 1;
-                    }
-
-                    let flip = 0;
-                    let transpose = false;
-                    if (flags & IMG_FLAG_RANDOM_ROTATION) {
-                        if (rand01(hash32(wx, wy, worldSeed, e, 2)) > 0.5) flip |= 1;
-                        if (rand01(hash32(wx, wy, worldSeed, e, 3)) > 0.5) flip |= 2;
-                        transpose = rand01(hash32(wx, wy, worldSeed, e, 4)) > 0.5;
-                    }
-                    blitEdgeSprite(out, painted, mat, width, height, sx, sy, id, overwrite,
-                        image, flip, transpose,
-                        pass === 0 ? [localX + sx - x, localY + sy - y] : null,
-                        originX + sx, originY + sy);
+                    const start = hash32(wx, wy, worldSeed, e, 1) % images.length;
+                    image = pickAngleImage(images, angle, start);
+                    if (image < 0) continue;
+                } else if (type === EDGE_TYPE_COLOR_EDGE_PIXELS) {
+                    const a = (colorARGB >>> 24) & 0xff;
+                    if (!a || (!overwrite && painted[i])) continue;
+                    const o = i * 4;
+                    out[o] = (colorARGB >>> 16) & 0xff;
+                    out[o + 1] = (colorARGB >>> 8) & 0xff;
+                    out[o + 2] = colorARGB & 0xff;
+                    out[o + 3] = a;
+                    painted[i] = 1;
+                    continue;
+                } else {
+                    continue;
                 }
+
+                // Types 2 and 3 nudge the stamp by a pixel for the stripe
+                // images, depending on which quadrant the angle is in.
+                let sx = x, sy = y;
+                const flags = EDGE_IMAGES[image][6];
+                if (type !== EDGE_TYPE_EVERYWHERE &&
+                    (flags & (IMG_FLAG_HORIZONTAL_STRIPE | IMG_FLAG_VERTICAL_STRIPE))) {
+                    if (angle >= 135 && angle < 225) sx += 1;
+                    else if (angle >= 225 && angle < 315) sy += 1;
+                }
+
+                let flip = 0;
+                let transpose = false;
+                if (flags & IMG_FLAG_RANDOM_ROTATION) {
+                    if (rand01(hash32(wx, wy, worldSeed, e, 2)) > 0.5) flip |= 1;
+                    if (rand01(hash32(wx, wy, worldSeed, e, 3)) > 0.5) flip |= 2;
+                    transpose = rand01(hash32(wx, wy, worldSeed, e, 4)) > 0.5;
+                }
+                blitEdgeSprite(out, painted, mat, width, height, sx, sy, id, overwrite,
+                    image, flip, transpose,
+                    pass === 0 ? [localX + sx - x, localY + sy - y] : null,
+                    originX + sx, originY + sy);
             }
         }
     }
@@ -434,7 +464,7 @@ export function stampEdgeDecals(mat, width, height, originX, originY, worldSeed,
             opts.stats.terrainStamped = a;
         }
         for (const scene of opts.scenes) {
-            stampSceneDecals(out, painted, mat, width, height, originX, originY, worldSeed, scene);
+            stampSceneDecals(out, painted, mat, width, height, originX, originY, worldSeed, scene, win);
         }
         if (opts.stats) {
             let a = 0; for (let i = 3; i < out.length; i += 4) if (out[i]) a++;
@@ -507,7 +537,7 @@ function sceneStampsAnyEdge(scene) {
  * Rolls are salted so they decorrelate from the terrain pass at the same
  * coordinates — the engine's two passes consume independent RNG streams.
  */
-function stampSceneDecals(out, painted, mat, width, height, originX, originY, worldSeed, scene) {
+function stampSceneDecals(out, painted, mat, width, height, originX, originY, worldSeed, scene, win) {
     const { grid, width: sw, height: sh } = scene;
     const baseX = scene.x - originX, baseY = scene.y - originY;
     if (baseX + sw <= 0 || baseY + sh <= 0 || baseX >= width || baseY >= height) return;
@@ -541,18 +571,15 @@ function stampSceneDecals(out, painted, mat, width, height, originX, originY, wo
     if (scene.skipEdges || !sceneStampsAnyEdge(scene)) return;
 
     // The scene-local neighbour rule: outside the scene rect there is no cell.
-    // Inside it, `mat` already holds the composite (scene cell, or the world
-    // cell a transparent pixel kept), and the scan interior keeps every
-    // neighbour read within the padded rect.
-    const cellAt = (lx, ly) => {
-        if (lx < 0 || ly < 0 || lx >= sw || ly >= sh) return 0;
-        return mat[(baseY + ly) * width + baseX + lx];
-    };
+    // The scan below is inset 1px into the rect, so every 3x3 neighbour lies
+    // inside it, where `mat` already holds the composite (scene cell, or the
+    // world cell a transparent pixel kept) -- the rule never has to answer
+    // "no cell", and the masks read `mat` directly.
 
     const sceneSeed = (worldSeed ^ 0x53434e45) | 0;   // 'SCNE'
     const mask = new Uint8Array(9);
-    const sy0 = Math.max(1, 1 - baseY), sy1 = Math.min(sh - 1, height - 1 - baseY);
-    const sx0 = Math.max(1, 1 - baseX), sx1 = Math.min(sw - 1, width - 1 - baseX);
+    const sy0 = Math.max(1, win.y0 - baseY), sy1 = Math.min(sh - 1, win.y1 - baseY);
+    const sx0 = Math.max(1, win.x0 - baseX), sx1 = Math.min(sw - 1, win.x1 - baseX);
     for (let ly = sy0; ly < sy1; ly++) {
         const ty = baseY + ly;
         for (let lx = sx0; lx < sx1; lx++) {
@@ -562,12 +589,24 @@ function stampSceneDecals(out, painted, mat, width, height, originX, originY, wo
             if (id <= 0) continue;
             const entries = ENTRIES_BY_ID[id];
             if (!entries) continue;
+            // Interior cells (matCount >= 8 below) are most of a scene; reject
+            // them before building the masks.
+            let same = 0;
+            if (mat[i - 1] === id) same++;
+            if (mat[i + 1] === id) same++;
+            if (mat[i - width] === id) same++;
+            if (mat[i + width] === id) same++;
+            if (mat[i - width - 1] === id) same++;
+            if (mat[i - width + 1] === id) same++;
+            if (mat[i + width - 1] === id) same++;
+            if (mat[i + width + 1] === id) same++;
+            if (same >= 7) continue;
 
             const typeId = TYPE_BY_ID[id];
             let matCount = 0, typeCount = 0;
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {
-                    const m = cellAt(lx + dx, ly + dy);
+                    const m = mat[i + dy * width + dx];
                     const k = (dy + 1) * 3 + (dx + 1);
                     if (m === id) { matCount++; typeCount++; mask[k] = 3; }
                     else if (m > 0 && TYPE_BY_ID[m] === typeId) { typeCount++; mask[k] = 1; }
@@ -673,47 +712,52 @@ function blitEdgeSprite(out, painted, mat, width, height, cx, cy, id, overwrite,
         minY = Math.max(minY, cy - chunkLocal[1]);
         maxY = Math.min(maxY, cy - chunkLocal[1] + CHUNK - 1);
     }
-    const flipX = (flip & 1) !== 0, flipY = (flip & 2) !== 0;
-    const paint = (dx, dy, sx, sy) => {
-        if (dx < minX || dy < minY || dx > maxX || dy > maxY) return;
-        const di = dy * width + dx;
-        if (mat[di] !== id) return;
-        if (!overwrite && painted[di]) return;
-        const fx = flipX ? iw - 1 - sx : sx;
-        const fy = flipY ? ih - 1 - sy : sy;
-        const so = ((ay + fy) * EDGE_ATLAS_WIDTH + ax + fx) * 4;
-        // The engine skips only an all-zero texel word, alpha included.
-        const a = atlas[so + 3];
-        if (!a && !atlas[so] && !atlas[so + 1] && !atlas[so + 2]) return;
-        const o = di * 4;
-        out[o] = atlas[so];
-        out[o + 1] = atlas[so + 1];
-        out[o + 2] = atlas[so + 2];
-        out[o + 3] = a;
-        painted[di] = 1;
-    };
 
+    // The destination rect (ox, oy, w, h) and how a destination cell maps back
+    // to a sprite texel: sx = fixSx (stripe) or dx - ox, sy likewise; transposed
+    // swaps the two. Every destination cell is written at most once per blit,
+    // so the scan order does not change the result.
+    let ox, oy, w, h, fixSx = -1, fixSy = -1;
     if (flags & IMG_FLAG_HORIZONTAL_STRIPE) {
-        const sx = pmod(worldX, iw);
-        const top = cy - Math.floor(ih * 0.5);
-        for (let row = 0; row < ih; row++) paint(cx, top + row, sx, row);
-        return;
+        ox = cx; oy = cy - Math.floor(ih * 0.5); w = 1; h = ih;
+        fixSx = pmod(worldX, iw);
+        transpose = false;
+    } else if (flags & IMG_FLAG_VERTICAL_STRIPE) {
+        ox = cx - Math.floor(iw * 0.5); oy = cy; w = iw; h = 1;
+        fixSy = pmod(worldY, ih);
+        transpose = false;
+    } else if (transpose) {
+        ox = cx - ((ih / 2) | 0); oy = cy - ((iw / 2) | 0); w = ih; h = iw;
+    } else {
+        ox = cx - ((iw / 2) | 0); oy = cy - ((ih / 2) | 0); w = iw; h = ih;
     }
-    if (flags & IMG_FLAG_VERTICAL_STRIPE) {
-        const sy = pmod(worldY, ih);
-        const left = cx - Math.floor(iw * 0.5);
-        for (let col = 0; col < iw; col++) paint(left + col, cy, col, sy);
-        return;
-    }
-    if (transpose) {
-        const x0 = cx - ((ih / 2) | 0), y0 = cy - ((iw / 2) | 0);
-        for (let sy = 0; sy < ih; sy++) {
-            for (let sx = 0; sx < iw; sx++) paint(x0 + sy, y0 + sx, sx, sy);
+    const x0 = Math.max(ox, minX), x1 = Math.min(ox + w - 1, maxX);
+    const y0 = Math.max(oy, minY), y1 = Math.min(oy + h - 1, maxY);
+    const flipX = (flip & 1) !== 0, flipY = (flip & 2) !== 0;
+    for (let dy = y0; dy <= y1; dy++) {
+        const row = dy * width;
+        for (let dx = x0; dx <= x1; dx++) {
+            const di = row + dx;
+            if (mat[di] !== id) continue;
+            if (!overwrite && painted[di]) continue;
+            let sx, sy;
+            if (transpose) { sx = dy - oy; sy = dx - ox; }
+            else {
+                sx = fixSx >= 0 ? fixSx : dx - ox;
+                sy = fixSy >= 0 ? fixSy : dy - oy;
+            }
+            const fx = flipX ? iw - 1 - sx : sx;
+            const fy = flipY ? ih - 1 - sy : sy;
+            const so = ((ay + fy) * EDGE_ATLAS_WIDTH + ax + fx) * 4;
+            // The engine skips only an all-zero texel word, alpha included.
+            const a = atlas[so + 3];
+            if (!a && !atlas[so] && !atlas[so + 1] && !atlas[so + 2]) continue;
+            const o = di * 4;
+            out[o] = atlas[so];
+            out[o + 1] = atlas[so + 1];
+            out[o + 2] = atlas[so + 2];
+            out[o + 3] = a;
+            painted[di] = 1;
         }
-        return;
-    }
-    const x0 = cx - ((iw / 2) | 0), y0 = cy - ((ih / 2) | 0);
-    for (let sy = 0; sy < ih; sy++) {
-        for (let sx = 0; sx < iw; sx++) paint(x0 + sx, y0 + sy, sx, sy);
     }
 }

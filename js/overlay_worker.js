@@ -227,6 +227,8 @@ async function generateEdgeDecalTileWorker(msg) {
 			// <Topology> sets skip_edge_textures dresses its interior only.
 			biomeData: workerBiomeData,
 			mapWidth,
+			// Only the core survives the crop below.
+			inset: P,
 			stats,
 		});
 		const tStamp = performance.now();
