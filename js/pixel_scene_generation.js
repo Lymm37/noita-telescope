@@ -209,6 +209,7 @@ export function putPixelSceneBitmaps(msg) {
 	const bitmaps = [...(msg.levels || []), msg.airMask].filter(Boolean);
 	if (msg.epoch !== sceneBitmapEpoch || !msg.levels || !msg.levels[0]) {
 		for (const b of bitmaps) b.close?.();
+		if (msg.epoch === sceneBitmapEpoch) logSceneBitmapFailure(msg);
 		return false;
 	}
 	const old = PIXEL_SCENE_BITMAP_CACHE.get(msg.cacheKey);
@@ -239,6 +240,22 @@ export function putPixelSceneBitmaps(msg) {
 		data.variants[msg.variantKey] = VARIANT_RELEASED;
 	}
 	return true;
+}
+
+// A failed build caches nothing, so the next draw asks again: a scene that
+// always fails is re-requested every frame it is in view. Count per key so
+// that loop is visible in the console without flooding it.
+const sceneBitmapFailures = new Map();   // cacheKey -> count
+function logSceneBitmapFailure(msg) {
+	const n = (sceneBitmapFailures.get(msg.cacheKey) || 0) + 1;
+	sceneBitmapFailures.set(msg.cacheKey, n);
+	if (n <= 3 || n % 50 === 0) {
+		const data = PIXEL_SCENE_DATA[msg.key];
+		console.error(`[scene bitmaps] worker returned no bitmap for ${msg.cacheKey}${msg.textured ? ' (tex)' : ''}`
+			+ ` (failure #${n}${n > 1 ? ', re-request loop' : ''}): ${msg.failReason ?? 'no reason given'}`,
+			{ msg, mainThreadImg: data?.imgElement?.constructor?.name, variant: data?.variants?.[msg.variantKey],
+				epoch: sceneBitmapEpoch, pending: pendingSceneBitmaps.size, cacheEntries: PIXEL_SCENE_BITMAP_CACHE.size });
+	}
 }
 
 /** Halving stops once either axis would round to nothing. */

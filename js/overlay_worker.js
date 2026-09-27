@@ -102,42 +102,53 @@ function variantPixels(key, variantKey) {
 
 async function buildSceneBitmapsWorker(req) {
 	const { epoch, cacheKey, key, variantKey, x, y, textured, maxLevel, visualArt } = req;
-	const data = PIXEL_SCENE_DATA[key];
-	// The cell-color override art is not part of the metadata sync (~90 MB);
-	// the main thread ships it with the first request that needs it.
-	if (data && visualArt) data.visualArt = visualArt;
-	let pixels = null, airMask = null;
-	if (data) {
+	// Every request must be answered: the main thread holds cacheKey as pending
+	// until a reply lands, and a textured request that never answers occupies
+	// one of its few in-flight slots for good.
+	const fail = (reason, err) => {
+		console.error(`[scene bitmaps] no bitmap for ${cacheKey}${textured ? ' (tex)' : ''}: ${reason}`, err ?? '');
+		self.postMessage({ type: 'SCENE_BITMAPS', epoch, cacheKey, key, variantKey, textured, levels: null, failReason: reason });
+	};
+	try {
+		const data = PIXEL_SCENE_DATA[key];
+		if (!data) return fail(`no PIXEL_SCENE_DATA entry for "${key}" in the worker (${Object.keys(PIXEL_SCENE_DATA || {}).length} entries synced)`);
+		// The cell-color override art is not part of the metadata sync (~90 MB);
+		// the main thread ships it with the first request that needs it.
+		if (visualArt) data.visualArt = visualArt;
+		let pixels = null, airMask = null;
 		if (textured) {
-			await initPixelSceneTextures();
+			const modules = await initPixelSceneTextures();
 			const built = buildTexturedScenePixels({ key, variantKey, x, y }, data, true);
 			if (built) { pixels = built.pixels; airMask = built.airMask; }
+			else console.warn(`[scene bitmaps] textured build of ${cacheKey} returned null (texture modules ${modules ? 'loaded' : 'FAILED'}, atlas ${modules?.atlas.getMaterialAtlas() ? 'ready' : 'missing'}); falling back to flat colors`);
 		}
 		if (!pixels) pixels = variantPixels(key, variantKey);
+		if (!pixels) {
+			const img = data.imgElement;
+			return fail(`variantPixels returned null (imgElement is ${img == null ? img : img.constructor?.name}, variantKey "${variantKey}")`);
+		}
+		const width = data.width, height = data.height;
+		if (data.visualArt) pixels = overlayVisualArt(pixels, width, height, data.visualArt);
+		// The whole mip chain up front: each level is reduced from the one above
+		// (halveWithoutHoles keeps the one-pixel seams), and building it here costs
+		// a third more pixels than level 0 alone, against a readback + halving on the
+		// draw thread the first time each zoom band asked for it.
+		const levels = [bitmapFromPixels(width, height, pixels)];
+		let img = { width, height, data: pixels };
+		for (let l = 1; l <= maxLevel; l++) {
+			img = halveWithoutHoles(img);
+			const canvas = new OffscreenCanvas(img.width, img.height);
+			canvas.getContext('2d').putImageData(img, 0, 0);
+			levels.push(canvas.transferToImageBitmap());
+		}
+		const airBitmap = airMask ? bitmapFromPixels(width, height, airMask) : null;
+		self.postMessage({
+			type: 'SCENE_BITMAPS', epoch, cacheKey, key, variantKey, textured, width, height,
+			levels, airMask: airBitmap,
+		}, airBitmap ? [...levels, airBitmap] : levels);
+	} catch (err) {
+		fail(`threw ${err?.message ?? err}`, err);
 	}
-	if (!pixels) {
-		self.postMessage({ type: 'SCENE_BITMAPS', epoch, cacheKey, key, variantKey, textured, levels: null });
-		return;
-	}
-	const width = data.width, height = data.height;
-	if (data.visualArt) pixels = overlayVisualArt(pixels, width, height, data.visualArt);
-	// The whole mip chain up front: each level is reduced from the one above
-	// (halveWithoutHoles keeps the one-pixel seams), and building it here costs
-	// a third more pixels than level 0 alone, against a readback + halving on the
-	// draw thread the first time each zoom band asked for it.
-	const levels = [bitmapFromPixels(width, height, pixels)];
-	let img = { width, height, data: pixels };
-	for (let l = 1; l <= maxLevel; l++) {
-		img = halveWithoutHoles(img);
-		const canvas = new OffscreenCanvas(img.width, img.height);
-		canvas.getContext('2d').putImageData(img, 0, 0);
-		levels.push(canvas.transferToImageBitmap());
-	}
-	const airBitmap = airMask ? bitmapFromPixels(width, height, airMask) : null;
-	self.postMessage({
-		type: 'SCENE_BITMAPS', epoch, cacheKey, key, variantKey, textured, width, height,
-		levels, airMask: airBitmap,
-	}, airBitmap ? [...levels, airBitmap] : levels);
 }
 
 // ---------------------------------------------------------------------------
