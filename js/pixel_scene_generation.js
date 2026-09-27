@@ -222,7 +222,11 @@ export function putPixelSceneBitmaps(msg) {
 		maxLevel: msg.levels.length - 1,
 		airMask: msg.airMask || null,
 		bytes: 0,
-		used: 0,
+		// As recent as anything drawn: it was asked for because it is on (or
+		// about to be on) screen. At 0 it was the LRU minimum, so with the cache
+		// full every arrival was evicted by the next draw before it was ever
+		// drawn, and re-requested -- a build loop that never showed the scene.
+		used: ++pixelSceneDrawTick,
 	};
 	for (let l = 0; l < msg.levels.length; l++) addPixelSceneBitmap(entry, l, msg.levels[l]);
 	if (entry.airMask) {
@@ -292,7 +296,7 @@ function evictPixelSceneBitmaps(keep) {
 	// evicting them only re-requests them next frame: the cache would thrash
 	// and never converge. Give the debug mode room instead.
 	const budgetMB = appSettings.renderEverything
-		? Math.max(appSettings.pixelSceneBitmapBudgetMB || 256, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 256);
+		? Math.max(appSettings.pixelSceneBitmapBudgetMB || 512, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 512);
 	const budget = budgetMB * 1024 * 1024;
 	if (pixelSceneCacheBytes <= budget) return;
 	const entries = [...PIXEL_SCENE_BITMAP_CACHE.values()].sort((a, b) => a.used - b.used);
