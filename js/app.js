@@ -2196,25 +2196,27 @@ export const app = {
 
 	async preload() {
 		this.setLoading(true, "Loading Assets...");
-		this.loadSettings();
-		await loadTranslations();
 		try {
-			this.baseBiomeMapNG0 = await loadPNG('../data/biome_maps/biome_map.png');
-			this.baseBiomeMapNGP = await loadPNG('../data/biome_maps/biome_map_newgame_plus.png');
-			this.baseBiomeMapNightmare = await loadPNG('../data/biome_maps/biome_map_nightmare.png');
-		} catch(e) { console.error("Base assets failed to load."); console.error(e); }
-		console.log("Loading pixel scene data...");
-		// Preload pixel scenes
-		await loadPixelSceneData();
-		//console.log("Finished loading pixel scene data.");
+			this.loadSettings();
+			await loadTranslations();
+			try {
+				this.baseBiomeMapNG0 = await loadPNG('../data/biome_maps/biome_map.png');
+				this.baseBiomeMapNGP = await loadPNG('../data/biome_maps/biome_map_newgame_plus.png');
+				this.baseBiomeMapNightmare = await loadPNG('../data/biome_maps/biome_map_nightmare.png');
+			} catch(e) { console.error("Base assets failed to load."); console.error(e); }
+			console.log("Loading pixel scene data...");
+			await loadPixelSceneData();
 
-		if (document.getElementById('custom-art').checked) {
-			await this.getSurfaceOverlays();
+			if (document.getElementById('custom-art').checked) {
+				try {
+					await this.getSurfaceOverlays();
+				} catch (e) { console.error("Custom art failed to load:", e); }
+			}
+			// Queue up the main few worlds for loading
+			this.worldsInView = new Set(['0,0']);
+		} finally {
+			this.setLoading(false);
 		}
-		// Queue up the main few worlds for loading
-		this.worldsInView = new Set(['0,0']);
-		//this.worldsInView = new Set(['0,0', '-1,0', '1,0', '0,-1', '0,1', '-1,-1', '-1,1', '1,-1', '1,1']);
-		this.setLoading(false);
 	},
 
 	// Could probably default rescan to true if tiles is true

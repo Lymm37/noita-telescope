@@ -75,7 +75,7 @@ async function readPngBufferNode(url) {
 
 // Updated version using UPNG
 
-export async function loadPNG(url) {
+export async function loadPNG(url, { bitmap: wantBitmap = true } = {}) {
     // TODO: Is this loading the library for every PNG?
     const UPNG = await loadUpng();
     let originalBuffer;
@@ -100,7 +100,7 @@ export async function loadPNG(url) {
         // `createImageBitmap` and the headless dump scripts never touch
         // `.bitmap`, so skip it there.
         let bitmap = null;
-        if (!IS_NODE) {
+        if (!IS_NODE && wantBitmap) {
             const blob = new Blob([sanitizedUint8], { type: 'image/png' });
             bitmap = await createImageBitmap(blob);
         }

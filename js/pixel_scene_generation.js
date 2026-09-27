@@ -621,94 +621,118 @@ export async function loadPixelSceneData() {
 	// thread, once, well before the first draw) rather than on demand, so the draw
 	// path can stay synchronous and simply fall back to flat colors until it lands.
 	initPixelSceneTextures();
-	// Load key value pairs for all pixel scenes
-	let loaded = 0;
+	const jobs = [];
+	const queued = new Set();
 	for (const biome of Object.keys(PIXEL_SCENE_BIOME_MAP)) {
 		const biomeScenes = PIXEL_SCENE_BIOME_MAP[biome];
 		for (const sceneList of Object.values(biomeScenes)) {
 			for (const scene of sceneList) {
 				if (scene.name === "") continue; // Skip the "no scene" option
 				const key = getPixelSceneKey(biome, scene.name);
-				if (!PIXEL_SCENE_DATA[key]) {
-					// `dir` overrides the folder for the entries whose PNG does not
-					// live under their own biome's name: the pyramid's interior rooms
-					// are data/biome_impl/crypt/*.png (PYRAMID_SCENES). The KEY still
-					// comes from the biome, because a spawn color's index is
-					// per-biome, so the two biomes' copies stay separate records.
-					const alias = scene.dir ?? getBiomeAlias(biome);
-					const url = `../data/pixel_scenes/${alias}/${scene.name}.png`;
-					const imgData = await loadPNG(url);
-					makeBlackTransparent(imgData.data);
-					// The cell-color override art, kept as-is (its black pixels are
-					// real art, so no makeBlackTransparent here). A failed fetch just
-					// means this scene renders material-derived, like any other.
-					let visualArt = null;
-					let artMask = null;
-					const artName = sceneColorsFileName(alias, scene.name);
-					if (artName) {
-						try {
-							const vis = await loadPNG(`../data/pixel_scenes/${alias}/${artName}.png`);
-							visualArt = { data: vis.data, width: vis.width, height: vis.height };
-							// Bit-packed "art covers this scene pixel" mask, for the hover
-							// readout's "Art:" line (app.js pushOriginLines) -- small enough
-							// to clone into the overlay worker, unlike the art itself.
-							// It plays NO part in the edge-decal pass: the art overrides
-							// cell colors only, never materials, so edges are decided from
-							// the material grid alone.
-							artMask = new Uint8Array((imgData.width * imgData.height + 7) >> 3);
-							const aw = Math.min(imgData.width, vis.width), ah = Math.min(imgData.height, vis.height);
-							for (let y = 0; y < ah; y++) {
-								for (let x = 0; x < aw; x++) {
-									if (vis.data[(y * vis.width + x) * 4 + 3] >= 128) {
-										const p = y * imgData.width + x;
-										artMask[p >> 3] |= 0x80 >> (p & 7);
-									}
-								}
-							}
-						} catch (err) {
-							console.warn(`visual art ${artName}.png missing for ${alias}/${scene.name}:`, err);
-						}
-					}
-					// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
-					const spawnPoints = prescanPixelScene(imgData, biome);
-					PIXEL_SCENE_SPAWN_DATA[key] = spawnPoints;
-					//console.log(`Loaded pixel scene ${key} with ${spawnPoints.length} spawn points.`);
-					PIXEL_SCENE_DATA[key] = {
-						key: key,
-						biome: biome,
-						name: scene.name,
-						dir: alias, // data/pixel_scenes/<dir>/<name>.png -- the key can differ (getPixelSceneKey)
-						imgElement: imgData.data, // Store the image data directly since we need to manipulate it for recoloring
-						width: imgData.width,
-						height: imgData.height,
-						//spawnPoints: spawnPoints,
-						isCosmetic: spawnPoints.length === 0, // If there are no spawn points, we can consider it purely cosmetic and can optionally skip some checks during generation
-						// Which recolor classes this scene actually contains, so it only
-						// pays for a per-chunk variant when one of them depends on the
-						// chunk it lands in (underlyingBiomeSuffix).
-						...classifyPixelSceneColors(imgData.data),
-						// The game's `skip_edge_textures`: this scene's cells still erase
-						// the terrain decal pass under them, but the scene runs no decal
-						// pass of its own (js/pixel_scene_edge_flags.js).
-						skipEdgeTextures: SKIP_EDGE_TEXTURE_SCENES.has(`${alias}/${scene.name}`),
-						visualArt, // per-pixel cell-color override art, or null
-						// Basename of the colors file that art came from, for the hover
-						// readout -- not always `${name}_visual` (SCENE_COLORS_FILE_ALIASES).
-						artName,
-						artMask, // bit-packed art coverage (MSB-first), or null
-						// Repo-relative path of this scene's background sprite, or null.
-						// Just a string: the bitmap itself is owned by the background
-						// layer (js/biome_backgrounds.js), which draws it, so nothing
-						// large is cloned into the overlay worker with this record.
-						backgroundArt: SCENE_BACKGROUNDS[`${alias}/${scene.name}`] ?? null,
-						variants: {}, // Used for color material changes, keyed as `${color}=${material}`
-					};
-					loaded++;
-				}
+				if (PIXEL_SCENE_DATA[key] || queued.has(key)) continue;
+				queued.add(key);
+				jobs.push({ biome, scene, key });
 			}
 		}
 	}
-	console.log(`Loaded ${loaded} pixel scenes.`);
+
+	// Bounded fan-out: fetch/unzip/decode overlap across scenes, without firing
+	// hundreds of requests at once.
+	const results = new Array(jobs.length);
+	let next = 0;
+	const worker = async () => {
+		while (next < jobs.length) {
+			const i = next++;
+			const { biome, scene, key } = jobs[i];
+			try {
+				results[i] = await loadPixelSceneRecord(biome, scene, key);
+			} catch (err) {
+				console.error(`pixel scene ${key} failed to load:`, err);
+			}
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(16, jobs.length) }, worker));
+
+	// Insert in the original order so PIXEL_SCENE_DATA iterates as it did before.
+	let loaded = 0;
+	for (const r of results) {
+		if (!r) continue;
+		PIXEL_SCENE_SPAWN_DATA[r.record.key] = r.spawnPoints;
+		PIXEL_SCENE_DATA[r.record.key] = r.record;
+		loaded++;
+	}
+	console.log(`Loaded ${loaded}/${jobs.length} pixel scenes.`);
+}
+
+async function loadPixelSceneRecord(biome, scene, key) {
+	const alias = scene.dir ?? getBiomeAlias(biome);
+	const url = `../data/pixel_scenes/${alias}/${scene.name}.png`;
+	const imgData = await loadPNG(url, { bitmap: false });
+	makeBlackTransparent(imgData.data);
+	// The cell-color override art, kept as-is (its black pixels are
+	// real art, so no makeBlackTransparent here). A failed fetch just
+	// means this scene renders material-derived, like any other.
+	let visualArt = null;
+	let artMask = null;
+	const artName = sceneColorsFileName(alias, scene.name);
+	if (artName) {
+		try {
+			const vis = await loadPNG(`../data/pixel_scenes/${alias}/${artName}.png`, { bitmap: false });
+			visualArt = { data: vis.data, width: vis.width, height: vis.height };
+			// Bit-packed "art covers this scene pixel" mask, for the hover
+			// readout's "Art:" line (app.js pushOriginLines) -- small enough
+			// to clone into the overlay worker, unlike the art itself.
+			// It plays NO part in the edge-decal pass: the art overrides
+			// cell colors only, never materials, so edges are decided from
+			// the material grid alone.
+			artMask = new Uint8Array((imgData.width * imgData.height + 7) >> 3);
+			const aw = Math.min(imgData.width, vis.width), ah = Math.min(imgData.height, vis.height);
+			for (let y = 0; y < ah; y++) {
+				for (let x = 0; x < aw; x++) {
+					if (vis.data[(y * vis.width + x) * 4 + 3] >= 128) {
+						const p = y * imgData.width + x;
+						artMask[p >> 3] |= 0x80 >> (p & 7);
+					}
+				}
+			}
+		} catch (err) {
+			console.warn(`visual art ${artName}.png missing for ${alias}/${scene.name}:`, err);
+		}
+	}
+	// Prescan the pixel scene for spawn points and store them in a global lookup for later use during generation, keyed by biome and scene name
+	const spawnPoints = prescanPixelScene(imgData, biome);
+	//console.log(`Loaded pixel scene ${key} with ${spawnPoints.length} spawn points.`);
+	const record = {
+		key: key,
+		biome: biome,
+		name: scene.name,
+		dir: alias, // data/pixel_scenes/<dir>/<name>.png -- the key can differ (getPixelSceneKey)
+		imgElement: imgData.data, // Store the image data directly since we need to manipulate it for recoloring
+		width: imgData.width,
+		height: imgData.height,
+		//spawnPoints: spawnPoints,
+		isCosmetic: spawnPoints.length === 0, // If there are no spawn points, we can consider it purely cosmetic and can optionally skip some checks during generation
+		// Which recolor classes this scene actually contains, so it only
+		// pays for a per-chunk variant when one of them depends on the
+		// chunk it lands in (underlyingBiomeSuffix).
+		...classifyPixelSceneColors(imgData.data),
+		// The game's `skip_edge_textures`: this scene's cells still erase
+		// the terrain decal pass under them, but the scene runs no decal
+		// pass of its own (js/pixel_scene_edge_flags.js).
+		skipEdgeTextures: SKIP_EDGE_TEXTURE_SCENES.has(`${alias}/${scene.name}`),
+		visualArt, // per-pixel cell-color override art, or null
+		// Basename of the colors file that art came from, for the hover
+		// readout -- not always `${name}_visual` (SCENE_COLORS_FILE_ALIASES).
+		artName,
+		artMask, // bit-packed art coverage (MSB-first), or null
+		// Repo-relative path of this scene's background sprite, or null.
+		// Just a string: the bitmap itself is owned by the background
+		// layer (js/biome_backgrounds.js), which draws it, so nothing
+		// large is cloned into the overlay worker with this record.
+		backgroundArt: SCENE_BACKGROUNDS[`${alias}/${scene.name}`] ?? null,
+		variants: {}, // Used for color material changes, keyed as `${color}=${material}`
+	};
+	return { record, spawnPoints };
 }
 
 // This function scans the pixel scene image for blocked room colors, and returns an array of room objects with their coordinates and colors

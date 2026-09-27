@@ -11,18 +11,19 @@ const availableZipBundles = [
 
 const loadedZipBundles = {};
 
-async function loadZipBundle(zipUrl) {
-	if (loadedZipBundles[zipUrl]) {
-		return loadedZipBundles[zipUrl];
-	}
-	const zip = await loadZipLib(); // TODO: Is this loading the library every time a zip is accessed?
-	const dataUrl = new URL(zipUrl, import.meta.url);
-	const response = await fetch(dataUrl);
-	const blob = await response.blob();
-	const reader = new zip.ZipReader(new zip.BlobReader(blob));
-	const zipBundle = (await reader.getEntries()).filter(entry => !entry.directory);
-	loadedZipBundles[zipUrl] = zipBundle;
-	return zipBundle;
+// Caches the promise, not the result, so concurrent loads share one fetch of the zip.
+function loadZipBundle(zipUrl) {
+	return loadedZipBundles[zipUrl] ??= (async () => {
+		const zip = await loadZipLib();
+		const dataUrl = new URL(zipUrl, import.meta.url);
+		const response = await fetch(dataUrl);
+		const blob = await response.blob();
+		const reader = new zip.ZipReader(new zip.BlobReader(blob));
+		return (await reader.getEntries()).filter(entry => !entry.directory);
+	})().catch((err) => {
+		delete loadedZipBundles[zipUrl];
+		throw err;
+	});
 }
 
 export async function getFromZipFirst(url) {

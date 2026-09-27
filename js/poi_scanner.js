@@ -54,6 +54,12 @@ export function prescanPixelScene(imgData, sourceBiome) {
 
     const sWidth = imgData.width;
     const sHeight = imgData.height;
+    // Per-pixel getSpawnFunctionIndex was a linear scan of the biome's list for
+    // every opaque pixel; first match wins, same as that scan.
+    const indexByColor = new Map();
+    BIOME_SPAWN_FUNCTION_MAP[sourceBiome]?.forEach((fn, i) => {
+        if (!indexByColor.has(fn.color)) indexByColor.set(fn.color, i);
+    });
 
     for (let y = 0; y < sHeight; y++) {
         for (let x = 0; x < sWidth; x++) {
@@ -68,7 +74,7 @@ export function prescanPixelScene(imgData, sourceBiome) {
             const colorInt = (r << 16) | (g << 8) | b;
             if (colorInt === 0x000000 || colorInt === 0xffffff) continue;
 
-            const index = getSpawnFunctionIndex(sourceBiome, colorInt);
+            const index = indexByColor.get(colorInt) ?? null;
             if (index !== null) {
                 // Pixel scenes are drawn at 1:1 scale in world units
                 // Note the positions are relative
