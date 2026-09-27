@@ -1,8 +1,17 @@
 import { getWorldSize, CONTAINER_TYPES, MATERIAL_CONTAINER_TYPES } from "./utils.js";
 import { getDisplayName } from "./translations.js";
+import { hasSheet, iconImgHtml } from "./icon_sheets.js";
 import { app } from "./app.js"; // Hacky workaround for orbs and PW display...
 import { POTION_COLORS } from "./potion_config.js";
 import { SPRITE_RARITY } from "./wand_config.js";
+
+// `sprite` is `<folder>/<name>` under data/, without the extension.
+function headerSpriteHtml(sprite) {
+	const slash = sprite.indexOf('/');
+	const folder = sprite.slice(0, slash);
+	if (hasSheet(folder)) return iconImgHtml(folder, sprite.slice(slash + 1), 'class="item-sprite-header"');
+	return `<img class="item-sprite-header" src="./data/${sprite}.png" onerror="this.style.display='none'">`;
+}
 
 function generateHeaderHtml(name, sprite, extra, material=null) {
 	let extraSprite = '';
@@ -103,7 +112,7 @@ function generateHeaderHtml(name, sprite, extra, material=null) {
 		<div class="item-header">
 			<a href=${wikiPage} target="_blank">
 			<div class="header-slot" style="overflow: hidden; position: relative;">
-				<img class="item-sprite-header" src="./data/${sprite}.png" onerror="this.style.display='none'">
+				${headerSpriteHtml(sprite)}
 				${extraSprite}
 			</div>
 			</a>
@@ -340,14 +349,13 @@ function generateSpellListHtml(spells, capacity) {
 		html += `<div class="slot">`;
 		// Turns out it doesn't like starting with an underscore, even though it works fine locally.
 		if (spellName === 'UNIDENTIFIED') {
-			html += `<img class="spell-icon" src="./data/spell_sprites/unidentified.png" title="Uses frame-based RNG so can't be determined ahead of time">`;
+			html += iconImgHtml('spell_sprites', 'unidentified', `class="spell-icon" title="Uses frame-based RNG so can't be determined ahead of time"`);
 		}
 		else if (spellName) {
-			const icon = spellName.toLowerCase() + ".png";
 			const translatedName = getDisplayName(spellName);
 			const title = translatedName ? `${translatedName} (${spellName})` : spellName;
 			const wikiPage = `https://noita.wiki.gg/wiki/${spellName}`;
-			html += `<a href="${wikiPage}" target="_blank"><img class="spell-icon" src="./data/spell_sprites/${icon}" title="${title}" onerror="this.style.display='none'"></a>`;
+			html += `<a href="${wikiPage}" target="_blank">${iconImgHtml('spell_sprites', spellName.toLowerCase(), `class="spell-icon" title="${title}"`)}</a>`;
 		}
 		html += `</div>`;
 	}

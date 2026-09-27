@@ -1,5 +1,6 @@
 import { ALL_SPELLS } from "./spells.js";
 import { getDisplayName } from "./translations.js";
+import { setIconImg } from "./icon_sheets.js";
 import { PERKS } from "./perks.js";
 
 const PROGRESS_ENEMIES = [
@@ -223,19 +224,18 @@ function createProgressCard(item) {
 	slot.className = 'slot';
 	const image = document.createElement('img');
 	image.className = 'spell-icon';
-	image.src = `data/${item.spriteFolder}/${(item.spriteId || item.id).toLowerCase()}.png`;
+	setIconImg(image, item.spriteFolder, (item.spriteId || item.id).toLowerCase());
 	image.alt = item.name;
-	image.onerror = () => { image.src = `data/${item.spriteFolder}/unknown.png`; };
 	if (item.leftSpriteId && item.rightSpriteId) {
 		card.onpointermove = (event) => {
 			const bounds = card.getBoundingClientRect();
 			const spriteId = event.clientX < bounds.left + bounds.width / 2
 				? item.leftSpriteId
 				: item.rightSpriteId;
-			image.src = `data/${item.spriteFolder}/${spriteId}.png`;
+			setIconImg(image, item.spriteFolder, spriteId);
 		};
 		card.onpointerleave = () => {
-			image.src = `data/${item.spriteFolder}/${item.spriteId}.png`;
+			setIconImg(image, item.spriteFolder, item.spriteId);
 		};
 	}
 	slot.appendChild(image);

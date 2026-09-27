@@ -1,4 +1,5 @@
 import { getDisplayName } from "./translations.js";
+import { iconImgHtml } from "./icon_sheets.js";
 import { POTION_COLORS } from './potion_config.js';
 import { getPerkDeck, getTemplePerks, rerollTemplePerks, pickupPerk, getGamblePerks, getAlwaysCasts, PERKS } from "./perks.js";
 
@@ -343,7 +344,7 @@ export function renderPerkUI() {
         rerollDeckList.hidden = !showRerollDeck;
         rerollDeckList.innerHTML = remainingRerollDeck.map(perkId => `
             <div class="reroll-deck-card" title="${getPerkDisplayName(perkId)}">
-                <img class="perk-icon" src="data/perk_sprites/${perkId.toLowerCase()}.png" alt="${getPerkDisplayName(perkId)}" onerror="this.src='data/perk_sprites/unknown.png'">
+                ${iconImgHtml('perk_sprites', perkId.toLowerCase(), `class="perk-icon" alt="${getPerkDisplayName(perkId)}"`)}
             </div>
         `).join('');
     }
@@ -379,7 +380,7 @@ export function renderPerkUI() {
                     subIconsHtml += `<div class="gamble-preview">
                         ${p.hypotheticalGamble.perks.map(gp => {
                             if (gp === 'ALWAYS_CAST') needsAcSpell = true;
-                            return `<img class="gamble-icon" title="${getPerkDisplayName(gp)}" src="data/perk_sprites/${gp.toLowerCase()}.png" onerror="this.src='data/perk_sprites/unknown.png'">`;
+                            return iconImgHtml('perk_sprites', gp.toLowerCase(), `class="gamble-icon" title="${getPerkDisplayName(gp)}"`);
                         }).join('')}
                     </div>`;
                 }
@@ -396,7 +397,7 @@ export function renderPerkUI() {
                         // Creating a new .gamble-preview div forces it to stack below the gamble perks
                         subIconsHtml += `
                             <div class="gamble-preview">
-                                <img class="gamble-icon" title="Always Cast: ${spellName}" src="data/spell_sprites/${acSpell.id ? acSpell.id.toLowerCase() : acSpell.toLowerCase()}.png" onerror="this.src='data/spell_sprites/unknown.png'">
+                                ${iconImgHtml('spell_sprites', (acSpell.id ?? acSpell).toLowerCase(), `class="gamble-icon" title="Always Cast: ${spellName}"`)}
                             </div>
                         `;
                     }
@@ -405,11 +406,7 @@ export function renderPerkUI() {
                 // Add data-index utilizing originalIndex for strict slot tracking
                 return `
                     <div class="perk-card ${selectedClass}" data-temple="${data.t}" data-perk="${p.perk}" data-index="${p.originalIndex}">
-                        <img class="perk-icon ${luckyClass}" 
-                             title="${titleText}" 
-                             src="data/perk_sprites/${p.perk.toLowerCase()}.png" 
-                             alt="${altText}" 
-                             onerror="this.src='data/perk_sprites/unknown.png'">
+                        ${iconImgHtml('perk_sprites', p.perk.toLowerCase(), `class="perk-icon ${luckyClass}" title="${titleText}" alt="${altText}"`)}
                         ${subIconsHtml}
                     </div>
                 `;
