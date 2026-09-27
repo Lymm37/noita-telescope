@@ -13,8 +13,9 @@
 // changes, a bitmap lands or a page is evicted. A pan inside a cell is a few
 // uniforms and one instanced draw per page: no per-scene JS at all.
 //
-// FORCE AIR (#000042, textured level-0 entries only) is drawn first as an
-// alpha erase of the terrain canvas, so the 2D layers under the terrain blit
+// FORCE AIR (#000042) and translucent materials, at any level built with
+// material textures on, are drawn first as an alpha erase of the terrain
+// canvas, so the 2D layers under the terrain blit
 // (the background stack) show through the hole. That replaces the Canvas2D
 // path's destination-out mask plus the destination-over background refill.
 // Unlike the 2D path, all masks of a copy erase before any scene paints, so a

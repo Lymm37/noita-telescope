@@ -151,9 +151,35 @@ for (const m of MATERIAL_DATA) {
 }
 
 /**
- * 256x2 R8UI: palette index -> material entry (row 0) and compositing alpha
- * (row 1). Direct color entries resolve through their wang color; air / gray /
- * white stay entry 0 (no texture), alpha 255.
+ * A textured material's compositing alpha when drawn flat (zoomed out, or the
+ * texel detail toggle off): the mean alpha over its whole texture rect, so the
+ * flat cell is as see-through on average as its texels. The XML color alpha is
+ * no stand-in -- ice and glass are FF there, but their texels are 84 and 183.
+ */
+const meanAlphaByEntry = new Map();
+export function atlasEntryMeanAlpha(atlas, entry) {
+    let mean = meanAlphaByEntry.get(entry);
+    if (mean !== undefined) return mean;
+    const [x, y, w, h] = atlas.meta.subarray((entry - 1) * 4, entry * 4);
+    let sum = 0;
+    for (let py = y; py < y + h; py++) {
+        for (let o = (py * atlas.width + x) * 4 + 3, px = 0; px < w; px++, o += 4) sum += atlas.data[o];
+    }
+    mean = w * h ? Math.round(sum / (w * h)) : 255;
+    meanAlphaByEntry.set(entry, mean);
+    return mean;
+}
+
+/** A material's flat compositing alpha: textured -> mean texel alpha, else its XML alpha. */
+export function materialFlatAlpha(atlas, name) {
+    const entry = materialAtlasEntry(atlas, name);
+    return entry > 0 ? atlasEntryMeanAlpha(atlas, entry) : materialAlpha(name);
+}
+
+/**
+ * 256x2 R8UI: palette index -> material entry (row 0) and flat compositing
+ * alpha (row 1, materialFlatAlpha). Direct color entries resolve through their
+ * wang color; air / gray / white stay entry 0 (no texture), alpha 255.
  */
 export function buildPaletteMaterialTable(atlas, palette) {
     const table = new Uint8Array(PALETTE_SIZE * 2).fill(0);
@@ -162,7 +188,7 @@ export function buildPaletteMaterialTable(atlas, palette) {
         const raw = palette.colors[i] & 0xffffff;
         table[i] = entryForWangColor(atlas, raw);
         const name = MATERIAL_COLOR_LOOKUP[raw.toString(16).padStart(6, '0')];
-        if (name) table[PALETTE_SIZE + i] = MATERIAL_ALPHA_BY_NAME.get(name) ?? 255;
+        if (name) table[PALETTE_SIZE + i] = materialFlatAlpha(atlas, name);
     }
     return table;
 }

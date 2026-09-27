@@ -27,6 +27,7 @@ import { CAVES_SETUP, getModifierGrid, bitmapNoiseNodeOffset } from '../engine_r
 import { buildEngineLattice } from '../engine_resolve/lattice_builder.js';
 import { FILL_LAYER_COLORS } from '../generator_config.js';
 import { BIOME_MAP_HEIGHT } from './indirection.js';
+import { atlasEntryMeanAlpha } from './material_atlas.js';
 
 export const ENGINE_MODE_TOPO0 = 0;
 export const ENGINE_MODE_TOPO2 = 1;
@@ -246,11 +247,13 @@ export function buildMatColorTable(matAtlas) {
             if (mean === undefined) { mean = atlasEntryMeanRGB(matAtlas, entry); meanByEntry.set(entry, mean); }
             rgb = mean;
         }
-        // x packs the material's XML alpha (the cell's src-over compositing
+        // x packs the material's flat alpha (the cell's src-over compositing
         // alpha, water 0xA0...) above the 8-bit atlas entry; the shader
-        // unpacks with & 0xff / >> 8. Textured materials take the texel's own
-        // alpha instead (the baked cell color IS the texel, alpha included).
-        t[id * 4] = entry | ((MATERIAL_FLAT_ALPHA_BY_ID[id] ?? 255) << 8);
+        // unpacks with & 0xff / >> 8. With texel detail on, textured materials
+        // take the texel's own alpha instead (the baked cell color IS the
+        // texel, alpha included); flat, they take its mean (ice 84, not FF).
+        const alpha = entry > 0 ? atlasEntryMeanAlpha(matAtlas, entry) : (MATERIAL_FLAT_ALPHA_BY_ID[id] ?? 255);
+        t[id * 4] = entry | (alpha << 8);
         t[id * 4 + 1] = (rgb >> 16) & 0xff;
         t[id * 4 + 2] = (rgb >> 8) & 0xff;
         t[id * 4 + 3] = rgb & 0xff;

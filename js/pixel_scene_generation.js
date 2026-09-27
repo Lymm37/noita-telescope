@@ -1,6 +1,6 @@
 import { NollaPrng } from './nolla_prng.js';
 import { BLOCKED_COLORS, GENERAL_SCENES, PIXEL_SCENE_BIOME_MAP } from './pixel_scene_config.js';
-import { MATERIAL_COLOR_CONVERSION, MATERIAL_COLOR_LOOKUP, MATERIAL_WANG_COLORS } from './potion_config.js';
+import { MATERIAL_COLOR_CONVERSION, MATERIAL_COLOR_LOOKUP, MATERIAL_DATA, MATERIAL_WANG_COLORS } from './potion_config.js';
 import { getBiomeAtWorldCoordinates } from './utils.js';
 import { biomeEdgeNoiseFlag } from './wobble_flags.js';
 import { loadPNG } from './png_sanitizer.js';
@@ -195,6 +195,8 @@ function requestSceneBitmaps(pixelScene, cacheKey, textured) {
 		x: pixelScene.x,
 		y: pixelScene.y,
 		textured,
+		erase: !textured && cacheKey.endsWith(FLAT_ERASE_SUFFIX),
+		texturedAlphas: !textured && cacheKey.endsWith(FLAT_ERASE_SUFFIX) ? texturedFlatAlphas() : null,
 		maxLevel: sceneMaxMipLevel(data.width, data.height),
 	}, data);
 }
@@ -213,7 +215,7 @@ export function pixelSceneBitmapVersion() {
 export function putPixelSceneBitmaps(msg) {
 	pendingSceneBitmaps.delete(msg.cacheKey);
 	sceneBitmapVersion++;
-	const bitmaps = [...(msg.levels || []), msg.airMask].filter(Boolean);
+	const bitmaps = [...(msg.levels || []), ...(msg.airMasks || [])].filter(Boolean);
 	if (msg.epoch !== sceneBitmapEpoch || !msg.levels || !msg.levels[0]) {
 		for (const b of bitmaps) b.close?.();
 		if (msg.epoch === sceneBitmapEpoch) logSceneBitmapFailure(msg);
@@ -227,7 +229,7 @@ export function putPixelSceneBitmaps(msg) {
 		height: msg.height,
 		levels: new Array(PIXEL_SCENE_MAX_MIP + 1).fill(null),
 		maxLevel: msg.levels.length - 1,
-		airMask: msg.airMask || null,
+		airMasks: msg.airMasks || [],   // per level, alongside `levels`
 		bytes: 0,
 		// As recent as anything drawn: it was asked for because it is on (or
 		// about to be on) screen. At 0 it was the LRU minimum, so with the cache
@@ -236,8 +238,9 @@ export function putPixelSceneBitmaps(msg) {
 		used: ++pixelSceneDrawTick,
 	};
 	for (let l = 0; l < msg.levels.length; l++) addPixelSceneBitmap(entry, l, msg.levels[l]);
-	if (entry.airMask) {
-		const bytes = entry.airMask.width * entry.airMask.height * 4;
+	for (const m of entry.airMasks) {
+		if (!m) continue;
+		const bytes = m.width * m.height * 4;
 		entry.bytes += bytes;
 		pixelSceneCacheBytes += bytes;
 	}
@@ -289,7 +292,7 @@ function releasePixelSceneEntry(entry) {
 	for (const bitmap of entry.levels) {
 		if (bitmap) bitmap.close();
 	}
-	if (entry.airMask) entry.airMask.close();
+	for (const m of entry.airMasks) if (m) m.close();
 	pixelSceneCacheBytes -= entry.bytes;
 	PIXEL_SCENE_BITMAP_CACHE.delete(entry.cacheKey);
 	// No version bump: a bake that already holds the evicted scene's pixels
@@ -369,7 +372,7 @@ export function buildTexturedScenePixels(pixelScene, pixelSceneData, ignoreSetti
 }
 
 // Source-over blend of a scene's visual-art override onto a COPY of its built
-// pixels, restricted to opaque (painted-cell) destination pixels. The visual may
+// pixels, restricted to painted-cell (alpha > 0) destination pixels. The visual may
 // be smaller than the scene (hall_b/hall_br); both are anchored top-left.
 export function overlayVisualArt(raw, width, height, art) {
 	const out = new Uint8Array(raw.length);
@@ -382,9 +385,11 @@ export function overlayVisualArt(raw, width, height, art) {
 			const a = s[si + 3];
 			if (a === 0) continue;
 			const di = (y * width + x) * 4;
-			if (out[di + 3] !== 255) continue; // no cell here, art places none either
+			if (out[di + 3] === 0) continue; // no cell here, art places none either
 			if (a === 255) {
-				out[di] = s[si]; out[di + 1] = s[si + 1]; out[di + 2] = s[si + 2];
+				// The art is the cell's color outright, so a translucent material
+				// (glass texels are alpha 183) takes the art's opacity with it.
+				out[di] = s[si]; out[di + 1] = s[si + 1]; out[di + 2] = s[si + 2]; out[di + 3] = 255;
 			} else {
 				const inv = 255 - a;
 				out[di] = (s[si] * a + out[di] * inv + 127) / 255 | 0;
@@ -508,6 +513,35 @@ export async function reloadPixelSceneCache() {
 	await loadPixelSceneData();
 }
 
+// With material textures on, flat (zoomed-out) builds erase the terrain under
+// their air and liquids like the textured build does (eraseFlatScenePixels). The
+// toggle does not rebuild bitmaps, so the two flat flavors are cached apart.
+const FLAT_ERASE_SUFFIX = '~erase';
+
+// [wang 0xRRGGBB, alpha] for every textured material whose flat alpha (mean
+// texel alpha) is below 255: ice, glass... The worker never loads the atlas, so
+// the erase-aware flat build gets them with each request.
+let texturedFlatAlphaList = null;
+function texturedFlatAlphas() {
+	if (texturedFlatAlphaList) return texturedFlatAlphaList;
+	const atlas = sceneTextureAtlas();
+	if (!atlas) return [];
+	texturedFlatAlphaList = [];
+	for (const m of MATERIAL_DATA) {
+		if (!m.texture || !m.wang) continue;
+		const a = sceneTextureModules.atlas.materialFlatAlpha(atlas, m.name);
+		if (a < 255) texturedFlatAlphaList.push([parseInt(m.wang, 16) & 0xffffff, a]);
+	}
+	return texturedFlatAlphaList;
+}
+function flatCacheKey(pixelScene) {
+	const key = `${pixelScene.key}/${pixelScene.variantKey || ''}`;
+	return sceneTextureAtlas() ? key + FLAT_ERASE_SUFFIX : key;
+}
+function texturedCacheKey(pixelScene) {
+	return `${pixelScene.key}/${pixelScene.variantKey || ''}@${pixelScene.x},${pixelScene.y}`;
+}
+
 // Returns the bitmap to draw for this scene at the requested mip level (0 = native), or
 // null when its recolored pixels aren't available yet. The caller always draws it into
 // the scene's full-resolution world rectangle, so the level only changes sampling.
@@ -522,9 +556,8 @@ function pixelSceneEntry(pixelScene, level = 0, warmOnly = false) {
 	// just to be sampled down to 1/16. Below the threshold scenes share the flat
 	// variant cache, matching the terrain's own flat falloff.
 	const textured = level === 0 && !!sceneTextureAtlas();
-	const variantKey = pixelScene.variantKey || '';
-	const flatKey = `${pixelScene.key}/${variantKey}`;
-	const cacheKey = textured ? `${flatKey}@${pixelScene.x},${pixelScene.y}` : flatKey;
+	const flatKey = flatCacheKey(pixelScene);
+	const cacheKey = textured ? texturedCacheKey(pixelScene) : flatKey;
 	const entry = PIXEL_SCENE_BITMAP_CACHE.get(cacheKey);
 	if (entry) return entry;
 	if (!warmOnly || !textured) requestSceneBitmaps(pixelScene, cacheKey, textured);
@@ -563,7 +596,7 @@ export function getPixelSceneDrawable(pixelScene, level = 0) {
 	const wanted = level > entry.maxLevel ? entry.maxLevel : level;
 	const bitmap = entry.levels[wanted];
 	evictPixelSceneBitmaps(entry);
-	return { cacheKey: entry.cacheKey, bitmap, airMask: entry.airMask };
+	return { cacheKey: entry.cacheKey, bitmap, airMask: entry.airMasks[wanted] ?? null };
 }
 
 /**
@@ -573,8 +606,8 @@ export function getPixelSceneDrawable(pixelScene, level = 0) {
  * pixelSceneEntry.
  */
 export function pixelSceneCacheKeys(pixelScene, level = 0) {
-	const flatKey = `${pixelScene.key}/${pixelScene.variantKey || ''}`;
-	if (pixelScenesTexturedAt(level)) return [`${flatKey}@${pixelScene.x},${pixelScene.y}`, flatKey];
+	const flatKey = flatCacheKey(pixelScene);
+	if (pixelScenesTexturedAt(level)) return [texturedCacheKey(pixelScene), flatKey];
 	return [flatKey];
 }
 
@@ -593,16 +626,20 @@ export function pixelSceneCacheEpoch() {
  * scene itself, or null when it has none.
  *
  * Air in a scene PNG (#000042) is not a color the game paints, it is an
- * instruction to erase whatever terrain the chunk generated there. Only the
- * textured build carries the mask: with textures off the flat recolor keeps its
- * old "paint the background color opaque over a fill biome" approximation, so
- * that path renders exactly as before.
+ * instruction to erase whatever terrain the chunk generated there. Translucent
+ * materials erase too, then blend over the background. Only builds made with
+ * material textures on carry masks (the textured build, and the flat build via
+ * eraseFlatScenePixels): with textures off the flat recolor keeps its old
+ * "paint the background color opaque over a fill biome" approximation, so that
+ * path renders exactly as before.
  *
  * Cheap to call right after getPixelSceneCanvas() -- pass the same level so it
- * hits the same cache entry (flat zoomed-out entries carry no mask).
+ * hits the same cache entry and gets the mask of the same mip level.
  */
 export function getPixelSceneAirMask(pixelScene, level = 0) {
-	return pixelSceneEntry(pixelScene, level)?.airMask ?? null;
+	const entry = pixelSceneEntry(pixelScene, level);
+	if (!entry) return null;
+	return entry.airMasks[level > entry.maxLevel ? entry.maxLevel : level] ?? null;
 }
 
 function getBiomeAlias(biomeName) {
@@ -1397,6 +1434,65 @@ export function recolorPixelScene(sourceData, sourceColor, targetColor) {
     }
 
     return outData;
+}
+
+// 0xRRGGBB wang color -> compositing alpha, for materials drawn in a flat color
+// (no texture): the XML color's alpha byte, as texturePixelSceneForBiome uses.
+// Textured materials come from the caller (texturedFlatAlphas).
+let flatWangAlpha = null;
+function flatMaterialAlpha(rgb) {
+	if (!flatWangAlpha) {
+		flatWangAlpha = new Map();
+		for (const m of MATERIAL_DATA) {
+			if (m.texture || !m.wang || !m.color) continue;
+			const a = (parseInt(m.color, 16) >>> 24) & 0xff;
+			if (a < 255) flatWangAlpha.set(parseInt(m.wang, 16) & 0xffffff, a);
+		}
+	}
+	return flatWangAlpha.get(rgb) ?? 255;
+}
+
+/**
+ * The erase-aware variant of a flat (zoomed-out) scene build, for when the
+ * terrain under it is the GL terrain that level 0's textured build erases.
+ * Without it, zoomed out, a scene's air let the terrain fill its rooms and its
+ * liquids (acid, water, blood) painted as opaque neon slabs.
+ *
+ * `wangPixels` is the scene after its material substitutions (still wang
+ * colors); `flatPixels` is recolorPixelSceneForBiome's output for it. Mirrors
+ * texturePixelSceneForBiome's air and translucency rules: FORCE AIR goes in the
+ * mask unless the scene paints its air solid, and a translucent material keeps
+ * its alpha and erases the terrain under it. `texturedAlphas` is
+ * texturedFlatAlphas(): a textured material's alpha is its texels' mean. The density class stays flat -- its
+ * per-cell band choice (which can answer air) is position-dependent, and this
+ * build is shared by every instance.
+ */
+export function eraseFlatScenePixels(sceneName, wangPixels, flatPixels, targetBiome, texturedAlphas = []) {
+	const airAlpha = sceneBiomePaint(sceneName, targetBiome).texturedAirAlpha;
+	const texAlpha = new Map(texturedAlphas);
+	const out = new Uint8Array(flatPixels);
+	let airMask = null;
+	for (let i = 0; i < wangPixels.length; i += 4) {
+		if (wangPixels[i + 3] === 0) continue;
+		const r = wangPixels[i], g = wangPixels[i + 1], b = wangPixels[i + 2];
+		let a, erase;
+		if (r === 0x00 && g === 0x00 && b === 0x42) {
+			// A scene that paints its air solid leaves the terrain under it alone.
+			a = airAlpha;
+			erase = airAlpha === 0x00;
+		} else {
+			if (r === g && g === b) continue;
+			const rgb = (r << 16) | (g << 8) | b;
+			a = texAlpha.get(rgb) ?? flatMaterialAlpha(rgb);
+			erase = a < 255;
+		}
+		out[i + 3] = a;
+		if (erase) {
+			if (!airMask) airMask = new Uint8Array(wangPixels.length);
+			airMask[i + 3] = 0xff;
+		}
+	}
+	return { pixels: out, airMask };
 }
 // ---------------------------------------------------------------------------
 // Engine-faithful pixel scene texturing
