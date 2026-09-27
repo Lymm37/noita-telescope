@@ -3,7 +3,7 @@ import { BIOME_COLOR_TO_NAME, BIOME_COLORS_WITH_TERRAIN, FILL_BIOME_MATERIALS, F
 import { loadPNG } from "./png_sanitizer.js";
 import { MATERIAL_COLOR_CONVERSION, MATERIAL_WANG_COLORS } from "./potion_config.js";
 import { appSettings } from "./settings.js";
-import { bandBiomeMap, getBiomeAtWorldCoordinates, getWorldSize, getWorldStride, tileToWorldCoordinates } from "./utils.js";
+import { bandBiomeMap, getBiomeAtWorldCoordinates, getWorldSize, tileToWorldCoordinates } from "./utils.js";
 
 // Used for setting background color...
 
@@ -195,9 +195,9 @@ export function getUnwobbledTileOverlayBiome(biomeData, worldX, worldY, isNGP, g
 
     const mapWidth = getWorldSize(isNGP, gameMode);
     const worldWidth = mapWidth * CHUNK_SIZE;
-    // Fold on the PW stride (64*512-8 in NG+), not the map pitch.
-    const strideX = getWorldStride(isNGP, gameMode);
-    const mapX = ((worldX + worldWidth / 2) % strideX + strideX) % strideX;
+    // Fold on the map pitch, as the engine's chunk index does (not the NG+ PW
+    // stride, see utils.getWorldStride).
+    const mapX = ((worldX + worldWidth / 2) % worldWidth + worldWidth) % worldWidth;
     const mapY = ((worldY + 14 * CHUNK_SIZE) % (48 * CHUNK_SIZE) + 48 * CHUNK_SIZE) % (48 * CHUNK_SIZE);
     const x = Math.floor(mapX / CHUNK_SIZE);
     const y = Math.floor(mapY / CHUNK_SIZE);
@@ -345,14 +345,13 @@ export function createFillOverlay(layer, biomeData, biomeMap, pwIndex, pwIndexVe
 
     // Per-column / per-row constants: world position, owning chunk cell, and
     // whether the pixel is inside the 42px band where the wobble can reach.
-    const strideX = getWorldStride(isNGP, gameMode); // PW-stride fold, see utils
     const worldXs = new Float64Array(outWidth);
     const cellXs = new Int32Array(outWidth);
     const bandX = new Uint8Array(outWidth);
     for (let outX = 0; outX < outWidth; outX++) {
         const worldX = originCoords.x + (outX - padTiles) * TILE_SIZE;
         worldXs[outX] = worldX;
-        cellXs[outX] = Math.floor((((worldX + worldWidth / 2) % strideX) + strideX) % strideX / CHUNK_SIZE);
+        cellXs[outX] = Math.floor((((worldX + worldWidth / 2) % worldWidth) + worldWidth) % worldWidth / CHUNK_SIZE);
         const subX = ((worldX % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         bandX[outX] = (subX < BIOME_EDGE_NOISE_EXTENT || subX > CHUNK_SIZE - BIOME_EDGE_NOISE_EXTENT) ? 1 : 0;
     }

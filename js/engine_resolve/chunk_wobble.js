@@ -32,17 +32,16 @@ export function cellColorAt(bmap, cx, cy) {
 // Returns { origColor, color, cx, cy } -- `color` is the RESOLVED cell's biome.
 export function resolveCellFull(bmap, wx, wy, hasEdgeNoise, out = {}) {
 	const mapW = bmap.w;
-	// Only the chunk INDEX folds on the PW stride (NG+/nightmare content
-	// repeats on 64*512-8, not on the 64-chunk map pitch -- game-proven; see
-	// utils.getWorldStride; ng0 is untouched, stride == pitch). The shifted
-	// coordinate itself stays absolute: the engine derives sub_x and the wobble
-	// simplex/sin/cos from the raw shifted_x and folds only (shifted_x >> 9).
-	const strideX = mapW === 64 ? 64 * 512 - 8 : mapW * 512;
+	// The chunk index wraps on the MAP pitch, (shifted_x >> 9) % width, and
+	// sub_x and the wobble simplex/sin/cos take the raw shifted_x -- one frame.
+	// In NG+/nightmare the PW translation is 64*512-8 (utils.getWorldStride)
+	// but the biome map still wraps on 64*512, so biome columns drift 8px per
+	// parallel world against the world content; folding the index on the PW
+	// stride put the wobble band 8px/pw off the edges it belongs to.
 	const sx = wx + mapW * 256; // grid x_shift = worldW/2 (= 17920 for mapW 70)
 	const sy = wy + 7168; //       grid y_shift = 14*512
 	const fx = Math.trunc(sx), fy = Math.trunc(sy);
-	const cxAbs = fx >> 9, cy = fy >> 9;
-	const cx = Math.trunc(((sx % strideX) + strideX) % strideX) >> 9;
+	const cx = fx >> 9, cy = fy >> 9;
 	const origColor = cellColorAt(bmap, cx, cy);
 	out.origColor = origColor;
 	out.color = origColor;
@@ -68,9 +67,7 @@ export function resolveCellFull(bmap, wx, wy, hasEdgeNoise, out = {}) {
 	const s = ComputeMagicValueFromDoubles(sx * 0.05, sy * 0.05);
 	const offCol = Math.sin(sy * 0.005) * 30.0 + s * 11.0; // sin-of-Y -> column
 	const offRow = Math.cos(sx * 0.005) * 30.0 + s * 11.0; // cos-of-X -> row
-	// The wobble's cell offset, computed on the absolute coordinate, applied to
-	// the folded index.
-	const wCx = cx + ((Math.trunc(offCol + sx) >> 9) - cxAbs), wCy = Math.trunc(offRow + sy) >> 9;
+	const wCx = Math.trunc(offCol + sx) >> 9, wCy = Math.trunc(offRow + sy) >> 9;
 	const wColor = cellColorAt(bmap, wCx, wCy);
 	if (!hasEdgeNoise(wColor)) return out;
 	out.color = wColor;

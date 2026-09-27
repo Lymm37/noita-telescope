@@ -166,7 +166,7 @@ uint fillMaterialAt(ivec2 p) {
 // so the row here CLAMPS. The CPU bake gets the same answer by swapping in
 // heavenPixels/hellPixels, whose 48 rows are all copies of row 0 / row 47.
 ivec2 unwob(int wx, int wy) {
-    return ivec2(pmod(wx + u_centerPx, u_worldSizeX) / CHUNK,
+    return ivec2(pmod(fdiv(wx + u_centerPx, CHUNK), u_mapWidth),
                  clamp(fdiv(wy + u_baseY, CHUNK), 0, u_maxRow));
 }
 
@@ -866,14 +866,11 @@ void engProbe(int px, int py, uvec3 oc, inout uvec3 nc, inout ivec2 npos, inout 
     uvec3 c = chunkAt(ivec2(px, py)).rgb;
     if (any(notEqual(c, oc))) { nc = c; npos = ivec2(px, py); hit = true; }
 }
-// wAbs: the absolute pixel (sub-position, noise); wFold: the same pixel folded
-// on the PW stride (chunk-table index). The wobble's cell offset is computed on
-// the absolute shifted coordinate, as the engine does, and applied to the
-// folded index.
-ivec2 engResolveCell(ivec2 wAbs, ivec2 wFold) {
-    int sx = wAbs.x + u_centerPx, sy = wAbs.y + u_baseY;
-    int cxAbs = fdiv(sx, CHUNK), cy = fdiv(sy, CHUNK);
-    int cx = fdiv(wFold.x + u_centerPx, CHUNK);
+// Absolute pixel throughout: the chunk index wraps on the map pitch
+// (chunkAt/engInfoAt pmod u_mapWidth), not on the PW stride.
+ivec2 engResolveCell(ivec2 w) {
+    int sx = w.x + u_centerPx, sy = w.y + u_baseY;
+    int cx = fdiv(sx, CHUNK), cy = fdiv(sy, CHUNK);
     if ((engInfoAt(cx, cy) & 1024u) == 0u) return ivec2(cx, cy);
     int subX = pmod(sx, CHUNK), subY = pmod(sy, CHUNK);
     if (subX >= 42 && subY >= 42 && subX <= 470 && subY <= 470) return ivec2(cx, cy);
@@ -893,7 +890,7 @@ ivec2 engResolveCell(ivec2 wAbs, ivec2 wFold) {
     float s = magicNoise(float(sx) * 0.05, float(sy) * 0.05);
     float offCol = sin(float(sy) * 0.005) * 30.0 + s * 11.0;
     float offRow = cos(float(sx) * 0.005) * 30.0 + s * 11.0;
-    int wCx = cx + (fdiv(int(offCol + float(sx)), CHUNK) - cxAbs);
+    int wCx = fdiv(int(offCol + float(sx)), CHUNK);
     int wCy = fdiv(int(offRow + float(sy)), CHUNK);
     if ((engInfoAt(wCx, wCy) & 1024u) == 0u) return ivec2(cx, cy);
     return ivec2(wCx, wCy);
@@ -936,26 +933,23 @@ void main() {
     // texels sample w directly). Game-validated at the map top on seed
     // 786433191: dense the_sky clouds continue upward, snow columns stay air.
     int pwX = fdiv(w.x + u_centerPx, u_worldSizeX);
-    // Two frames. INDEX lookups -- chunk table, edge-wobble cell, wang region
-    // anchors -- fold on the PW stride u_worldSizeX (64*512-8 in NG+/
-    // nightmare, where it differs from the 64-chunk map pitch by 8px per
-    // world: at pw512 the naive 32768 fold picks a biome column 8 cols west
-    // of the game's). Everything evaluated FROM a coordinate -- wobble noise,
-    // topo0 surface line / carve / inside noise, band-select noise and polka,
-    // topo2 warp, material texels -- takes the ABSOLUTE pixel w:
-    // ChunkGrid_ResolveChunkAtPosition @0x0087d9a0 folds only the chunk index
-    // ((shifted_x >> 9) % width) and feeds the raw shifted_x to sub_x and the
-    // simplex/sin/cos; the topo chain never folds at all (the lake's linear
-    // surface ramp keeps rising through the east parallel worlds and the
-    // solid_wall coal/rock bands never repeat). Folding w itself here
-    // (56961c9) wrapped all of that on the world stride.
+    // Two frames. The biome map wraps on its own pitch: the chunk-table cell,
+    // the edge-wobble cell and sub_x all come from the ABSOLUTE pixel w
+    // (ChunkGrid_ResolveChunkAtPosition @0x0087d9a0: (shifted_x >> 9) % width,
+    // raw shifted_x into sub_x and the simplex/sin/cos), as does everything
+    // evaluated from a coordinate -- topo0 surface line / carve / inside noise,
+    // band-select noise and polka, topo2 warp, material texels (the lake's
+    // surface ramp keeps rising through the east worlds; solid_wall's bands
+    // never repeat). Only the wang region anchors fold, on the PW stride
+    // u_worldSizeX: in NG+/nightmare that is 64*512-8 while the map pitch is
+    // 64*512, so biome columns drift 8px per world against the content.
     ivec2 wFold = ivec2(w.x - pwX * u_worldSizeX, w.y);
 
     // Engine-faithful resolve: the game's own per-pixel chain for every chunk
     // whose biome the port supports; anything else falls through to the legacy
     // pipeline below (per chunk, so the two coexist seam-by-seam).
     if (u_engineTerrain) {
-        ivec2 cell = engResolveCell(w, wFold);
+        ivec2 cell = engResolveCell(w);
         uint info = engInfoAt(cell.x, cell.y);
         uint mode = (info >> 8) & 3u;
         // Material-id output (edge-decal tiles, terrain_renderer.js
@@ -973,7 +967,7 @@ void main() {
                 if (mode == 1u) {
                     mat = engTopo2(slot, w);
                 } else {
-                    int pcx = fdiv(wFold.x + u_centerPx, CHUNK);
+                    int pcx = fdiv(w.x + u_centerPx, CHUNK);
                     int pcy = fdiv(w.y + u_baseY, CHUNK);
                     int physSlot = int(engInfoAt(pcx, pcy) & 0xffu);
                     int leftSlot = int(engInfoAt(pcx - 1, pcy) & 0xffu);
@@ -1007,7 +1001,7 @@ void main() {
                 // The surface line near the top of the world comes from the
                 // PHYSICAL biome-map cell, not the wobble-resolved one — see
                 // engDepthRatio.
-                int pcx = fdiv(wFold.x + u_centerPx, CHUNK);
+                int pcx = fdiv(w.x + u_centerPx, CHUNK);
                 int pcy = fdiv(w.y + u_baseY, CHUNK);
                 int physSlot = int(engInfoAt(pcx, pcy) & 0xffu);
                 int leftSlot = int(engInfoAt(pcx - 1, pcy) & 0xffu);
@@ -1020,7 +1014,7 @@ void main() {
 
     ivec2 pos;
     bool ignored;
-    overlayBiome(wFold.x, w.y, pos, ignored);
+    overlayBiome(w.x, w.y, pos, ignored);
 
     uvec4 cc = chunkAt(pos);
     // Constant-material fill biome: every cell the engine paints there is the

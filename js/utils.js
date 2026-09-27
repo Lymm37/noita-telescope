@@ -151,9 +151,11 @@ export function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
-// The PW stride: world content (chunk table, wang regions, carve, scenes)
-// repeats on this, which in NG+/nightmare is 8px SHORT of the 64-chunk map
-// pitch. Game-proven on seed 786433191 ng2 vs live MAPDUMPs (NG_PLUS_INIT
+// The PW stride: parallel worlds translate world content (scenes, wang
+// regions) by this, which in NG+/nightmare is 8px SHORT of the 64-chunk map
+// pitch. Biome-map lookups do NOT fold on it: the chunk index is
+// (shifted_x >> 9) % mapWidth, so NG+ biome columns drift 8px per world
+// against the content. Game-proven on seed 786433191 ng2 vs live MAPDUMPs (NG_PLUS_INIT
 // run): pw1/pw2/pw8/pw64 content = main + k*32760 (94-96% air-mask), far
 // east at x 16.77M = main + 512*32760 (87%); 35840 and 32768 score noise.
 export function getWorldStride(isNGP, gameMode='normal') {
@@ -203,11 +205,9 @@ export function getBiomeAtWorldCoordinates(biomeData, worldX, worldY, isNGP = fa
     // Convert to positions mod world size
     const worldSize = mapWidth * 512;
     const worldCenter = worldSize / 2;
-    // Fold on the PW stride, not the map pitch: in NG+ they differ by 8px per
-    // world, which at far PWs puts the naive fold whole COLUMNS off (8 cols at
-    // pw512). modX stays within [0, stride) so the column index is 0..63.
-    const strideX = getWorldStride(isNGP, gameMode);
-    const modX = ((worldX + worldCenter) % strideX + strideX) % strideX;
+    // Fold on the map pitch, as the engine's chunk index does, so the column
+    // and the sub-chunk position below come from the same grid.
+    const modX = ((worldX + worldCenter) % worldSize + worldSize) % worldSize;
     const modY = ((worldY + 14*512) % 24576 + 24576) % 24576;
 
     // Account for biome edge noise

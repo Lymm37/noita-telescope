@@ -61,7 +61,6 @@ export function createMaterialField(layers, biomeData, generatorConfig, mapWidth
         return lattice.chunkCovered[row * mapWidth + (((cx % mapWidth) + mapWidth) % mapWidth)];
     }
 
-    const strideX = mapWidth === 64 ? 64 * 512 - 8 : mapWidth * 512;
     const centerPx = mapWidth * 256;
     // The topo2 sampler's world offset is the grid's x shift (mapWidth*256),
     // not ng0's 17920 -- see K.worldOffX in topo2_resolve.js.
@@ -69,14 +68,11 @@ export function createMaterialField(layers, biomeData, generatorConfig, mapWidth
 
     /** Material id at a world pixel; 0 = air, MATERIAL_UNRESOLVED = fallback. */
     function materialAt(x, y) {
-        // Only INDEX lookups (chunk table, region anchors) fold on the PW
-        // stride (utils.getWorldStride; ng0: stride == map pitch). The noise
-        // and topo chains take the ABSOLUTE x, as in the engine: the lake's
-        // linear surface ramp keeps rising through the east parallel worlds,
-        // the solid_wall coal/rock bands never repeat, and the topo2 lattice
-        // wraps itself (CoverGrid, GW = stride/10). Same split as gl/shaders.js
-        // main().
-        const xFold = ((x + centerPx) % strideX + strideX) % strideX - centerPx;
+        // Every chain takes the ABSOLUTE x, as in the engine: the chunk index
+        // wraps on the map pitch inside resolveCellFull, the lake's linear
+        // surface ramp keeps rising through the east parallel worlds, the
+        // solid_wall coal/rock bands never repeat, and the topo2 lattice wraps
+        // itself (CoverGrid, GW = stride/10). Same frame as gl/shaders.js main().
         resolveCellFull(bmap, x, y, hasEdgeNoise, cell);
         const biome = ENGINE_BY_COLOR.get(cell.color);
         if (!biome || !biome.supported) return MATERIAL_UNRESOLVED;
@@ -93,7 +89,7 @@ export function createMaterialField(layers, biomeData, generatorConfig, mapWidth
         // from: CellNoise_EvaluateCaveBoundary @0x0087e8d0 re-derives the cell from
         // the raw coordinates and ignores the BiomeChunk it was handed.
         const sx = x + mapWidth * 256;
-        const pcx = (xFold + mapWidth * 256) >> 9;
+        const pcx = (((sx >> 9) % mapWidth) + mapWidth) % mapWidth;
         const pcy = Math.min(BIOME_MAP_HEIGHT - 1, Math.max(0, (y + 7168) >> 9));
         const physBiome = ENGINE_BY_COLOR.get(bmap.colorAt(pcx, pcy));
         const leftColor = bmap.colorAt((((pcx - 1) % mapWidth) + mapWidth) % mapWidth, pcy);
