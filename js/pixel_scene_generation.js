@@ -310,7 +310,7 @@ export function clearPixelSceneBitmapCache() {
 // Give the debug mode room instead.
 function sceneBitmapBudgetBytes() {
 	const budgetMB = appSettings.renderEverything
-		? Math.max(appSettings.pixelSceneBitmapBudgetMB || 512, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 512);
+		? Math.max(appSettings.pixelSceneBitmapBudgetMB || 256, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 256);
 	return budgetMB * 1024 * 1024;
 }
 
