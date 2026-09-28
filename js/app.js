@@ -582,7 +582,6 @@ export const app = {
 	ngPlusCount: 0,
 	isNGP: false,
 	eyes: {},
-	skipCosmeticScenes: false, // At some point I should make a settings file or something
 	biomeMapOverlay: null, // Used to mask out areas like EDR which tiles shouldn't extend into, even in NG+
 	tileSpawns: null, // Pre-scanned spawn functions for generated tiles
 	pixelScenesByPW: {}, // Cached pixel scenes by PW after scanning
@@ -656,7 +655,26 @@ export const app = {
 
 		// Menu Toggles
 		document.querySelector('.adv-toggle').onclick = () => this.toggleAdvancedSearch();
-		document.querySelector('.debug-toggle').onclick = () => this.toggleDebugOptions();
+		const optionsOverlay = document.getElementById('options-overlay');
+		this.setOptionsVisible = (visible) => {
+			optionsOverlay.style.display = visible ? 'flex' : 'none';
+			document.getElementById('options-button').textContent = visible ? 'Close Options ◀' : 'Open Options ▶';
+			if (visible) {
+				this.updateOptionDependencies();
+				document.dispatchEvent(new CustomEvent('telescope-overlay-open', {
+					detail: { overlayId: 'options-overlay' }
+				}));
+			}
+		};
+		document.getElementById('options-button').onclick = () => {
+			this.setOptionsVisible(optionsOverlay.style.display !== 'flex');
+		};
+		document.getElementById('options-close').onclick = () => this.setOptionsVisible(false);
+		document.addEventListener('telescope-overlay-open', (event) => {
+			if (event.detail.overlayId !== 'options-overlay') this.setOptionsVisible(false);
+		});
+		// Bubbles after each control's own onchange handler has run.
+		optionsOverlay.addEventListener('change', () => this.updateOptionDependencies());
 		document.querySelector('#alchemy-label').onclick = () => this.toggleAlchemyRecipes();
 		const fungalShiftsOverlay = document.getElementById('fungal-shifts-overlay');
 		const setFungalShiftsVisible = (visible) => {
@@ -832,7 +850,6 @@ export const app = {
 		// Debug Controls
 		
 		document.getElementById('skip-cosmetic-scenes').onchange = () => {
-			this.skipCosmeticScenes = document.getElementById('skip-cosmetic-scenes').checked;
 			this.saveSettings();
 			this.generate(false, true);
 		};
@@ -891,7 +908,23 @@ export const app = {
 		};
 		// The GL renderer paints the fill biomes and the CPU bake does not, so the
 		// unpainted-chunk mask depends on which one is selected.
-		document.getElementById('debug-terrain-renderer').onchange = () => {this.saveSettings(); this.draw();};
+		// Switching renderer can change the effective static/cosmetic scene settings
+		// and whether custom art is drawn (see applyRendererOverrides in settings.js).
+		document.getElementById('debug-terrain-renderer').onchange = async () => {
+			const sceneSettings = () => `${appSettings.enableStaticPixelScenes}|${appSettings.skipCosmeticScenes}`;
+			const scenesBefore = sceneSettings();
+			this.saveSettings();
+			if (appSettings.customArt && !this.surfaceOverlay) {
+				try {
+					await this.getSurfaceOverlays();
+				} catch (e) { console.error("Custom art failed to load:", e); }
+			}
+			if (sceneSettings() !== scenesBefore) {
+				reloadPixelSceneCache().then(() => this.generate(true, true));
+			} else {
+				this.draw();
+			}
+		};
 		document.getElementById('debug-pixel-scene-budget').onchange = () => {this.saveSettings(); this.draw();};
 		for (const layer of RENDER_LAYERS) {
 			document.getElementById(layer.id).onchange = () => {this.saveSettings(); this.draw();};
@@ -1064,8 +1097,9 @@ export const app = {
 		setupProgressUI((searchTerm, category) => {
 			document.getElementById('progress-overlay').style.display = 'none';
 			if (category === 'enemies' && !document.getElementById('show-enemy-spawns').checked) {
-				alert('Hämis says: Enemy spawns are disabled. Enable the "Show Enemy Spawns" debug setting before searching for enemies.');
+				alert('Hämis says: Enemy spawns are disabled. Enable "Show Enemy Spawns" in Options before searching for enemies.');
 				const enemySpawnsCheckbox = document.getElementById('show-enemy-spawns');
+				this.setOptionsVisible(true);
 				enemySpawnsCheckbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
 				enemySpawnsCheckbox.focus();
 				return;
@@ -2213,7 +2247,7 @@ export const app = {
 				}
 			});
 
-			if (document.getElementById('custom-art').checked) {
+			if (appSettings.customArt) {
 				try {
 					await this.getSurfaceOverlays();
 				} catch (e) { console.error("Custom art failed to load:", e); }
@@ -2403,14 +2437,14 @@ export const app = {
 		// 2. SPAWN FUNCTION SCANNING
 
 		if (rescan || !this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] || !this.poisByPW[`${this.pw},${this.pwVertical}`]) {
-			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.skipCosmeticScenes, this.perks, this.gameMode);
+			const scanResults = scanSpawnFunctions(this.biomeData, this.tileSpawns, this.seed, this.ngPlusCount, this.pw, this.pwVertical, appSettings.skipCosmeticScenes, this.perks, this.gameMode);
 			this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = scanResults.finalPixelScenes;
 			const specialPoIs = getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.perks, this.gameMode);
 			this.poisByPW[`${this.pw},${this.pwVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
 		
 			// Static pixel scenes
-			if (document.getElementById('enable-static-pixel-scenes').value !== 'off') {
-				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, this.skipCosmeticScenes, this.perks, this.isDaily, this.gameMode);
+			if (appSettings.enableStaticPixelScenes !== 'off') {
+				const staticPixelScenesResults = addStaticPixelScenes(this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.biomeData, appSettings.skipCosmeticScenes, this.perks, this.isDaily, this.gameMode);
 				this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = this.pixelScenesByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pixelScenes);
 				this.poisByPW[`${this.pw},${this.pwVertical}`] = this.poisByPW[`${this.pw},${this.pwVertical}`].concat(staticPixelScenesResults.pois);
 			}
@@ -3896,7 +3930,7 @@ export const app = {
 
 		// Weather overlays
 		if (L.atmosphere) {
-			if (document.getElementById('custom-art').checked && this.weatherOverlays) {
+			if (appSettings.customArt && this.weatherOverlays) {
 				// Only applies to main world, check whether the main world is in view
 				if (this.worldsInView.has('0,0')) {
 					const { shiftX, shiftY } = worldOffsets['0,0'];
@@ -4069,13 +4103,11 @@ export const app = {
 		// Tile background, needs to overwrite custom art in some places in NG+ based on a mask
 		
 		// TODO: Might need special mask for vertical PWs but for now I'll just not draw it there
-		// The mask exists to cover custom art where the CPU tiles will paint air
-		// as opaque nothing. The engine GL terrain paints every chunk itself and
-		// deliberately leaves air transparent and liquids alpha-blended so the
-		// real background stack shows through — a flat biome-colored mask drawn
-		// between the backgrounds and the terrain would replace them.
-		if (L.alphaMask && !(appSettings.engineTerrain
-			&& appSettings.terrainRenderer === 'gl' && biomeOverlayMode !== 'none')) {
+		// The mask covers custom art where the software tiles will paint air as
+		// opaque nothing, so it only draws alongside custom art. GL never draws
+		// custom art (applyRendererOverrides), and its engine terrain deliberately
+		// leaves air transparent so the real background stack shows through.
+		if (appSettings.customArt && L.customArt && L.tileOverlays) {
 			for (let worldKey of this.worldsInView) {
 				const { pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				if (pwY === 0) {
@@ -4253,7 +4285,7 @@ export const app = {
 				// place so they land on top of every scene AND on top of the
 				// background refill below, which is what a stand-in has to do.
 				const sceneArt = [];
-				const artOn = document.getElementById('custom-art').checked && this.surfaceOverlayScenes;
+				const artOn = appSettings.customArt && this.surfaceOverlayScenes;
 				// A stand-in tile is 16x16 blown up over the room; once the room's own
 				// pixels resolve it is the coarser picture, so it stops above this zoom
 				// and the scene draws itself (js/pixel_scene_art.js). Only the stamped
@@ -4424,7 +4456,7 @@ export const app = {
 		// Debug overlays (tile bounds, pathfinding)
 
 		// Draw debug boxes and paths above overlays/pixel scenes so they aren't obscured
-		if (L.debugBoxes && (showBoxes || showPaths)) {
+		if (showBoxes || showPaths) {
 			for (let worldKey of this.worldsInView) {
 				const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				// Hack PW offsets
@@ -4726,9 +4758,23 @@ export const app = {
 		document.getElementById('advanced-ui').style.display = 'block';
 	},
 
-	toggleDebugOptions() {
-		const ui = document.getElementById('debug-options');
-		ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+	// Elements with data-requires="a b=v" are enabled only while checkbox #a is
+	// checked and select #b has value v. A fieldset disables everything inside it.
+	updateOptionDependencies() {
+		for (const el of document.querySelectorAll('#options-overlay [data-requires]')) {
+			const met = el.dataset.requires.split(/\s+/).every(cond => {
+				const [id, value] = cond.split('=');
+				const input = document.getElementById(id);
+				if (!input) return true;
+				return value === undefined ? input.checked : input.value === value;
+			});
+			el.classList.toggle('requires-unmet', !met);
+			if (el.tagName === 'FIELDSET') {
+				el.disabled = !met;
+			} else {
+				for (const control of el.querySelectorAll('input, select, button')) control.disabled = !met;
+			}
+		}
 	},
 
 	toggleAlchemyRecipes() {

@@ -46,8 +46,6 @@
         .search-row label b { color: #dca44b; }
         .adv-toggle { font-size: 11px; color: #dca44b; cursor: pointer; text-decoration: underline; margin-bottom: 5px; display: block; }
         #advanced-ui { display: none; background: #1a1a1a; padding: 10px; border: 1px solid #333; margin-top: 5px; }
-        .debug-toggle { font-size: 11px; color: #dca44b; cursor: pointer; text-decoration: underline; margin-bottom: 5px; display: block; }
-        #debug-options { display: none; background: #1a1a1a; padding: 10px; border: 1px solid #333; margin-top: 5px; }
 
         input[type="range"] { width: 100%; height: 5px; margin: 5px 0; accent-color: #dca44b; cursor: pointer; }
 
@@ -55,8 +53,7 @@
         .debug-opt.hidden { display: none; }
         .poi-scale-control label { display: flex; justify-content: space-between; }
 
-        #regions-container { flex: 1; display: flex; flex-direction: column; min-height: 200px; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
-        #regions-list { flex: 1; overflow-y: auto; border: 1px solid #333; background: #1a1a1a; padding: 5px; text-align: left;}
+        #regions-list { max-height: 320px; overflow-y: auto; border: 1px solid #333; background: #1a1a1a; padding: 5px; text-align: left;}
         
         #unlocks-container { flex: 1; display: flex; flex-direction: column; min-height: 200px; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
         #unlocks-list { flex: 1; overflow-y: auto; border: 1px solid #333; background: #1a1a1a; padding: 5px; }
@@ -191,6 +188,32 @@
         .progress-card.complete .slot { box-shadow: inset 0 0 0 1px #dca44b; }
         .progress-card.missing .slot { box-shadow: inset 0 0 0 3px #c94b4b; }
         .progress-card:hover .spell-icon { filter: brightness(1.25); }
+
+        #options-overlay {
+            position: absolute;
+            top: 24px;
+            bottom: 24px;
+            left: 24px;
+            width: min(1100px, calc(100% - 48px));
+            z-index: 150;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            background: rgba(10, 10, 10, 0.97);
+            border: 2px solid #dca44b;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            color: #eee;
+            text-align: left;
+        }
+        #options-sections { overflow: auto; padding: 12px; columns: 320px; column-gap: 24px; }
+        .options-section { break-inside: avoid; margin-bottom: 18px; }
+        .options-section h3 { margin: 0 0 6px; color: #dca44b; font-size: 15px; }
+        .options-subgroup { border: 1px solid #444; margin: 8px 0 0; padding: 2px 8px 6px; }
+        .options-subgroup legend { color: #dca44b; font-size: 12px; padding: 0 4px; }
+        .options-subgroup:disabled, .requires-unmet { opacity: 0.4; }
+        .options-subgroup:disabled .requires-unmet { opacity: 1; }
+        .options-subgroup:disabled .debug-opt, .requires-unmet { cursor: not-allowed; }
+        .options-note { color: #aaa; cursor: default; }
 
         #fungal-shifts-overlay {
             position: absolute;
@@ -1160,97 +1183,9 @@
             </div>
         </div>
 
-        <div id="regions-container">
-            <span style="font-weight:bold; font-size:14px; margin-bottom:5px;">Region Options</span>
-            <div class="btn-group">
-                <button id="regions-all" class="btn-small" title="Generate tile data for all biomes, looks pretty but some of them are unnecessary for searching">All</button>
-                <button id="regions-useful" class="btn-small" title="Generate tile data only for regions which contain wands and items, default setting">Useful</button>
-                <button id="regions-none" class="btn-small" title="Deselect all regions, so you can select a single region for faster limited searches">None</button>
-            </div>
-            <div id="regions-list"></div>
-            <label class="region-opt"><input type="checkbox" id="skip-cosmetic-scenes" title="Do not generate or display pixel scenes which do not contain any spawn pixels with wands or items, saves a small amount of time but doesn't look as nice"> Skip Cosmetic Pixel Scenes</label>
-        </div>
 
-        <span class="debug-toggle" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;" title="Show or hide options which you probably will not need to enable for normal use">Debug Options...</span>
-        <div id="debug-options">
-            <label class="debug-opt" title="Accessibility mode"><input type="checkbox" id="accessibility-mode"> Accessibility Mode</label>
-            <label class="debug-opt" title="Use simple triangles for heart and potion PoI symbols in Accessibility Mode."><input type="checkbox" id="debug-simple-poi-symbols"> Simple PoI Symbols</label>
-            <label class="debug-opt" title="Display approximate wand sprite rarity in PoIs."><input type="checkbox" id="show-wand-sprite-rarity" checked> Show Wand Sprite Rarity</label>
-            <label class="debug-opt" title="There is a single *unique* pixel scene in the game, which is the Shrine pixel scene in the Collapsed Mines. Being unique, once you visit/load it, it permanently alters the spawn probability of other pixel scenes in the Collapsed Mines on your run. Only the Collapsed Mines version of this scene is unique, the Mines version is not. If the pixel scenes predicted for the Collapsed Mines are incorrect, it's probably because you need to toggle this setting."><input type="checkbox" id="visited-coalmine-alt-shrine"> Visited Collapsed Mine Shrine</label>
-            <label class="debug-opt" title="Exclude Taikasauva Spawns from the map. Taikasauvas are a source of wands and spells, but they can be somewhat inconsistent because they have a tendency to randomly unload."><input type="checkbox" id="exclude-taikasauva"> Exclude Natural Taikasauva Spawns</label>
-            <label class="debug-opt" title="Whether to recolor wang colors to material colors. Colors are still incorrect for some materials because they use textures which have different colors than their wang/material colors."><input type="checkbox" id="recolor-materials" checked> Recolor Materials</label>
-            <label class="debug-opt" title="Paint each terrain pixel from the material's own materials_gfx texture, the way the game bakes cell colors, instead of one flat color per material. Requires the WebGL terrain renderer and Recolor Materials."><input type="checkbox" id="material-textures" checked> Material textures (GL)</label>
-            <label class="debug-opt" title="Resolve terrain per pixel with the game engine's own generation math (coverage lattices, carve noise, material bands) for the biomes the port supports; other biomes keep the regular renderer. Requires the WebGL terrain renderer."><input type="checkbox" id="engine-terrain" checked> Engine terrain (GL)</label>
-            <label class="debug-opt" title="Stamp the EdgeGraphics sprite band the game bakes into cell colors along material borders. Placement is statistical - the engine's own is generation-order dependent and not reproducible - but density, depth and palette match. Requires Engine terrain, and only draws at zoom 1x or closer."><input type="checkbox" id="edge-decals" checked> Edge decals (GL)</label>
-            <label class="debug-opt" title="Remove spawn pixels after pre-scanning spawns from tiles and pixel scenes. Makes the world look quite a bit more empty, or more clean, depending on your point of view. Might be buggy with attempting to deselect this setting."><input type="checkbox" id="clear-spawn-pixels"> Clear Spawn Pixels</label>
-            <label class="debug-opt" title="Show a custom overlay of the surface and pixel scenes at a lower resolution"><input type="checkbox" id="custom-art" checked> Display Custom Art</label>
-            <label class="debug-opt" title="Whether to enable static pixel scenes (holy mountains and such, with no items). WIP">
-                Enable Static Pixel Scenes
-                <select id="enable-static-pixel-scenes">
-                    <option value="off">Off</option>
-                    <option value="some">Some</option>
-                    <option value="all" selected>All (kind of slow)</option>
-                </select>
-            </label>
-            <label class="debug-opt" title="Hide PoI circles to show the underlying tile map more clearly"><input type="checkbox" id="debug-hide-pois"> Hide PoIs</label>
-            <div class="debug-opt poi-scale-control" title="Adjust the rendered size of normal points of interest.">
-                <label for="debug-poi-scale">Normal PoI Scale <output id="debug-poi-scale-value">1.0x</output></label>
-                <input type="range" id="debug-poi-scale" min="0.1" max="4" step="0.1" value="1">
-            </div>
-            <label class="debug-opt" title="Keep normal PoIs legible when zooming out."><input type="checkbox" id="debug-pois-zoom"> Scale Normal PoIs with Zoom</label>
-            <div class="debug-opt poi-scale-control" title="Adjust the rendered size of highlighted search-result points of interest.">
-                <label for="debug-highlight-poi-scale">Search Result Scale <output id="debug-highlight-poi-scale-value">1.0x</output></label>
-                <input type="range" id="debug-highlight-poi-scale" min="0.1" max="4" step="0.1" value="1">
-            </div>
-            <label class="debug-opt" title="Keep highlighted search-result PoIs legible when zooming out."><input type="checkbox" id="debug-highlight-pois-zoom" checked> Scale Search Results with Zoom</label>
-            <label class="debug-opt" title="Show the colors from the original biome map as the background, instead of the recolored ones based on the average color of the backgrounds"><input type="checkbox" id="debug-original-biome-map"> Show Original Biome Map Colors</label>
-            <label class="debug-opt" title="Edge noise is the wavy edge between chunks. Some spawns near the edges of biomes may be false positives or false negatives depending on whether or not they get culled by the edge noise, like for example if EDR protrudes into a biome and blocks a spawn. This feature hasn't been fully consistent with the game quite yet."><input type="checkbox" id="enable-edge-noise"> Render Edge Noise</label>
-            <label class="debug-opt" title="Click somewhere on the map to show a local view of the edge noise at the pixel level. Colors of chunks are according to their chunk position ID value (0-3)."><input type="checkbox" id="debug-edge-noise"> Show Biome Edge Noise Debug</label>
-            <label class="debug-opt" title="Change the overlay which colors the foreground materials of biomes. None mode uses the original white color of the tiles. Cheap mode calculates straight edges of the biomes but still checks accurately which biome they are in. Other modes require edge noise to be enabled to show any difference. Normal mode calculates the edge noise but only within the interior of biomes. Expanded mode attempts to use the edge noise with an area slightly extended from the biome to show the wavy edges more clearly, but it's currently a bit broken.">
-                Overlay Mode
-                <select id="debug-biome-overlay-mode">
-                    <!-- <option value="none">None</option> -->
-                    <option value="cheap">Cheap</option>
-                    <option value="normal" selected>Normal</option>
-                    <option value="expanded">Expanded (slow)</option>
-                </select>
-            </label>
-            <label class="debug-opt" title="Which renderer draws the terrain (tile overlay) layer. CPU uses the baked overlay images, one per region per parallel world. GL evaluates the biome edge noise per screen pixel on the GPU and samples the region images directly, which is faster and more accurate at biome seams, but is still being validated. GL needs WebGL2 and falls back to the CPU renderer without it, as well as for the heaven and hell parallel worlds.">
-                Terrain Renderer
-                <select id="debug-terrain-renderer">
-                    <option value="cpu">CPU (baked)</option>
-                    <option value="gl" selected>GL (experimental)</option>
-                </select>
-            </label>
-            <label class="debug-opt" title="Show tile bounds for each region, with numerical values of the tile indices shown."><input type="checkbox" id="debug-show-tile-bounds"> Show Tile Bounds</label>
-            <label class="debug-opt" title="Show the calculated pathfinding validation step for the region. This may not be exactly the same as the path the game uses, and is definitely not the shortest path or anything, it's just a verification that there is some path to the bottom of the biome. If it seems broken and nonsensical sometimes, it's because the way the game does it is too."><input type="checkbox" id="debug-show-path"> Show Paths</label>
-            <label class="debug-opt" title="Show enemy spawns. Will make generation/searching/panning slightly slower. Might still be buggy."><input type="checkbox" id="show-enemy-spawns"> Show Enemy Spawns</label>
-            <label class="debug-opt" title="Whether to give hints for searching when common searches fail because of unlikely conditions."><input type="checkbox" id="enable-hamis-hints" checked> Enable hämis hints</label>
-            <label class="debug-opt hidden" title="Whether to block spawns near the edges of chunks. Testing out something the game seems to do."><input type="checkbox" id="debug-block-edge-spawns"> Block Edge Spawns</label>
-            <label class="debug-opt" title="Make PoIs very small to try to see their precise positions better"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
-            <label class="debug-opt hidden" title="Apply straight edges to the Holy Mountain biomes instead of using the normal wavy edge noise"><input type="checkbox" id="debug-fix-holy-mountain-edge-noise" checked> Fix Holy Mountain Edge Noise</label>
-            <label class="debug-opt hidden" title="Exclude edge cases where edge noise changes the biome"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases</label>
-            <label class="debug-opt hidden" title="Set extra rerolls for pathfinding debug (requires pathfinding requirement to be disabled)">Extra Rerolls (Pathfinding Debug)<input type="number" value="0" min="0" max="100" style="width: 60px;" id="debug-extra-rerolls" autocomplete="off"> </label>
-            <label class="debug-opt hidden" title="Display RNG info (deprecated)"><input type="checkbox" id="debug-rng-info"> Display RNG Info (Deprecated)</label>
-            <label class="debug-opt" title="Draw a transparency checkerboard over chunks which no tile layer actually paints, so that the underlying biome map color is not mistaken for generated terrain."><input type="checkbox" id="debug-unpainted-checkerboard" checked> Checkerboard Unpainted Regions</label>
-            <label class="debug-opt" title="Draw the exact curve where the biome edge noise flips from one chunk's biome to the other's, sampled at screen resolution. The tile overlays only apply the wobble once per 10 pixel cell, so this shows where the boundary really is. Straight chunk lines are drawn where the biomes on either side disable edge noise."><input type="checkbox" id="debug-biome-boundary-contour"> Biome Boundary Contour</label>
-            <label class="debug-opt" title="Measure how long each render layer takes and how many draw calls it makes, printed as a table to the developer console about once per second."><input type="checkbox" id="debug-layer-timings"> Log Render Layer Timings</label>
-            <label class="debug-opt" title="Overlay in the bottom-right corner of the map: where wall time goes per subsystem over the last 2 s (main-thread CPU per render layer, overlay-worker CPU per job type, and GPU time for the WebGL terrain and decal passes; Canvas2D GPU work is not measurable from the page), the render work currently queued (scene bitmaps, edge-decal tiles, overlays, recolors) and the recently completed items with their queue wait, run time and GPU share. Only traces work posted while it is on."><input type="checkbox" id="debug-render-hud"> Render HUD</label>
-            <label class="debug-opt" title="Ignore every zoom-based level-of-detail cut: full-resolution pixel scenes and material textures at any zoom, backdrop art and boundary strips always tiled, no stand-in art. Makes frame cost comparable across zoom levels for profiling; expensive when zoomed out (every visible scene gets a full-resolution textured build in the worker, up to a minute and ~300MB+ at the overview before the frame is steady). Edge decals keep their 1:1 gate."><input type="checkbox" id="debug-render-everything"> Render Everything (no zoom LOD)</label>
-            <div class="debug-opt" title="Flies the camera with synthetic input -- zoom out to 1.5 world widths, drag a rectangle, zoom in to 1:1, drag again, zoom back -- and records every frame's wall time, drawNow's time per layer and how long the asynchronous scene/decal work takes to settle after each phase. Tables go to the console and below; the phases and draws are also User Timing marks for the browser profiler."><button type="button" id="debug-run-benchmark">Run Render Benchmark</button> <span id="debug-benchmark-status"></span></div>
-            <pre id="debug-benchmark-result" class="debug-opt" style="display:none; white-space:pre; overflow-x:auto; font-size:11px; max-height:320px; overflow-y:auto; margin:0;"></pre>
-            <label class="debug-opt" title="Memory budget for cached pixel scene images and their zoomed-out mip levels. The least recently drawn scenes are dropped once the budget is exceeded and are recolored again if they come back into view.">Pixel Scene Image Budget (MB)<input type="number" value="256" min="16" max="4096" step="16" style="width: 70px;" id="debug-pixel-scene-budget" autocomplete="off"> </label>
-            <div class="debug-opt" title="Show or hide individual render layers of the map, in draw order. Useful for diagnosing what is drawing (or costing) what.">Render Layers</div>
-            <label class="debug-opt" title="Biome map background colors (one image per world in view)."><input type="checkbox" id="debug-layer-biome-background" checked> &nbsp;&nbsp;Biome Background</label>
-            <label class="debug-opt" title="Hand-drawn surface and sky overlay art. Off by default because it is expensive and covers generated terrain."><input type="checkbox" id="debug-layer-custom-art"> &nbsp;&nbsp;Custom Art</label>
-            <label class="debug-opt" title="Weather, sky darkening, scales, suns/moons, stars and the echoing spire."><input type="checkbox" id="debug-layer-atmosphere"> &nbsp;&nbsp;Weather / Sky / Stars</label>
-            <label class="debug-opt" title="Biome map alpha mask which covers custom art where tiles are drawn."><input type="checkbox" id="debug-layer-alpha-mask"> &nbsp;&nbsp;Alpha Mask</label>
-            <label class="debug-opt" title="Generated wang tile regions (the actual terrain)."><input type="checkbox" id="debug-layer-tile-overlays" checked> &nbsp;&nbsp;Tile Overlays</label>
-            <label class="debug-opt" title="Pixel scenes, orb rooms and the cauldron room."><input type="checkbox" id="debug-layer-pixel-scenes" checked> &nbsp;&nbsp;Pixel Scenes</label>
-            <label class="debug-opt" title="Tile bound boxes and pathfinding paths (also need their own toggles above)."><input type="checkbox" id="debug-layer-debug-boxes" checked> &nbsp;&nbsp;Debug Boxes / Paths</label>
-            <label class="debug-opt" title="Wall messages and eye messages."><input type="checkbox" id="debug-layer-secrets" checked> &nbsp;&nbsp;Secrets</label>
-            <label class="debug-opt" title="Local search area, edge noise debug canvas and the zoom target pixel."><input type="checkbox" id="debug-layer-misc" checked> &nbsp;&nbsp;Misc</label>
-            <label class="debug-opt" title="The PoI circles and their labels — the same thing as 'Hide PoIs' above, in the layer list so a scripted capture can switch it off with the rest."><input type="checkbox" id="debug-layer-pois" checked> &nbsp;&nbsp;Points of Interest</label>
+        <div id="options-container" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
+            <button id="options-button" title="Regions, rendering, accessibility and debugging options">Open Options ▶</button>
         </div>
 
     </div>
@@ -1280,6 +1215,128 @@
                 </div>
             </div>
             <div id="progress-lists"></div>
+        </div>
+        <div id="options-overlay" role="dialog" aria-modal="true" aria-labelledby="options-title">
+            <div class="progress-header">
+                <h2 id="options-title">Options</h2>
+                <button id="options-close" class="progress-close" title="Close options" aria-label="Close options">&times;</button>
+            </div>
+            <div id="options-sections">
+                <section class="options-section">
+                    <h3>Regions</h3>
+                    <div class="btn-group">
+                        <button id="regions-all" class="btn-small" title="Generate tile data for all biomes, default setting. Some of them are unnecessary for searching.">All</button>
+                        <button id="regions-useful" class="btn-small" title="Generate tile data only for regions which contain wands and items, for faster generation and searches">Useful</button>
+                        <button id="regions-none" class="btn-small" title="Deselect all regions, so you can select a single region for faster limited searches">None</button>
+                    </div>
+                    <div id="regions-list"></div>
+                </section>
+                <section class="options-section">
+                    <h3>Accessibility</h3>
+                    <label class="debug-opt" title="Accessibility mode"><input type="checkbox" id="accessibility-mode"> Accessibility Mode</label>
+                    <label class="debug-opt" data-requires="accessibility-mode" title="Use simple triangles for heart and potion PoI symbols in Accessibility Mode."><input type="checkbox" id="debug-simple-poi-symbols"> Simple PoI Symbols</label>
+                </section>
+                <section class="options-section">
+                    <h3>Points of Interest</h3>
+                    <label class="debug-opt" title="Display approximate wand sprite rarity in PoIs."><input type="checkbox" id="show-wand-sprite-rarity" checked> Show Wand Sprite Rarity</label>
+                    <label class="debug-opt" title="Hide PoI circles to show the underlying tile map more clearly"><input type="checkbox" id="debug-hide-pois"> Hide PoIs</label>
+                    <label class="debug-opt" title="Make PoIs very small to try to see their precise positions better"><input type="checkbox" id="debug-small-pois"> Show Small PoIs</label>
+                    <div class="debug-opt poi-scale-control" title="Adjust the rendered size of normal points of interest.">
+                        <label for="debug-poi-scale">Normal PoI Scale <output id="debug-poi-scale-value">1.0x</output></label>
+                        <input type="range" id="debug-poi-scale" min="0.1" max="4" step="0.1" value="1">
+                    </div>
+                    <label class="debug-opt" title="Keep normal PoIs legible when zooming out."><input type="checkbox" id="debug-pois-zoom"> Scale Normal PoIs with Zoom</label>
+                    <div class="debug-opt poi-scale-control" title="Adjust the rendered size of highlighted search-result points of interest.">
+                        <label for="debug-highlight-poi-scale">Search Result Scale <output id="debug-highlight-poi-scale-value">1.0x</output></label>
+                        <input type="range" id="debug-highlight-poi-scale" min="0.1" max="4" step="0.1" value="1">
+                    </div>
+                    <label class="debug-opt" title="Keep highlighted search-result PoIs legible when zooming out."><input type="checkbox" id="debug-highlight-pois-zoom" checked> Scale Search Results with Zoom</label>
+                </section>
+                <section class="options-section">
+                    <h3>World Prediction</h3>
+                    <label class="debug-opt" title="There is a single *unique* pixel scene in the game, which is the Shrine pixel scene in the Collapsed Mines. Being unique, once you visit/load it, it permanently alters the spawn probability of other pixel scenes in the Collapsed Mines on your run. Only the Collapsed Mines version of this scene is unique, the Mines version is not. If the pixel scenes predicted for the Collapsed Mines are incorrect, it's probably because you need to toggle this setting."><input type="checkbox" id="visited-coalmine-alt-shrine"> Visited Collapsed Mine Shrine</label>
+                    <label class="debug-opt" title="Exclude Taikasauva Spawns from the map. Taikasauvas are a source of wands and spells, but they can be somewhat inconsistent because they have a tendency to randomly unload."><input type="checkbox" id="exclude-taikasauva"> Exclude Natural Taikasauva Spawns</label>
+                    <label class="debug-opt" title="Show enemy spawns. Will make generation/searching/panning slightly slower. Might still be buggy."><input type="checkbox" id="show-enemy-spawns"> Show Enemy Spawns</label>
+                    <label class="debug-opt" title="Whether to give hints for searching when common searches fail because of unlikely conditions."><input type="checkbox" id="enable-hamis-hints" checked> Enable hämis hints</label>
+                    <label class="debug-opt" title="Remove spawn pixels after pre-scanning spawns from tiles and pixel scenes. Makes the world look quite a bit more empty, or more clean, depending on your point of view. Might be buggy with attempting to deselect this setting."><input type="checkbox" id="clear-spawn-pixels"> Clear Spawn Pixels</label>
+                    <label class="debug-opt hidden" title="Whether to block spawns near the edges of chunks. Testing out something the game seems to do."><input type="checkbox" id="debug-block-edge-spawns"> Block Edge Spawns</label>
+                    <label class="debug-opt hidden" title="Apply straight edges to the Holy Mountain biomes instead of using the normal wavy edge noise"><input type="checkbox" id="debug-fix-holy-mountain-edge-noise" checked> Fix Holy Mountain Edge Noise</label>
+                    <label class="debug-opt hidden" title="Exclude edge cases where edge noise changes the biome"><input type="checkbox" id="exclude-edge-cases" checked> Exclude Edge Cases</label>
+                    <label class="debug-opt hidden" title="Set extra rerolls for pathfinding debug (requires pathfinding requirement to be disabled)">Extra Rerolls (Pathfinding Debug)<input type="number" value="0" min="0" max="100" style="width: 60px;" id="debug-extra-rerolls" autocomplete="off"> </label>
+                    <label class="debug-opt hidden" title="Display RNG info (deprecated)"><input type="checkbox" id="debug-rng-info"> Display RNG Info (Deprecated)</label>
+                </section>
+                <section class="options-section">
+                    <h3>Terrain Renderer</h3>
+                    <label class="debug-opt" title="Which renderer draws the terrain (tile overlay) layer. Software uses the baked overlay images, one per region per parallel world. GL evaluates the biome edge noise per screen pixel on the GPU and samples the region images directly, which is faster and more accurate at biome seams, but is still being validated. GL needs WebGL2 and falls back to the software renderer without it, as well as for the heaven and hell parallel worlds.">
+                        Terrain Renderer
+                        <select id="debug-terrain-renderer">
+                            <option value="cpu">Software (baked)</option>
+                            <option value="gl" selected>GL</option>
+                        </select>
+                    </label>
+                    <label class="debug-opt" title="Whether to recolor wang colors to material colors. Colors are still incorrect for some materials because they use textures which have different colors than their wang/material colors."><input type="checkbox" id="recolor-materials" checked> Recolor Materials</label>
+                    <label class="debug-opt" title="Edge noise is the wavy edge between chunks. Some spawns near the edges of biomes may be false positives or false negatives depending on whether or not they get culled by the edge noise, like for example if EDR protrudes into a biome and blocks a spawn. This feature hasn't been fully consistent with the game quite yet."><input type="checkbox" id="enable-edge-noise"> Render Edge Noise</label>
+                    <label class="debug-opt" title="Draw a transparency checkerboard over chunks which no tile layer actually paints, so that the underlying biome map color is not mistaken for generated terrain."><input type="checkbox" id="debug-unpainted-checkerboard" checked> Checkerboard Unpainted Regions</label>
+                    <fieldset class="options-subgroup" data-requires="debug-terrain-renderer=cpu">
+                        <legend>Software renderer</legend>
+                        <div class="debug-opt options-note">GL always generates every static and cosmetic pixel scene, and draws no custom art or weather.</div>
+                        <label class="debug-opt" title="Change the overlay which colors the foreground materials of biomes. None mode uses the original white color of the tiles. Cheap mode calculates straight edges of the biomes but still checks accurately which biome they are in. Other modes require edge noise to be enabled to show any difference. Normal mode calculates the edge noise but only within the interior of biomes. Expanded mode attempts to use the edge noise with an area slightly extended from the biome to show the wavy edges more clearly, but it's currently a bit broken.">
+                            Overlay Mode
+                            <select id="debug-biome-overlay-mode">
+                                <!-- <option value="none">None</option> -->
+                                <option value="cheap">Cheap</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="expanded">Expanded (slow)</option>
+                            </select>
+                        </label>
+                        <label class="debug-opt" title="Whether to enable static pixel scenes (holy mountains and such, with no items). WIP">
+                            Enable Static Pixel Scenes
+                            <select id="enable-static-pixel-scenes">
+                                <option value="off">Off</option>
+                                <option value="some">Some</option>
+                                <option value="all" selected>All (kind of slow)</option>
+                            </select>
+                        </label>
+                        <label class="debug-opt" title="Do not generate or display pixel scenes which do not contain any spawn pixels with wands or items, saves a small amount of time but doesn't look as nice"><input type="checkbox" id="skip-cosmetic-scenes"> Skip Cosmetic Pixel Scenes</label>
+                        <label class="debug-opt" title="Show a custom overlay of the surface and pixel scenes at a lower resolution"><input type="checkbox" id="custom-art" checked> Display Custom Art</label>
+                        <label class="debug-opt" data-requires="custom-art" title="Hand-drawn surface and sky overlay art. Off by default because it is expensive and covers generated terrain."><input type="checkbox" id="debug-layer-custom-art"> Custom Art</label>
+                        <label class="debug-opt" data-requires="custom-art" title="Weather, sky darkening, scales, suns/moons, stars and the echoing spire."><input type="checkbox" id="debug-layer-atmosphere"> Weather / Sky / Stars</label>
+                    </fieldset>
+                    <fieldset class="options-subgroup" data-requires="debug-terrain-renderer=gl">
+                        <legend>GL renderer</legend>
+                        <label class="debug-opt" title="Resolve terrain per pixel with the game engine's own generation math (coverage lattices, carve noise, material bands) for the biomes the port supports; other biomes keep the regular renderer. Requires the WebGL terrain renderer."><input type="checkbox" id="engine-terrain" checked> Engine terrain</label>
+                        <label class="debug-opt" data-requires="recolor-materials" title="Paint each terrain pixel from the material's own materials_gfx texture, the way the game bakes cell colors, instead of one flat color per material. Requires the WebGL terrain renderer and Recolor Materials."><input type="checkbox" id="material-textures" checked> Material textures</label>
+                        <label class="debug-opt" data-requires="engine-terrain" title="Stamp the EdgeGraphics sprite band the game bakes into cell colors along material borders. Placement is statistical - the engine's own is generation-order dependent and not reproducible - but density, depth and palette match. Requires Engine terrain, and only draws at zoom 1x or closer."><input type="checkbox" id="edge-decals" checked> Edge decals</label>
+                    </fieldset>
+                </section>
+                <section class="options-section">
+                    <h3>Render Layers</h3>
+                    <div class="debug-opt options-note">In draw order:</div>
+                    <label class="debug-opt" title="Biome map background colors (one image per world in view)."><input type="checkbox" id="debug-layer-biome-background" checked> Biome Background</label>
+                    <label class="debug-opt" title="Generated wang tile regions (the actual terrain)."><input type="checkbox" id="debug-layer-tile-overlays" checked> Tile Overlays</label>
+                    <label class="debug-opt" title="Pixel scenes, orb rooms and the cauldron room."><input type="checkbox" id="debug-layer-pixel-scenes" checked> Pixel Scenes</label>
+                    <label class="debug-opt" title="Wall messages and eye messages."><input type="checkbox" id="debug-layer-secrets" checked> Secrets</label>
+                    <label class="debug-opt" title="Local search area, edge noise debug canvas and the zoom target pixel."><input type="checkbox" id="debug-layer-misc" checked> Misc</label>
+                    <label class="debug-opt" title="The PoI circles and their labels — the same thing as 'Hide PoIs' above, in the layer list so a scripted capture can switch it off with the rest."><input type="checkbox" id="debug-layer-pois" checked> Points of Interest</label>
+                </section>
+                <section class="options-section">
+                    <h3>Debug Visualization</h3>
+                    <label class="debug-opt" title="Show the colors from the original biome map as the background, instead of the recolored ones based on the average color of the backgrounds"><input type="checkbox" id="debug-original-biome-map"> Show Original Biome Map Colors</label>
+                    <label class="debug-opt" title="Show tile bounds for each region, with numerical values of the tile indices shown."><input type="checkbox" id="debug-show-tile-bounds"> Show Tile Bounds</label>
+                    <label class="debug-opt" title="Show the calculated pathfinding validation step for the region. This may not be exactly the same as the path the game uses, and is definitely not the shortest path or anything, it's just a verification that there is some path to the bottom of the biome. If it seems broken and nonsensical sometimes, it's because the way the game does it is too."><input type="checkbox" id="debug-show-path"> Show Paths</label>
+                    <label class="debug-opt" title="Click somewhere on the map to show a local view of the edge noise at the pixel level. Colors of chunks are according to their chunk position ID value (0-3)."><input type="checkbox" id="debug-edge-noise"> Show Biome Edge Noise Debug</label>
+                    <label class="debug-opt" title="Draw the exact curve where the biome edge noise flips from one chunk's biome to the other's, sampled at screen resolution. The tile overlays only apply the wobble once per 10 pixel cell, so this shows where the boundary really is. Straight chunk lines are drawn where the biomes on either side disable edge noise."><input type="checkbox" id="debug-biome-boundary-contour"> Biome Boundary Contour</label>
+                </section>
+                <section class="options-section">
+                    <h3>Performance &amp; Profiling</h3>
+                    <label class="debug-opt" title="Measure how long each render layer takes and how many draw calls it makes, printed as a table to the developer console about once per second."><input type="checkbox" id="debug-layer-timings"> Log Render Layer Timings</label>
+                    <label class="debug-opt" title="Overlay in the bottom-right corner of the map: where wall time goes per subsystem over the last 2 s (main-thread CPU per render layer, overlay-worker CPU per job type, and GPU time for the WebGL terrain and decal passes; Canvas2D GPU work is not measurable from the page), the render work currently queued (scene bitmaps, edge-decal tiles, overlays, recolors) and the recently completed items with their queue wait, run time and GPU share. Only traces work posted while it is on."><input type="checkbox" id="debug-render-hud"> Render HUD</label>
+                    <label class="debug-opt" title="Ignore every zoom-based level-of-detail cut: full-resolution pixel scenes and material textures at any zoom, backdrop art and boundary strips always tiled, no stand-in art. Makes frame cost comparable across zoom levels for profiling; expensive when zoomed out (every visible scene gets a full-resolution textured build in the worker, up to a minute and ~300MB+ at the overview before the frame is steady). Edge decals keep their 1:1 gate."><input type="checkbox" id="debug-render-everything"> Render Everything (no zoom LOD)</label>
+                    <label class="debug-opt" title="Memory budget for cached pixel scene images and their zoomed-out mip levels. The least recently drawn scenes are dropped once the budget is exceeded and are recolored again if they come back into view.">Pixel Scene Image Budget (MB)<input type="number" value="256" min="16" max="4096" step="16" style="width: 70px;" id="debug-pixel-scene-budget" autocomplete="off"> </label>
+                    <div class="debug-opt" title="Flies the camera with synthetic input -- zoom out to 1.5 world widths, drag a rectangle, zoom in to 1:1, drag again, zoom back -- and records every frame's wall time, drawNow's time per layer and how long the asynchronous scene/decal work takes to settle after each phase. Tables go to the console and below; the phases and draws are also User Timing marks for the browser profiler."><button type="button" id="debug-run-benchmark">Run Render Benchmark</button> <span id="debug-benchmark-status"></span></div>
+                    <pre id="debug-benchmark-result" class="debug-opt" style="display:none; white-space:pre; overflow-x:auto; font-size:11px; max-height:320px; overflow-y:auto; margin:0;"></pre>
+                </section>
+            </div>
         </div>
         <div id="fungal-shifts-overlay" role="dialog" aria-modal="true" aria-labelledby="fungal-shifts-title">
             <div class="progress-header">

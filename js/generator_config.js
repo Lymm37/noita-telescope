@@ -151,7 +151,6 @@ export const GENERATOR_CONFIG = {
 
 Object.values(GENERATOR_CONFIG).forEach(conf => {
     conf.enabled = true; // Default to all enabled, we can disable later if needed
-    if (conf.name === 'Lake') conf.enabled = false; // Lake is just silly, especially without enemy spawns implemented. Though it can affect NG+ overlaps
     conf.pois = conf.pois || []; // No longer used... Overlaps made PoIs not really work per-biome
 });
 

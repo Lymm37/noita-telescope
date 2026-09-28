@@ -49,10 +49,8 @@ const BASE_LAYERS = {
 	'debug-layer-biome-background': false,
 	'debug-layer-custom-art': false,
 	'debug-layer-atmosphere': false,
-	'debug-layer-alpha-mask': false,
 	'debug-layer-tile-overlays': true,
 	'debug-layer-pixel-scenes': true,
-	'debug-layer-debug-boxes': false,
 	'debug-layer-secrets': false,
 	'debug-layer-misc': false,
 	// PoI markers became a real render layer (4859a24); before that they drew

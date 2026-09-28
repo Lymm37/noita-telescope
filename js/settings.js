@@ -7,10 +7,8 @@ export const RENDER_LAYERS = [
 	{ key: 'biomeBackground', id: 'debug-layer-biome-background', label: 'Biome Background', defaultOn: true },
 	{ key: 'customArt', id: 'debug-layer-custom-art', label: 'Custom Art', defaultOn: false },
 	{ key: 'atmosphere', id: 'debug-layer-atmosphere', label: 'Weather / Sky / Stars', defaultOn: false },
-	{ key: 'alphaMask', id: 'debug-layer-alpha-mask', label: 'Alpha Mask', defaultOn: false },
 	{ key: 'tileOverlays', id: 'debug-layer-tile-overlays', label: 'Tile Overlays', defaultOn: true },
 	{ key: 'pixelScenes', id: 'debug-layer-pixel-scenes', label: 'Pixel Scenes', defaultOn: true },
-	{ key: 'debugBoxes', id: 'debug-layer-debug-boxes', label: 'Debug Boxes / Paths', defaultOn: true },
 	{ key: 'secrets', id: 'debug-layer-secrets', label: 'Secrets', defaultOn: true },
 	{ key: 'misc', id: 'debug-layer-misc', label: 'Misc', defaultOn: true },
 	// The PoI circles already had their own timing bucket and their own 'Hide PoIs'
@@ -41,6 +39,7 @@ export function readRenderLayersFromUI() {
 export const appSettings = {
 	enableStaticPixelScenes: 'all',
 	skipCosmeticScenes: true,
+	customArt: false,
 	enableEdgeNoise: true,
 	blockEdgeSpawns: false,
 	fixHolyMountainEdgeNoise: true,
@@ -99,12 +98,27 @@ export function updateSettings(newSettings) {
 	appSettings.date = getDateAndTime();
 	appSettings.spellFlags = spellFlags;
 	appSettings.renderLayers = renderLayers;
+	applyRendererOverrides();
+}
+
+// Custom art, weather and the static/cosmetic pixel scene choices are
+// software-renderer options: under GL every scene is generated and none of the art is
+// drawn. Only the effective values are forced, so the saved UI state keeps the user's
+// software-renderer choices for when they switch back.
+function applyRendererOverrides() {
+	if (appSettings.terrainRenderer !== 'gl') return;
+	appSettings.enableStaticPixelScenes = 'all';
+	appSettings.skipCosmeticScenes = false;
+	appSettings.customArt = false;
+	appSettings.renderLayers.customArt = false;
+	appSettings.renderLayers.atmosphere = false;
 }
 
 export function updateSettingsFromUI() {
 	const newSettings = {
 		enableStaticPixelScenes: document.getElementById('enable-static-pixel-scenes')?.value || 'all',
 		skipCosmeticScenes: document.getElementById('skip-cosmetic-scenes')?.checked || false,
+		customArt: document.getElementById('custom-art')?.checked || false,
 		enableEdgeNoise: document.getElementById('enable-edge-noise')?.checked || false,
 		blockEdgeSpawns: document.getElementById('debug-block-edge-spawns')?.checked || false,
 		fixHolyMountainEdgeNoise: document.getElementById('fix-holy-mountain-edge-noise')?.checked || true,

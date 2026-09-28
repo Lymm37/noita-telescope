@@ -144,7 +144,7 @@ export function getOrGenerateWorld(pw, pwVertical) {
 		pw,
         pwVertical,
         perks: app.perks,
-        skipCosmeticScenes: app.skipCosmeticScenes,
+        skipCosmeticScenes: appSettings.skipCosmeticScenes,
         isDaily: app.isDaily, // Probably not necessary
         gameMode: app.gameMode
     });
