@@ -21,6 +21,146 @@ import { appSettings } from './settings.js';
 // Testing without this, seems to work better.
 const WOBBLE_REMAP_FUNCS = new Set([]);
 
+// ---------------------------------------------------------------------------
+// Background sprites from spawn markers
+//
+// Some spawn functions only call LoadBackgroundSprite( file, x, y, z = 40,
+// check_biome_corners = false ): a plain top-left-anchored sprite in the
+// background SceneGraph (LUAIMPL_LoadBackgroundSprite @007b2020). They come back
+// from spawnSwitch as {type: 'bg_sprites', sprites}, which scanSpawnFunctions
+// splits off the PoI list; the background layer draws them
+// (js/biome_backgrounds.js drawMarkerSprites). `corners` is the engine's
+// check_biome_corners: the sprite is dropped unless all four of its corners
+// resolve to the same biome chunk, which needs the image size and so is applied
+// at draw time.
+
+// director_helpers.lua load_random_background_sprite tables: [prob, file, z].
+// An empty file is a weighted "draw nothing".
+const BG_SPRITE_TABLES = {
+	crypt_background_scenes: [[3, ''], [1, 'data/biome_impl/crypt/pillars_01_background.png'], [1, 'data/biome_impl/crypt/pillars_02_background.png'], [1, 'data/biome_impl/crypt/pillars_03_background.png'], [1, 'data/biome_impl/crypt/alcove_01_background.png'], [2, 'data/biome_impl/crypt/alcove_02_background.png'], [2, 'data/biome_impl/crypt/alcove_03_background.png'], [1, 'data/biome_impl/crypt/alcove_04_background.png'], [1, 'data/biome_impl/crypt/alcove_05_background.png'], [1, 'data/biome_impl/crypt/alcove_06_background.png']],
+	crypt_small_background_scenes: [[4, ''], [1, 'data/biome_impl/crypt/slab_01_background.png'], [0.5, 'data/biome_impl/crypt/slab_02_background.png'], [0.5, 'data/biome_impl/crypt/slab_03_background.png'], [1, 'data/biome_impl/crypt/slab_04_background.png'], [1, 'data/biome_impl/crypt/slab_05_background.png'], [1, 'data/biome_impl/crypt/slab_06_background.png'], [1, 'data/biome_impl/crypt/slab_07_background.png']],
+	wizardcave_background_scenes: [[4, ''], [1, 'data/biome_impl/wizardcave/drape_1.png'], [0.66, 'data/biome_impl/wizardcave/drape_2.png'], [0.33, 'data/biome_impl/wizardcave/drape_3.png']],
+	excavationsite_mechanism_background: [[1, 'data/biome_impl/excavationsite/mechanism_background.png', 50], [1, 'data/biome_impl/excavationsite/mechanism_background2.png', 50], [1, 'data/biome_impl/excavationsite/mechanism_background3.png', 50]],
+	excavationsite_tower_mids: [[1, 'data/biome_impl/excavationsite/tower_mid_1.png', 40], [1, 'data/biome_impl/excavationsite/tower_mid_2.png', 40], [0.5, 'data/biome_impl/excavationsite/tower_mid_3.png', 40], [0.5, 'data/biome_impl/excavationsite/tower_mid_4.png', 40]],
+	excavationsite_tower_tops: [[1, 'data/biome_impl/excavationsite/tower_top_1.png', 20], [1, 'data/biome_impl/excavationsite/tower_top_2.png', 20], [1, 'data/biome_impl/excavationsite/tower_top_3.png', 20], [2, 'data/biome_impl/excavationsite/tower_top_4.png', 20], [1, 'data/biome_impl/excavationsite/tower_top_5.png', 20]],
+	vault_pillars: [[1, 'data/biome_impl/vault/pillar_01_background.png', 40], [0.2, 'data/biome_impl/vault/pillar_02_background.png', 40], [0.2, 'data/biome_impl/vault/pillar_03_background.png', 40], [0.3, 'data/biome_impl/vault/pillar_04_background.png', 40], [0.2, 'data/biome_impl/vault/pillar_05_background.png', 40]],
+	vault_pillar_bases: [[1, 'data/biome_impl/vault/pillar_base_01_background.png', 40], [1, 'data/biome_impl/vault/pillar_base_02_background.png', 40]],
+};
+
+/** Every sprite file a marker can produce, for the art preloader. */
+export const BG_SPRITE_FILES = [...new Set([
+	...Object.values(BG_SPRITE_TABLES).flatMap((t) => t.map((e) => e[1])),
+	'data/biome_impl/vault/warningstrip_background.png',
+	'data/biome_impl/excavationsite/tower_bottom_1.png',
+	'data/biome_impl/excavationsite/beam_low.png',
+	'data/biome_impl/excavationsite/beam_low_flipped.png',
+	'data/biome_impl/excavationsite/beam_steep.png',
+	'data/biome_impl/excavationsite/beam_steep_flipped.png',
+	'data/biome_impl/static_tile/temples-assets/boss_hint_bg.png',
+	'data/biome_impl/static_tile/temples-assets/boss_phase2_bg.png',
+	'data/biome_impl/static_tile/temples-assets/watchtower_hint_bg.png',
+	'data/biome_impl/static_tile/temples-assets/darkness_hint_bg.png',
+	'data/biome_impl/static_tile/temples-assets/darkness_hint_bg_2.png',
+	'data/biome_impl/static_tile/temples-assets/potion_mimics_hint_bg.png',
+	'data/biome_impl/static_tile/temples-assets/barren_hint_bg.png',
+].filter(Boolean))];
+
+/** load_random_background_sprite: one ProceduralRandom(x, y) roll over the
+ *  table's weights, then LoadBackgroundSprite( file, x, y, z, true ). */
+function randomBackgroundSprite(prng, ws, ng, table, x, y, out) {
+	let total = 0;
+	for (const [prob] of table) total += prob;
+	let r = prng.ProceduralRandom(ws + ng, x, y) * total;
+	for (const [prob, file, z] of table) {
+		if (prob !== 0 && r <= prob) {
+			if (file) out.push({ file, x, y, z: z ?? 40, corners: true });
+			return;
+		}
+		r -= prob;
+	}
+}
+
+const SKY_TEMPLE_BIOMES = new Set(['biome_watchtower', 'biome_barren', 'biome_potion_mimics', 'biome_darkness', 'biome_boss_sky']);
+
+/** The background sprites one spawn function call loads, or null when this
+ *  (biome, function) pair loads none. */
+function backgroundSpriteSpawn(biomeName, func, ws, ng, x, y) {
+	const prng = new NollaPrng(0);
+	const out = [];
+	const sprite = (file, sx, sy, z = 40, corners = false) => out.push({ file, x: sx, y: sy, z, corners });
+	if ((biomeName === 'vault' || biomeName === 'robobase') && func === 'load_warning_strip') {
+		sprite('data/biome_impl/vault/warningstrip_background.png', x, y - 4, 40);
+	}
+	else if (biomeName === 'vault' && func === 'load_pillar') {
+		randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.vault_pillars, x, y + 3, out);
+	}
+	else if (biomeName === 'vault' && func === 'load_pillar_base') {
+		randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.vault_pillar_bases, x, y + 3, out);
+	}
+	else if (biomeName === 'crypt' && func === 'load_background_scene') {
+		randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.crypt_background_scenes, x + 5, y, out);
+	}
+	else if (biomeName === 'crypt' && func === 'load_small_background_scene') {
+		randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.crypt_small_background_scenes, x, y, out);
+	}
+	// wizardcave's load_background_scene is commented out in its lua, and its
+	// load_small_background_scene rolls the big (drape) table.
+	else if (biomeName === 'wizardcave' && func === 'load_small_background_scene') {
+		randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.wizardcave_background_scenes, x, y, out);
+	}
+	else if (biomeName === 'excavationsite' && func === 'load_pixel_scene2') {
+		randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.excavationsite_mechanism_background, x, y, out);
+	}
+	else if (biomeName === 'excavationsite' && (func === 'spawn_tower_short' || func === 'spawn_tower_tall')) {
+		// generate_tower( x, y, height )
+		const height = func === 'spawn_tower_short'
+			? prng.ProceduralRandomi(ws + ng, x - 4, y + 3, 0, 2)
+			: prng.ProceduralRandomi(ws + ng, x + 7, y - 1, 2, 3);
+		if (prng.ProceduralRandom(ws + ng, x, y) > 0.5) return { type: 'bg_sprites', sprites: out, x, y };
+		let ty = y + 15;
+		sprite('data/biome_impl/excavationsite/tower_bottom_1.png', x, ty, 40, true);
+		ty -= 60;
+		for (let i = 1; i <= height; i++) {
+			if (ty > 1600) {
+				randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.excavationsite_tower_mids, x, ty, out);
+				ty -= 60;
+			}
+		}
+		randomBackgroundSprite(prng, ws, ng, BG_SPRITE_TABLES.excavationsite_tower_tops, x - 50, ty, out);
+	}
+	else if (biomeName === 'excavationsite' && func === 'spawn_beam_low') {
+		sprite('data/biome_impl/excavationsite/beam_low.png', x - 60, y - 35, 60, true);
+	}
+	else if (biomeName === 'excavationsite' && func === 'spawn_beam_low_flipped') {
+		sprite('data/biome_impl/excavationsite/beam_low_flipped.png', x - 60, y - 35, 60, true);
+	}
+	else if (biomeName === 'excavationsite' && func === 'spawn_beam_steep') {
+		sprite('data/biome_impl/excavationsite/beam_steep.png', x - 35, y - 60, 60, true);
+	}
+	else if (biomeName === 'excavationsite' && func === 'spawn_beam_steep_flipped') {
+		sprite('data/biome_impl/excavationsite/beam_steep_flipped.png', x - 35, y - 60, 60, true);
+	}
+	else if (SKY_TEMPLE_BIOMES.has(biomeName)) {
+		// temples_common.lua: BG_Z = 0, and all but the watchtower's are gated on
+		// spawn_ok (|x| < 16000).
+		const ok = x < 16000 && x > -16000;
+		const T = 'data/biome_impl/static_tile/temples-assets/';
+		if (func === 'spawn_puzzle_watchtower') sprite(T + 'watchtower_hint_bg.png', x, y, 0);
+		else if (!ok) return null;
+		else if (func === 'spawn_boss') sprite(T + 'boss_hint_bg.png', x - 16, y - 40, 0);
+		else if (func === 'spawn_boss_phase2_marker') sprite(T + 'boss_phase2_bg.png', x + 2, y - 10, 0);
+		else if (func === 'spawn_puzzle_darkness') {
+			sprite(T + 'darkness_hint_bg.png', x - 120, y - 4, 0);
+			sprite(T + 'darkness_hint_bg_2.png', x - 18, y + 40, 0);
+		}
+		else if (func === 'spawn_puzzle_potion_mimics') sprite(T + 'potion_mimics_hint_bg.png', x - 22, y - 22, 0);
+		else if (func === 'spawn_puzzle_barren') sprite(T + 'barren_hint_bg.png', x - 15, y - 30, 0);
+		else return null;
+	}
+	else return null;
+	return { type: 'bg_sprites', sprites: out, x, y };
+}
+
 const BIOME_TIERS = {
 	'coalmine': 1,
 	'coalmine_alt': 1,
@@ -234,6 +374,10 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 	const spawn = spawns[functionIndex];
 	if (spawn) {
 		func = spawn.funcName;
+		// Background-sprite functions run whatever the PoI config says: they
+		// draw, they don't spawn anything searchable.
+		const bg = func ? backgroundSpriteSpawn(biomeName, func, ws, ng, x, y) : null;
+		if (bg) return bg;
 		if (spawn.active === false) {
 			return; // Inactive spawn, don't spawn anything
 		}

@@ -138,6 +138,9 @@ function getPixelSceneSpawnFunctionIndices(biomeData, biomeName, pixelScene, wor
                 //console.log(`Added nested pixel scene ${nestedSpawnData.name} to layer ${biomeName} PW ${pwIndex} at (${nestedSpawnData.x}, ${nestedSpawnData.y})`);
                 // Appending to the same list we're iterating over? Is this okay?
             }
+            else if (nestedSpawnData && nestedSpawnData.type === 'bg_sprites') {
+                generatedSpawns.push(nestedSpawnData);
+            }
         }
         else {
             
@@ -489,9 +492,19 @@ export function scanSpawnFunctions(biomeData, tileSpawns, worldSeed, ngPlusCount
     }
     */
 
+    // Background sprites (spawn_functions.js backgroundSpriteSpawn) ride along
+    // with the spawns until here; they are drawn, never listed or searched.
+    const backgroundSprites = [];
+    const pois = [];
+    for (const s of generatedSpawns) {
+        if (s.type === 'bg_sprites') backgroundSprites.push(...s.sprites);
+        else pois.push(s);
+    }
+
     return {
-        generatedSpawns,
-        finalPixelScenes
+        generatedSpawns: pois,
+        finalPixelScenes,
+        backgroundSprites
     };
 }
 

@@ -247,6 +247,17 @@ for (const dir of readdirSync(SCENES).sort()) {
 		const name = file.slice(0, -4);
 		shippedSceneNames.add(name);
 		const ours = pngSize(join(SCENES, dir, file));
+		// A spliced scene is several <PixelScene> pieces (biome_impl/spliced/
+		// <name>.xml), each blitting its own background at its own position. The
+		// splice origin is the combined scene's top-left, and the combined
+		// <name>_background.png already shipped beside the scene is those pieces
+		// pasted together (byte-identical to the game's own combined file; for
+		// watercave, the only piece with one is piece 0 at the origin).
+		if (dir === 'spliced') {
+			const combined = `data/pixel_scenes/spliced/${name}_background.png`;
+			if (existsSync(join(repo, combined))) manifest[`${dir}/${name}`] = combined;
+			continue;
+		}
 		for (const gd of gameDirs) {
 			const rel = `data/biome_impl/${gd ? gd + '/' : ''}${name}.png`;
 			const mat = join(IMPL, gd, `${name}.png`);

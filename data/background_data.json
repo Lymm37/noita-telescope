@@ -141,6 +141,108 @@
     256
    ]
   },
+  "data/weather_gfx/limit_y/background_cave_02.png": {
+   "size": [
+    512,
+    31
+   ]
+  },
+  "data/weather_gfx/limit_y/background_cave_04_alt.png": {
+   "size": [
+    512,
+    31
+   ]
+  },
+  "data/weather_gfx/limit_y/background_cave_04_alt_left.png": {
+   "size": [
+    32,
+    286
+   ]
+  },
+  "data/weather_gfx/limit_y/background_cave_04_alt_right.png": {
+   "size": [
+    32,
+    286
+   ]
+  },
+  "data/weather_gfx/limit_y/background_crypt.png": {
+   "size": [
+    640,
+    64
+   ]
+  },
+  "data/weather_gfx/limit_y/background_crypt_left.png": {
+   "size": [
+    32,
+    286
+   ]
+  },
+  "data/weather_gfx/limit_y/background_crypt_right.png": {
+   "size": [
+    32,
+    286
+   ]
+  },
+  "data/weather_gfx/limit_y/background_fungicave_01.png": {
+   "size": [
+    512,
+    64
+   ]
+  },
+  "data/weather_gfx/limit_y/background_pyramid.png": {
+   "size": [
+    640,
+    64
+   ]
+  },
+  "data/weather_gfx/limit_y/background_rainforest.png": {
+   "size": [
+    512,
+    64
+   ]
+  },
+  "data/weather_gfx/limit_y/background_snowcastle.png": {
+   "size": [
+    512,
+    64
+   ]
+  },
+  "data/weather_gfx/limit_y/background_snowcave.png": {
+   "size": [
+    512,
+    31
+   ]
+  },
+  "data/weather_gfx/limit_y/background_snowcave_left.png": {
+   "size": [
+    32,
+    286
+   ]
+  },
+  "data/weather_gfx/limit_y/background_snowcave_right.png": {
+   "size": [
+    32,
+    286
+   ]
+  },
+  "data/weather_gfx/limit_y/background_vault.png": {
+   "size": [
+    510,
+    64
+   ]
+  },
+  "data/weather_gfx/limit_y/background_vault_frozen.png": {
+   "size": [
+    512,
+    31
+   ]
+  },
+  "data/weather_gfx/limit_y/background_wandcave.png": {
+   "size": [
+    96,
+    17
+   ]
+  },
   "data/weather_gfx/edges/background_snowcastle_left.png": {
    "size": [
     64,
@@ -1004,6 +1106,330 @@
     512,
     512
    ]
+  },
+  "data/backgrounds/biome_impl/pyramid/left_background.png": {
+   "size": [
+    512,
+    512
+   ]
+  },
+  "data/backgrounds/biome_impl/pyramid/right_background.png": {
+   "size": [
+    512,
+    512
+   ]
+  },
+  "data/backgrounds/biome_impl/temple/wall_background.png": {
+   "size": [
+    514,
+    171
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/alcove_01_background.png": {
+   "size": [
+    178,
+    115
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/alcove_02_background.png": {
+   "size": [
+    178,
+    115
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/alcove_03_background.png": {
+   "size": [
+    178,
+    115
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/alcove_04_background.png": {
+   "size": [
+    178,
+    115
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/alcove_05_background.png": {
+   "size": [
+    178,
+    115
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/alcove_06_background.png": {
+   "size": [
+    178,
+    115
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/pillars_01_background.png": {
+   "size": [
+    178,
+    109
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/pillars_02_background.png": {
+   "size": [
+    178,
+    109
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/pillars_03_background.png": {
+   "size": [
+    178,
+    109
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/slab_01_background.png": {
+   "size": [
+    50,
+    50
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/slab_02_background.png": {
+   "size": [
+    50,
+    50
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/slab_03_background.png": {
+   "size": [
+    50,
+    50
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/slab_04_background.png": {
+   "size": [
+    50,
+    50
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/slab_05_background.png": {
+   "size": [
+    50,
+    50
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/slab_06_background.png": {
+   "size": [
+    50,
+    50
+   ]
+  },
+  "data/backgrounds/biome_impl/crypt/slab_07_background.png": {
+   "size": [
+    50,
+    50
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/beam_low.png": {
+   "size": [
+    120,
+    70
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/beam_low_flipped.png": {
+   "size": [
+    120,
+    70
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/beam_steep.png": {
+   "size": [
+    70,
+    120
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/beam_steep_flipped.png": {
+   "size": [
+    70,
+    120
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/mechanism_background.png": {
+   "size": [
+    96,
+    112
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/mechanism_background2.png": {
+   "size": [
+    96,
+    112
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/mechanism_background3.png": {
+   "size": [
+    96,
+    112
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_bottom_1.png": {
+   "size": [
+    50,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_mid_1.png": {
+   "size": [
+    50,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_mid_2.png": {
+   "size": [
+    50,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_mid_3.png": {
+   "size": [
+    50,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_mid_4.png": {
+   "size": [
+    50,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_top_1.png": {
+   "size": [
+    150,
+    120
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_top_2.png": {
+   "size": [
+    150,
+    120
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_top_3.png": {
+   "size": [
+    150,
+    120
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_top_4.png": {
+   "size": [
+    150,
+    120
+   ]
+  },
+  "data/backgrounds/biome_impl/excavationsite/tower_top_5.png": {
+   "size": [
+    150,
+    120
+   ]
+  },
+  "data/backgrounds/biome_impl/static_tile/temples-assets/barren_hint_bg.png": {
+   "size": [
+    45,
+    49
+   ]
+  },
+  "data/backgrounds/biome_impl/static_tile/temples-assets/boss_hint_bg.png": {
+   "size": [
+    45,
+    49
+   ]
+  },
+  "data/backgrounds/biome_impl/static_tile/temples-assets/boss_phase2_bg.png": {
+   "size": [
+    10,
+    20
+   ]
+  },
+  "data/backgrounds/biome_impl/static_tile/temples-assets/darkness_hint_bg.png": {
+   "size": [
+    250,
+    16
+   ]
+  },
+  "data/backgrounds/biome_impl/static_tile/temples-assets/darkness_hint_bg_2.png": {
+   "size": [
+    45,
+    49
+   ]
+  },
+  "data/backgrounds/biome_impl/static_tile/temples-assets/potion_mimics_hint_bg.png": {
+   "size": [
+    45,
+    49
+   ]
+  },
+  "data/backgrounds/biome_impl/static_tile/temples-assets/watchtower_hint_bg.png": {
+   "size": [
+    80,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/pillar_01_background.png": {
+   "size": [
+    60,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/pillar_02_background.png": {
+   "size": [
+    60,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/pillar_03_background.png": {
+   "size": [
+    60,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/pillar_04_background.png": {
+   "size": [
+    60,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/pillar_05_background.png": {
+   "size": [
+    60,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/pillar_base_01_background.png": {
+   "size": [
+    60,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/pillar_base_02_background.png": {
+   "size": [
+    60,
+    60
+   ]
+  },
+  "data/backgrounds/biome_impl/vault/warningstrip_background.png": {
+   "size": [
+    8,
+    80
+   ]
+  },
+  "data/backgrounds/biome_impl/wizardcave/drape_1.png": {
+   "size": [
+    36,
+    93
+   ]
+  },
+  "data/backgrounds/biome_impl/wizardcave/drape_2.png": {
+   "size": [
+    36,
+    93
+   ]
+  },
+  "data/backgrounds/biome_impl/wizardcave/drape_3.png": {
+   "size": [
+    36,
+    93
+   ]
   }
  },
  "sceneBackgrounds": {
@@ -1203,5 +1629,141 @@
     512
    ]
   }
- ]
+ ],
+ "chunkSprites": {
+  "pyramid_hallway": [
+   {
+    "file": "data/weather_gfx/background_pyramid.png",
+    "dx": 0,
+    "dy": 0,
+    "z": 40.0
+   },
+   {
+    "file": "data/weather_gfx/background_pyramid.png",
+    "dx": 0,
+    "dy": 256,
+    "z": 40.0
+   }
+  ],
+  "pyramid_left": [
+   {
+    "file": "data/backgrounds/biome_impl/pyramid/left_background.png",
+    "dx": 0,
+    "dy": 0,
+    "z": 99.9
+   }
+  ],
+  "pyramid_right": [
+   {
+    "file": "data/backgrounds/biome_impl/pyramid/right_background.png",
+    "dx": 0,
+    "dy": 0,
+    "z": 99.9
+   }
+  ],
+  "temple_altar": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": -1,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_empty": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": 0,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_left": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": -1,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_left_empty": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": 0,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_right": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": -1,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_right_empty": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": 0,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_right_snowcastle": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": -1,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_right_snowcastle_empty": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": 0,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_right_snowcave": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": -1,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_right_snowcave_empty": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": 0,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_altar_secret": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": 0,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_wall": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": -1,
+    "dy": -30,
+    "z": 35.0
+   }
+  ],
+  "temple_wall_ending": [
+   {
+    "file": "data/backgrounds/biome_impl/temple/wall_background.png",
+    "dx": 0,
+    "dy": -30,
+    "z": 35.0
+   }
+  ]
+ }
 }

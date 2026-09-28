@@ -38,6 +38,7 @@ worldWorker.onmessage = async (e) => {
         // Cache the PW data sent back from the worker so the map can draw it
         app.poisByPW[pwKey] = msg.pois;
         app.pixelScenesByPW[pwKey] = msg.pixelScenes;
+        app.bgSpritesByPW[pwKey] = msg.bgSprites;
 
         // Clear it from the pending list
         pendingGenerateRequests.delete(pwKey);

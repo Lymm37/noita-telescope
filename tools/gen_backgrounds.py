@@ -90,6 +90,9 @@ def main():
     # --- 1. biome backdrops + full-color edge strips -------------------------
     for path in bb['images']:
         ship(path)
+    for rec in bb.get('limitArt', {}).values():
+        for rel in rec.values():
+            ship(rel)
     for b in bb['biomes']:
         for k in ('background_edge_left', 'background_edge_right',
                   'background_edge_top', 'background_edge_bottom'):
@@ -195,6 +198,77 @@ def main():
         globals_out.append({'file': rel, 'x': g['x'], 'y': g['y'],
                             'size': images[rel]['size']})
 
+    # --- 4. per-chunk LoadBackgroundSprite calls in biome init() -------------
+    # A biome's lua `init(x, y, w, h)` runs once per 512px chunk of that biome,
+    # and LoadBackgroundSprite( file, x, y, z = 40, check_biome_corners = false )
+    # (LUAIMPL_LoadBackgroundSprite @007b2020 -> @006f4720) adds a plain sprite
+    # with its top-left at (x, y) into the same z-sorted background SceneGraph.
+    # This is how the pyramid's outer pieces get their backdrop above the
+    # surface horizon, where the chunk tile itself is suppressed. Only literal
+    # files at x/y +- a constant are recorded; calls inside spawn functions
+    # depend on pixel markers and are not per-chunk.
+    sprite_re = re.compile(
+        r'LoadBackgroundSprite\s*\(\s*"([^"]+)"\s*,\s*x\s*([+-]\s*\d+)?\s*,'
+        r'\s*y\s*([+-]\s*\d+)?\s*(?:,\s*(-?[\d.]+))?\s*(?:,\s*(\w+))?\s*\)')
+    chunk_sprites = {}
+    for fn in sorted(os.listdir(biome_dir)):
+        if not fn.endswith('.xml') or fn.startswith('_'):
+            continue
+        xml = open(os.path.join(biome_dir, fn), encoding='utf-8',
+                   errors='replace').read()
+        m = re.search(r'lua_script="(data/[^"]+)"', xml)
+        if not m:
+            continue
+        lua = os.path.join(src, m.group(1).removeprefix('data/'))
+        if not os.path.isfile(lua):
+            continue
+        text = open(lua, encoding='utf-8', errors='replace').read()
+        body = re.search(r'^function\s+init\s*\(.*?^end', text, re.S | re.M)
+        if not body:
+            continue
+        for line in body.group(0).splitlines():
+            if line.strip().startswith('--'):
+                continue
+            # temple_altar_top_shared.lua spawn_altar_top( x, y, is_solid ):
+            # LoadBackgroundSprite( wall_background.png, x-1, y - 30, 35 )
+            if re.search(r'\bspawn_altar_top\s*\(\s*x\s*,\s*y\s*,', line):
+                rel = ship('data/biome_impl/temple/wall_background.png',
+                           'data/backgrounds/biome_impl/temple/wall_background.png')
+                chunk_sprites.setdefault(fn[:-4], []).append(
+                    {'file': rel, 'dx': -1, 'dy': -30, 'z': 35.0})
+            for f, dx, dy, z, corners in sprite_re.findall(line):
+                if corners == 'true':
+                    print(f'  skipping corner-checked sprite in {fn}: {f}')
+                    continue
+                rel = ship(f, f if f.startswith('data/weather_gfx/')
+                           else 'data/backgrounds/' + f.removeprefix('data/'))
+                chunk_sprites.setdefault(fn[:-4], []).append({
+                    'file': rel,
+                    'dx': int(dx.replace(' ', '')) if dx else 0,
+                    'dy': int(dy.replace(' ', '')) if dy else 0,
+                    'z': float(z) if z else 40.0,
+                })
+
+    # --- 5. marker-driven LoadBackgroundSprite art ----------------------------
+    # js/spawn_functions.js backgroundSpriteSpawn reproduces the spawn functions
+    # that load background sprites; ship every literal they can reach (direct
+    # LoadBackgroundSprite files and load_random_background_sprite table
+    # entries) under data/backgrounds/. test/background_sprites.test.mjs checks
+    # the JS list against what is shipped.
+    marker_re = re.compile(
+        r'(?:LoadBackgroundSprite\s*\(\s*|sprite_file\s*=\s*)"(data/biome_impl/[^"]+\.png)"')
+    marker_files = set()
+    for root in ('scripts/biomes', 'biome_impl/static_tile'):
+        for dirpath, _, files in os.walk(os.path.join(src, root)):
+            for fn in files:
+                if fn.endswith('.lua'):
+                    text = open(os.path.join(dirpath, fn), encoding='utf-8',
+                                errors='replace').read()
+                    marker_files.update(marker_re.findall(text))
+    for f in sorted(marker_files):
+        if os.path.isfile(os.path.join(src, f.removeprefix('data/'))):
+            ship(f, 'data/backgrounds/' + f.removeprefix('data/'))
+
     out = {
         'generated': 'tools/gen_backgrounds.py',
         'source': os.path.basename(src.rstrip('/')),
@@ -206,6 +280,7 @@ def main():
         'images': images,
         'sceneBackgrounds': scene_bg_out,
         'globalImages': globals_out,
+        'chunkSprites': chunk_sprites,
     }
     with open(os.path.join(REPO, 'data/background_data.json'), 'w') as f:
         json.dump(out, f, indent=1)

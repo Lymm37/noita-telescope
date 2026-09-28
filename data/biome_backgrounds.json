@@ -259,18 +259,63 @@
 		"data/weather_gfx/edges/background_wizardcave_right.png": "data/weather_gfx/edges/background_crypt_right.png",
 		"data/weather_gfx/edges/background_wizardcave_top.png": "data/weather_gfx/edges/background_crypt_top.png"
 	},
+	"limitArt": {
+		"data/weather_gfx/background_cave_02.png": {
+			"center": "data/weather_gfx/limit_y/background_cave_02.png"
+		},
+		"data/weather_gfx/background_cave_04_alt.png": {
+			"center": "data/weather_gfx/limit_y/background_cave_04_alt.png",
+			"left": "data/weather_gfx/limit_y/background_cave_04_alt_left.png",
+			"right": "data/weather_gfx/limit_y/background_cave_04_alt_right.png"
+		},
+		"data/weather_gfx/background_crypt.png": {
+			"center": "data/weather_gfx/limit_y/background_crypt.png",
+			"left": "data/weather_gfx/limit_y/background_crypt_left.png",
+			"right": "data/weather_gfx/limit_y/background_crypt_right.png"
+		},
+		"data/weather_gfx/background_fungicave_01.png": {
+			"center": "data/weather_gfx/limit_y/background_fungicave_01.png"
+		},
+		"data/weather_gfx/background_pyramid.png": {
+			"center": "data/weather_gfx/limit_y/background_pyramid.png"
+		},
+		"data/weather_gfx/background_rainforest.png": {
+			"center": "data/weather_gfx/limit_y/background_rainforest.png"
+		},
+		"data/weather_gfx/background_snowcastle.png": {
+			"center": "data/weather_gfx/limit_y/background_snowcastle.png"
+		},
+		"data/weather_gfx/background_snowcave.png": {
+			"center": "data/weather_gfx/limit_y/background_snowcave.png",
+			"left": "data/weather_gfx/limit_y/background_snowcave_left.png",
+			"right": "data/weather_gfx/limit_y/background_snowcave_right.png"
+		},
+		"data/weather_gfx/background_vault.png": {
+			"center": "data/weather_gfx/limit_y/background_vault.png"
+		},
+		"data/weather_gfx/background_vault_frozen.png": {
+			"center": "data/weather_gfx/limit_y/background_vault_frozen.png"
+		},
+		"data/weather_gfx/background_wandcave.png": {
+			"center": "data/weather_gfx/limit_y/background_wandcave.png"
+		}
+	},
 	"biomes": [
 		{
 			"color": "0x0000ff",
 			"xmlName": "water",
 			"background_image": "data/weather_gfx/background_cave_04.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x0046ff",
 			"xmlName": "snowcastle",
 			"background_image": "data/weather_gfx/background_snowcastle.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcastle_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcastle_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcastle_top.png",
@@ -280,13 +325,17 @@
 			"color": "0x006b1e",
 			"xmlName": "forest",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x006c42",
 			"xmlName": "wandcave",
 			"background_image": "data/weather_gfx/background_wandcave.png",
 			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_wandcave_left.png",
 			"background_edge_right": "data/biome_impl/wandcave/right_edge.png",
 			"background_edge_top": "data/weather_gfx/edges/background_wandcave_top.png",
@@ -297,6 +346,8 @@
 			"xmlName": "vault",
 			"background_image": "data/weather_gfx/background_vault.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_vault_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_vault_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_vault_top.png",
@@ -306,19 +357,25 @@
 			"color": "0x008040",
 			"xmlName": "vault_entrance",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 95
 		},
 		{
 			"color": "0x008080",
 			"xmlName": "mountain_left",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x0080a8",
 			"xmlName": "vault_frozen",
 			"background_image": "data/weather_gfx/background_vault_frozen.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_vault_frozen_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_vault_frozen_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_vault_frozen_top.png",
@@ -328,25 +385,33 @@
 			"color": "0x018080",
 			"xmlName": "mountain_left_2",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x028080",
 			"xmlName": "mountain_left_3",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x085b77",
 			"xmlName": "boss_limbs_arena",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x0a95a4",
 			"xmlName": "funroom",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -356,37 +421,49 @@
 			"color": "0x0da899",
 			"xmlName": "boss_arena_top",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x1133f1",
 			"xmlName": "lake",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x1133f3",
 			"xmlName": "lake_blood",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x1158f1",
 			"xmlName": "lake_deep",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x11a3fc",
 			"xmlName": "lake_statue",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x124445",
 			"xmlName": "excavationsite",
 			"background_image": "data/weather_gfx/background_excavationsite.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_excavationsite_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_excavationsite_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_excavationsite_top.png",
@@ -397,6 +474,8 @@
 			"xmlName": "mountain_tree",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -406,13 +485,17 @@
 			"color": "0x14eed7",
 			"xmlName": "boss_arena",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x157cb0",
 			"xmlName": "essenceroom",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -423,6 +506,8 @@
 			"xmlName": "essenceroom_hell",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -433,6 +518,8 @@
 			"xmlName": "essenceroom_alc",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -443,6 +530,8 @@
 			"xmlName": "mystery_teleport",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -453,6 +542,8 @@
 			"xmlName": "essenceroom_air",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -463,6 +554,8 @@
 			"xmlName": "pyramid_hallway",
 			"background_image": "data/weather_gfx/background_pyramid.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_pyramid_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_pyramid_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_pyramid_top.png",
@@ -473,6 +566,8 @@
 			"xmlName": "snowcave",
 			"background_image": "data/weather_gfx/background_snowcave.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcave_top.png",
@@ -483,6 +578,8 @@
 			"xmlName": "snowcave_secret_chamber",
 			"background_image": "data/weather_gfx/background_snowcave.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcave_top.png",
@@ -493,6 +590,8 @@
 			"xmlName": "snowcastle_hourglass_chamber",
 			"background_image": "data/weather_gfx/background_cave_04_alt3.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt3_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt3_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt3_top.png",
@@ -503,6 +602,8 @@
 			"xmlName": "mestari_secret",
 			"background_image": "data/weather_gfx/background_wizardcave.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 0,
 			"background_edge_left": "data/weather_gfx/edges/background_wizardcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_wizardcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_wizardcave_top.png",
@@ -513,6 +614,8 @@
 			"xmlName": "ghost_secret",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -522,37 +625,49 @@
 			"color": "0x204060",
 			"xmlName": "mountain_hall",
 			"background_image": "",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x208080",
 			"xmlName": "mountain_left_entrance",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x214060",
 			"xmlName": "mountain_hall_2",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x224060",
 			"xmlName": "mountain_hall_3",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x234060",
 			"xmlName": "mountain_hall_4",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x24888a",
 			"xmlName": "excavationsite_cube_chamber",
 			"background_image": "data/weather_gfx/background_cave_04_alt3.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt3_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt3_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt3_top.png",
@@ -562,13 +677,17 @@
 			"color": "0x2dc010",
 			"xmlName": "hills_flat",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x2e99d1",
 			"xmlName": "gourd_room",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -579,6 +698,8 @@
 			"xmlName": "watercave",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -589,6 +710,8 @@
 			"xmlName": "rock_room",
 			"background_image": "data/weather_gfx/background_rainforest_dark.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_rainforest_dark_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_rainforest_dark_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_rainforest_dark_top.png",
@@ -598,19 +721,25 @@
 			"color": "0x33e311",
 			"xmlName": "hills2",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x364d24",
 			"xmlName": "dragoncave",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x36d517",
 			"xmlName": "hills",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -620,13 +749,17 @@
 			"color": "0x36d5c9",
 			"xmlName": "clouds",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x375c00",
 			"xmlName": "rainforest_dark",
 			"background_image": "data/weather_gfx/background_rainforest_dark.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_rainforest_dark_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_rainforest_dark_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_rainforest_dark_top.png",
@@ -636,31 +769,41 @@
 			"color": "0x39401a",
 			"xmlName": "niilo_testroom",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x39401b",
 			"xmlName": "niilo_testroom_b",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x39401c",
 			"xmlName": "niilo_testroom_c",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x39401d",
 			"xmlName": "niilo_testroom_d",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x39a760",
 			"xmlName": "gun_room",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -671,6 +814,8 @@
 			"xmlName": "the_end",
 			"background_image": "data/weather_gfx/background_the_end.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_the_end_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_the_end_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_the_end_top.png",
@@ -680,13 +825,17 @@
 			"color": "0x3d3d3d",
 			"xmlName": "solid_wall",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x3d3e37",
 			"xmlName": "solid_wall_tower_1",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 101,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -697,6 +846,8 @@
 			"xmlName": "solid_wall_tower_2",
 			"background_image": "data/weather_gfx/background_cave_04_alt3.png",
 			"background_edge_priority": 102,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt3_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt3_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt3_top.png",
@@ -707,6 +858,8 @@
 			"xmlName": "solid_wall_tower_3",
 			"background_image": "data/weather_gfx/background_snowcave.png",
 			"background_edge_priority": 103,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcave_top.png",
@@ -717,6 +870,8 @@
 			"xmlName": "solid_wall_tower_4",
 			"background_image": "data/weather_gfx/background_snowcastle.png",
 			"background_edge_priority": 104,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcastle_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcastle_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcastle_top.png",
@@ -727,6 +882,8 @@
 			"xmlName": "solid_wall_tower_5",
 			"background_image": "data/weather_gfx/background_cave_07.png",
 			"background_edge_priority": 105,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_07_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_07_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_07_top.png",
@@ -737,6 +894,8 @@
 			"xmlName": "solid_wall_tower_6",
 			"background_image": "data/weather_gfx/background_rainforest.png",
 			"background_edge_priority": 106,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_rainforest_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_rainforest_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_rainforest_top.png",
@@ -747,6 +906,8 @@
 			"xmlName": "solid_wall_tower_7",
 			"background_image": "data/weather_gfx/background_vault.png",
 			"background_edge_priority": 107,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_vault_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_vault_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_vault_top.png",
@@ -757,6 +918,8 @@
 			"xmlName": "solid_wall_tower_8",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 108,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -767,6 +930,8 @@
 			"xmlName": "solid_wall_tower_9",
 			"background_image": "data/weather_gfx/background_the_end.png",
 			"background_edge_priority": 109,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_the_end_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_the_end_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_the_end_top.png",
@@ -777,6 +942,8 @@
 			"xmlName": "hills",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -787,6 +954,8 @@
 			"xmlName": "solid_wall_tower_10",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 110,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -797,6 +966,8 @@
 			"xmlName": "lavalake",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -807,6 +978,8 @@
 			"xmlName": "lavalake_pit",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -816,43 +989,57 @@
 			"color": "0x3d5a50",
 			"xmlName": "smokecave_right",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x3d5a51",
 			"xmlName": "smokecave_middle",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x3d5a52",
 			"xmlName": "smokecave_left",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x3d5a5b",
 			"xmlName": "sandroom",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x3d5ab2",
 			"xmlName": "shop_room",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x3f3d3e",
 			"xmlName": "solid_wall_tower",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x3f55d1",
 			"xmlName": "greed_room",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -862,13 +1049,17 @@
 			"color": "0x408080",
 			"xmlName": "mountain_right",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x4118d6",
 			"xmlName": "lavalake_racing",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -878,37 +1069,49 @@
 			"color": "0x418080",
 			"xmlName": "mountain_right_entrance",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x42244d",
 			"xmlName": "solid_wall_hidden_cavern",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x428080",
 			"xmlName": "mountain_right_entrance_2",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x438080",
 			"xmlName": "mountain_right_2",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x48e311",
 			"xmlName": "empty",
 			"background_image": "data/weather_gfx/background_snowcave.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x4e5267",
 			"xmlName": "robobase",
 			"background_image": "data/weather_gfx/background_robobase.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_robobase_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_robobase_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_robobase_top.png",
@@ -918,13 +1121,17 @@
 			"color": "0x50eed7",
 			"xmlName": "boss_victoryroom",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x567cb0",
 			"xmlName": "moon_room",
 			"background_image": "data/weather_gfx/background_rainforest_dark.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_rainforest_dark_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_rainforest_dark_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_rainforest_dark_top.png",
@@ -935,6 +1142,8 @@
 			"xmlName": "meat",
 			"background_image": "data/weather_gfx/background_the_end.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_the_end_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_the_end_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_the_end_top.png",
@@ -945,6 +1154,8 @@
 			"xmlName": "ocarina",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -955,6 +1166,8 @@
 			"xmlName": "alchemist_secret",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -964,25 +1177,33 @@
 			"color": "0x5a9628",
 			"xmlName": "temple_wall_ending",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x5a9629",
 			"xmlName": "ending_placeholder",
 			"background_image": "data/weather_gfx/background_crypt.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x5f8fab",
 			"xmlName": "teleroom",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x608080",
 			"xmlName": "mountain_left_stub",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -992,13 +1213,17 @@
 			"color": "0x684c4c",
 			"xmlName": "solid_wall_damage",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6ba04b",
 			"xmlName": "town_under",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -1008,55 +1233,73 @@
 			"color": "0x6db55a",
 			"xmlName": "friend_1",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6db55b",
 			"xmlName": "friend_2",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6db55c",
 			"xmlName": "friend_3",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6db55d",
 			"xmlName": "friend_4",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6db55e",
 			"xmlName": "friend_5",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6db55f",
 			"xmlName": "friend_6",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6dcb28",
 			"xmlName": "temple_wall",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x6dcba2",
 			"xmlName": "end_wall",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x726186",
 			"xmlName": "wizardcave",
 			"background_image": "data/weather_gfx/background_wizardcave.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 0,
 			"background_edge_left": "data/weather_gfx/edges/background_wizardcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_wizardcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_wizardcave_top.png",
@@ -1066,13 +1309,17 @@
 			"color": "0x775ddb",
 			"xmlName": "snowcastle_cavern",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x77a5bd",
 			"xmlName": "winter_caves",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -1083,6 +1330,8 @@
 			"xmlName": "crypt",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1093,6 +1342,8 @@
 			"xmlName": "meatroom",
 			"background_image": "data/weather_gfx/background_the_end.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_the_end_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_the_end_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_the_end_top.png",
@@ -1103,6 +1354,8 @@
 			"xmlName": "snowcave_tunnel",
 			"background_image": "data/weather_gfx/background_snowcave.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcave_top.png",
@@ -1113,6 +1366,8 @@
 			"xmlName": "wizardcave_entrance",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1123,6 +1378,8 @@
 			"xmlName": "rainforest",
 			"background_image": "data/weather_gfx/background_rainforest.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_rainforest_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_rainforest_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_rainforest_top.png",
@@ -1133,6 +1390,8 @@
 			"xmlName": "liquidcave",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 0,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -1142,43 +1401,57 @@
 			"color": "0x93cb4c",
 			"xmlName": "temple_altar",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x93cb4d",
 			"xmlName": "temple_altar_left",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x93cb4e",
 			"xmlName": "temple_altar_right",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x93cb4f",
 			"xmlName": "temple_altar_right_snowcave",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x93cb5a",
 			"xmlName": "temple_altar_right_snowcastle",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x93cb5c",
 			"xmlName": "temple_altar_secret",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x967f11",
 			"xmlName": "pyramid",
 			"background_image": "data/weather_gfx/background_pyramid.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_pyramid_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_pyramid_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_pyramid_top.png",
@@ -1189,6 +1462,8 @@
 			"xmlName": "pyramid_entrance",
 			"background_image": "data/weather_gfx/background_pyramid.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_pyramid_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_pyramid_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_pyramid_top.png",
@@ -1199,6 +1474,8 @@
 			"xmlName": "pyramid_left",
 			"background_image": "data/weather_gfx/background_pyramid.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_pyramid_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_pyramid_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_pyramid_top.png",
@@ -1209,6 +1486,8 @@
 			"xmlName": "pyramid_right",
 			"background_image": "data/weather_gfx/background_pyramid.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_pyramid_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_pyramid_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_pyramid_top.png",
@@ -1218,43 +1497,57 @@
 			"color": "0x99cb4c",
 			"xmlName": "temple_altar_empty",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x99cb4d",
 			"xmlName": "temple_altar_left_empty",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x99cb4e",
 			"xmlName": "temple_altar_right_empty",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x99cb4f",
 			"xmlName": "temple_altar_right_snowcave_empty",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x99cb5a",
 			"xmlName": "temple_altar_right_snowcastle_empty",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x9c6c42",
 			"xmlName": "magic_gate",
 			"background_image": "data/weather_gfx/background_the_end.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0x9d893d",
 			"xmlName": "roboroom",
 			"background_image": "data/weather_gfx/background_robobase.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_robobase_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_robobase_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_robobase_top.png",
@@ -1265,6 +1558,8 @@
 			"xmlName": "song_room",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1275,6 +1570,8 @@
 			"xmlName": "robot_egg",
 			"background_image": "data/weather_gfx/background_cave_01.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_01_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_01_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_01_top.png",
@@ -1285,6 +1582,8 @@
 			"xmlName": "rainforest_open",
 			"background_image": "data/weather_gfx/background_rainforest.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_rainforest_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_rainforest_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_rainforest_top.png",
@@ -1295,6 +1594,8 @@
 			"xmlName": "fungiforest",
 			"background_image": "data/weather_gfx/background_fungiforest_01.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_fungiforest_01_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_fungiforest_01_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_fungiforest_01_top.png",
@@ -1304,25 +1605,33 @@
 			"color": "0xad8111",
 			"xmlName": "bridge",
 			"background_image": "data/weather_gfx/background_snowcave.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xb70000",
 			"xmlName": "biome_watchtower",
 			"background_image": "data/weather_gfx/background_wandcave.png",
-			"background_edge_priority": 11
+			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": -39
 		},
 		{
 			"color": "0xb8a928",
 			"xmlName": "solid_wall_temple",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xbaa345",
 			"xmlName": "secret_lab",
 			"background_image": "data/weather_gfx/background_snowcave.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcave_top.png",
@@ -1332,31 +1641,41 @@
 			"color": "0xc00020",
 			"xmlName": "secret_entrance",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xc02020",
 			"xmlName": "secret_altar",
 			"background_image": "data/weather_gfx/background_crypt.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xc08080",
 			"xmlName": "mountain_top",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xc08082",
 			"xmlName": "mountain_floating_island",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xc88f5f",
 			"xmlName": "pyramid_top",
 			"background_image": "data/weather_gfx/background_pyramid.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_pyramid_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_pyramid_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_pyramid_top.png",
@@ -1367,6 +1686,8 @@
 			"xmlName": "desert",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1376,13 +1697,17 @@
 			"color": "0xd3e6f0",
 			"xmlName": "the_sky",
 			"background_image": "",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xd56517",
 			"xmlName": "coalmine_alt",
 			"background_image": "data/weather_gfx/background_coalmine.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_coalmine_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_coalmine_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_coalmine_top.png",
@@ -1393,6 +1718,8 @@
 			"xmlName": "coalmine",
 			"background_image": "data/weather_gfx/background_coalmine.png",
 			"background_edge_priority": 10,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_coalmine_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_coalmine_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_coalmine_top.png",
@@ -1403,6 +1730,8 @@
 			"xmlName": "winter",
 			"background_image": "data/weather_gfx/background_snowcave.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_snowcave_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_snowcave_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_snowcave_top.png",
@@ -1413,6 +1742,8 @@
 			"xmlName": "mountain_right_stub",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -1423,6 +1754,8 @@
 			"xmlName": "null_room",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1433,6 +1766,8 @@
 			"xmlName": "sandcave",
 			"background_image": "data/weather_gfx/background_cave_09.png",
 			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_09_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_09_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_09_top.png",
@@ -1443,6 +1778,8 @@
 			"xmlName": "fungicave",
 			"background_image": "data/weather_gfx/background_fungicave_01.png",
 			"background_edge_priority": 9,
+			"limit_background_image": false,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_fungicave_01_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_fungicave_01_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_fungicave_01_top.png",
@@ -1453,6 +1790,8 @@
 			"xmlName": "scale",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1462,61 +1801,81 @@
 			"color": "0xf0d517",
 			"xmlName": "roadblock",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xf6cfad",
 			"xmlName": "laboratory",
 			"background_image": "",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xf7cf8d",
 			"xmlName": "mountain_lake",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xfe0000",
 			"xmlName": "sky_light_injector",
 			"background_image": "",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xff00fb",
 			"xmlName": "biome_barren",
 			"background_image": "data/weather_gfx/background_wandcave.png",
-			"background_edge_priority": 11
+			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": -39
 		},
 		{
 			"color": "0xff00fc",
 			"xmlName": "biome_boss_sky",
 			"background_image": "data/weather_gfx/background_crypt.png",
-			"background_edge_priority": 11
+			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": -39
 		},
 		{
 			"color": "0xff00fd",
 			"xmlName": "biome_darkness",
 			"background_image": "data/weather_gfx/background_crypt.png",
-			"background_edge_priority": 11
+			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": -39
 		},
 		{
 			"color": "0xff00fe",
 			"xmlName": "biome_potion_mimics",
 			"background_image": "data/weather_gfx/background_wandcave.png",
-			"background_edge_priority": 11
+			"background_edge_priority": 11,
+			"limit_background_image": false,
+			"background_image_height": -39
 		},
 		{
 			"color": "0xff00ff",
 			"xmlName": "null",
 			"background_image": "",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xff6a02",
 			"xmlName": "lava",
 			"background_image": "data/weather_gfx/background_cave_01.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_01_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_01_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_01_top.png",
@@ -1526,13 +1885,17 @@
 			"color": "0xff8080",
 			"xmlName": "mountain_center",
 			"background_image": "data/weather_gfx/background_cave_02.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": false,
+			"background_image_height": 225
 		},
 		{
 			"color": "0xffa717",
 			"xmlName": "lava_90percent",
 			"background_image": "data/weather_gfx/background_cave_04.png",
 			"background_edge_priority": 9,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_top.png",
@@ -1543,6 +1906,8 @@
 			"xmlName": "orbroom_00",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1553,6 +1918,8 @@
 			"xmlName": "orbroom_01",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1563,6 +1930,8 @@
 			"xmlName": "orbroom_02",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1573,6 +1942,8 @@
 			"xmlName": "orbroom_03",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1583,6 +1954,8 @@
 			"xmlName": "orbroom_04",
 			"background_image": "data/weather_gfx/background_cave_09.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_09_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_09_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_09_top.png",
@@ -1593,6 +1966,8 @@
 			"xmlName": "orbroom_05",
 			"background_image": "data/weather_gfx/background_wandcave.png",
 			"background_edge_priority": 12,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_wandcave_left.png",
 			"background_edge_right": "data/biome_impl/wandcave/right_edge.png",
 			"background_edge_top": "data/weather_gfx/edges/background_wandcave_top.png",
@@ -1603,6 +1978,8 @@
 			"xmlName": "orbroom_06",
 			"background_image": "data/weather_gfx/background_cave_07.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_07_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_07_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_07_top.png",
@@ -1613,6 +1990,8 @@
 			"xmlName": "orbroom_07",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -1623,6 +2002,8 @@
 			"xmlName": "orbroom_08",
 			"background_image": "data/weather_gfx/background_the_end.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_the_end_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_the_end_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_the_end_top.png",
@@ -1633,6 +2014,8 @@
 			"xmlName": "orbroom_09",
 			"background_image": "data/weather_gfx/background_cave_04_alt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_04_alt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_04_alt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_04_alt_top.png",
@@ -1643,6 +2026,8 @@
 			"xmlName": "orbroom_10",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1653,6 +2038,8 @@
 			"xmlName": "orbroom_11",
 			"background_image": "data/weather_gfx/background_crypt.png",
 			"background_edge_priority": 11,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_crypt_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_crypt_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_crypt_top.png",
@@ -1663,6 +2050,8 @@
 			"xmlName": "lava",
 			"background_image": "data/weather_gfx/background_cave_01.png",
 			"background_edge_priority": 10,
+			"limit_background_image": true,
+			"background_image_height": 225,
 			"background_edge_left": "data/weather_gfx/edges/background_cave_01_left.png",
 			"background_edge_right": "data/weather_gfx/edges/background_cave_01_right.png",
 			"background_edge_top": "data/weather_gfx/edges/background_cave_01_top.png",
@@ -1672,7 +2061,9 @@
 			"color": "0xffff00",
 			"xmlName": "gold",
 			"background_image": "data/weather_gfx/background_cave_04.png",
-			"background_edge_priority": 0
+			"background_edge_priority": 0,
+			"limit_background_image": true,
+			"background_image_height": 225
 		}
 	]
 }

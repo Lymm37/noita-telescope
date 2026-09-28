@@ -63,6 +63,7 @@ function generatePWWorker() {
 		pw: pw,
 		pwVertical: pwVertical,
 		pois: generatedSpawns,
-		pixelScenes: finalPixelScenes
+		pixelScenes: finalPixelScenes,
+		bgSprites: scanResults.backgroundSprites
 	});
 }

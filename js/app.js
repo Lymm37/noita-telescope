@@ -8,7 +8,8 @@ import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
 import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
-import { getBiomeAtWorldCoordinates, getMaterialProvenanceAtWorldCoordinates, getWorldCenter, getWorldSize, getWorldStride, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
+import { snapDrawImage } from './snap.js';
+import { getBiomeAtWorldCoordinates, getResolvedBiome, getMaterialProvenanceAtWorldCoordinates, getWorldCenter, getWorldSize, getWorldStride, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { camZFromLogZoom, cameraFromWorld, formatViewParams, logZoomFromCamZ, parseViewParams, worldFromCamera } from './view_url.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
@@ -44,7 +45,9 @@ import {
 	BACKGROUND_VOID, backgroundLayerColor, buildBackdropRuns, buildBackgroundEdges,
 	backdropBitmap, drawBackdropRuns, drawGlobalBackgroundImages, drawSceneBackgrounds, drawStaticTileBackdrops,
 	backgroundArtLoaded, edgeStripArt, loadBackgroundArt, loadBackgroundEdgeMasks, loadStaticTileBackgroundMasks,
-	STATIC_TILE_BACKGROUNDS, tintedEdgeStrip, UNLIMITED_BACKDROP_BIOMES,
+	STATIC_TILE_BACKGROUNDS, tintedEdgeStrip,
+	BACKDROP_HORIZON, BACKDROP_NONE, backdropExtent, buildHorizonChunks, chunkOwnsEdges, drawHorizonChunks,
+	buildChunkSprites, drawChunkSprites, backgroundArtReady, drawMarkerSprites,
 } from './biome_backgrounds.js';
 
 // How often a pan or zoom may rewrite the URL, in ms.
@@ -58,8 +61,6 @@ const biomeColorsOf = (names) => new Set([...names]
 // than filling their chunk (js/biome_backgrounds.js STATIC_TILE_BACKGROUNDS), so
 // the background layer must leave their chunks to the sky and draw the mask.
 const STATIC_TILE_COLORS = biomeColorsOf(Object.keys(STATIC_TILE_BACKGROUNDS));
-// ...and the ones that keep a plain full-chunk backdrop above the surface line.
-const UNLIMITED_BACKDROP_COLORS = biomeColorsOf(UNLIMITED_BACKDROP_BIOMES);
 
 // Width of a background boundary strip in world pixels, matching the engine art.
 const STRIP_WORLD_PX = 64;
@@ -586,6 +587,7 @@ export const app = {
 	tileSpawns: null, // Pre-scanned spawn functions for generated tiles
 	pixelScenesByPW: {}, // Cached pixel scenes by PW after scanning
 	poisByPW: {}, // Cached PoIs by PW after scanning
+	bgSpritesByPW: {}, // Marker-driven LoadBackgroundSprite placements by PW (poi_scanner backgroundSprites)
 	tileOverlaysByPW: {}, // Cached biome tile overlays by PW after generation, to avoid expensive recoloring on every render
 
 	extraPois: [], // Used for local results
@@ -2287,6 +2289,7 @@ export const app = {
 			this.unpaintedChunkCount = 0;
 			this.pixelScenesByPW = {};
 			this.poisByPW = {};
+			this.bgSpritesByPW = {};
 			this.tileOverlaysByPW = {};
 			invalidateEdgeDecals();
 			this.worldsInView = new Set(['0,0']);
@@ -2402,6 +2405,7 @@ export const app = {
 			// Reset spawns
 			this.pixelScenesByPW = {};
 			this.poisByPW = {};
+			this.bgSpritesByPW = {};
 			this.tileOverlaysByPW = {};
 			invalidateEdgeDecals();
 
@@ -2441,6 +2445,7 @@ export const app = {
 			this.pixelScenesByPW[`${this.pw},${this.pwVertical}`] = scanResults.finalPixelScenes;
 			const specialPoIs = getSpecialPoIs(this.biomeData, this.seed, this.ngPlusCount, this.pw, this.pwVertical, this.perks, this.gameMode);
 			this.poisByPW[`${this.pw},${this.pwVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
+			this.bgSpritesByPW[`${this.pw},${this.pwVertical}`] = scanResults.backgroundSprites;
 		
 			// Static pixel scenes
 			if (appSettings.enableStaticPixelScenes !== 'off') {
@@ -2607,6 +2612,18 @@ export const app = {
 		// Cells painted as telescope's fake sky, so the edge-strip builder can leave
 		// them alone -- the engine's sky is the parallax system, not this grid.
 		const skyCells = new Uint8Array(this.w * this.h);
+		// Chunks the engine draws only below their background_image_height line
+		// (js/biome_backgrounds.js backdropExtent): kept out of the full-chunk
+		// backdrop runs and drawn by drawHorizonChunks instead.
+		const horizonCells = new Uint8Array(this.w * this.h);
+		// Chunks that decorate no boundary of their own (above the height line).
+		const noOwnEdges = new Uint8Array(this.w * this.h);
+		// Static-tile chunks join the sky band for the backdrop runs, but in the
+		// engine they are real (masked) backdrop chunks, so the edge strips still
+		// treat them as neighbours -- the desert chunk under the watchtower lays its
+		// top strip against it -- and they decorate their own boundaries.
+		const edgeSkip = new Uint8Array(this.w * this.h);
+		const chunkTop = (cy) => (cy - surfaceLevel) * 512;
 
 		for (let i = 0; i < this.biomeData.pixels.length; i++) {
 			const biomeColor = this.biomeData.pixels[i] & 0xFFFFFF;
@@ -2642,39 +2659,40 @@ export const app = {
 			}
 
 
-			// Above the surface the engine's chunk backdrops are wang-masked to the
-			// structure interiors (mountain, tower: sprite_static_tile_bg.frag masks
-			// the tile to the template) or horizon-limited (limit_background_image on
-			// the surface biomes and solid_wall), so what actually shows around the
-			// art up there is the parallax sky. Painting the plain tile (or void)
-			// there gave a black sky around the spawn mountain. Until the masks and
-			// limit_y strips are modeled, every above-surface cell paints the sky
-			// gradient and stays out of the backdrop-run/edge-strip builders. Only
-			// the background canvas is affected; the identity buffer keeps the biome
-			// color for tile overlays / scene fills.
+			// Above the surface the engine's chunk backdrops are either wang-masked
+			// to a structure (static tile, below) or cut off by the surface horizon
+			// rule, limit_background_image / background_image_height
+			// (js/biome_backgrounds.js backdropExtent): with the engine defaults
+			// every chunk whose bottom is above y = 225 draws nothing, and the chunk
+			// row at the surface draws only from y = 225 down. What shows instead is
+			// the parallax sky. Only the background canvas is affected; the identity
+			// buffer keeps the biome color for tile overlays / scene fills.
 			let bgColor = isSky ? color : backgroundLayerColor(biomeColor) ?? color;
+			const cy = Math.floor(i / this.w);
+			const extent = backdropExtent(biomeColor, chunkTop(cy));
+			if (!chunkOwnsEdges(biomeColor, chunkTop(cy))) noOwnEdges[i] = 1;
 			// A `static_tile` biome's backdrop is not a chunk sprite at all -- it is
 			// its background_image masked to the structure's silhouette
 			// (js/biome_backgrounds.js STATIC_TILE_BACKGROUNDS). Everything around
 			// the silhouette is the parallax sky, so the chunk joins the sky band
 			// here -- no backdrop run, no boundary strip, no flat fill -- and
 			// drawBackgroundStack draws the masked backdrop on top of it. That holds
-			// at any depth, which matters for the watchtower's row 14: the one
-			// static-tile cell not already above the surface line, and until now the
-			// one that filled its whole chunk with the wandcave backdrop.
+			// at any depth, which matters for the watchtower's row 14.
 			//
-			// The inverse case is a biome that opts out of the horizon treatment with
-			// limit_background_image="0" (UNLIMITED_BACKDROP_BIOMES): its chunk really
-			// is filled edge to edge up there, so it keeps its backdrop.
-			if (!isSky && !UNLIMITED_BACKDROP_COLORS.has(biomeColor)
-				&& (STATIC_TILE_COLORS.has(biomeColor) || i < this.w * surfaceLevel)) {
-				const depthFactor = Math.min(Math.floor(i / this.w) / surfaceLevel, 1);
+			// A biome with no background_image above the surface is sky as well
+			// (mountain_hall, the_sky): the engine creates no sprite there.
+			const noImage = bgColor === BACKGROUND_VOID || backgroundLayerColor(biomeColor) === null;
+			if (!isSky && (STATIC_TILE_COLORS.has(biomeColor) || extent === BACKDROP_NONE
+				|| extent === BACKDROP_HORIZON || (cy < surfaceLevel && noImage))) {
+				const depthFactor = Math.min(cy / surfaceLevel, 1);
 				const r = 0x87 + ((0xbb - 0x87) * depthFactor);
 				const g = 0xce + ((0xdd - 0xce) * depthFactor);
 				bgColor = (r << 16) | (g << 8) | 0xeb;
-				isSky = true;
+				if (extent === BACKDROP_HORIZON && !STATIC_TILE_COLORS.has(biomeColor)) horizonCells[i] = 1;
+				else isSky = true;
 			}
 			if (isSky) skyCells[i] = 1;
+			if (isSky && !STATIC_TILE_COLORS.has(biomeColor)) edgeSkip[i] = 1;
 			writeBackgroundPixel(id, i, bgColor);
 			this.recolorOffscreenBuffer[i*3+0] = (color >> 16) & 0xFF;
 			this.recolorOffscreenBuffer[i*3+1] = (color >> 8) & 0xFF;
@@ -2737,20 +2755,27 @@ export const app = {
 		// neighbour has nothing to bleed into.
 		const heavenSkip = new Uint8Array(this.w * this.h);
 		const hellSkip = new Uint8Array(this.w * this.h);
+		// The heaven band sits a whole world height above the surface, so under
+		// the horizon rule its limited biomes draw no backdrop at all.
+		const heavenTop = (cy) => chunkTop(cy) - 24576;
 		for (let i = 0; i < heavenSkip.length; i++) {
-			heavenSkip[i] = bandColumnPaints(this.biomeData.heavenPixels[i]) ? 0 : 1;
+			const hp = this.biomeData.heavenPixels[i];
+			heavenSkip[i] = bandColumnPaints(hp)
+				&& backdropExtent(hp, heavenTop(Math.floor(i / this.w))) !== BACKDROP_NONE ? 0 : 1;
 			hellSkip[i] = bandColumnPaints(this.biomeData.hellPixels[i]) ? 0 : 1;
 		}
 		this.bandFillHeaven = this.renderBandFillCanvas(this.biomeData.heavenPixels);
 		this.bandFillHell = this.renderBandFillCanvas(this.biomeData.hellPixels);
 
-		this.backgroundEdges = buildBackgroundEdges(this.biomeData.pixels, this.w, this.h, skyCells);
+		this.backgroundEdges = buildBackgroundEdges(this.biomeData.pixels, this.w, this.h, edgeSkip, noOwnEdges);
 		this.backgroundEdgesHeaven = buildBackgroundEdges(this.biomeData.heavenPixels, this.w, this.h, heavenSkip);
 		this.backgroundEdgesHell = buildBackgroundEdges(this.biomeData.hellPixels, this.w, this.h, hellSkip);
 
 		// Runs of chunks sharing a background_image, for the full-art backdrop
 		// tiling (drawBackgroundStack). Same skip semantics as the strips.
-		this.backdropRuns = buildBackdropRuns(this.biomeData.pixels, this.w, this.h, skyCells);
+		const runSkip = skyCells.map((v, i) => v | horizonCells[i]);
+		this.backdropRuns = buildBackdropRuns(this.biomeData.pixels, this.w, this.h, runSkip);
+		this.horizonChunks = buildHorizonChunks(this.biomeData.pixels, this.w, this.h, chunkTop, skyCells);
 		this.backdropRunsHeaven = buildBackdropRuns(this.biomeData.heavenPixels, this.w, this.h, heavenSkip);
 		this.backdropRunsHell = buildBackdropRuns(this.biomeData.hellPixels, this.w, this.h, hellSkip);
 	},
@@ -3307,7 +3332,12 @@ export const app = {
 		const bctx = scratch.getContext('2d');
 		bctx.imageSmoothingEnabled = true;
 		bctx.scale(1 / BACKDROP_BAKE_SCALE, 1 / BACKDROP_BAKE_SCALE);
-		drawBackdropRuns(bctx, runs, 0, 0, { left: 0, top: 0, right: this.w * 512, bottom: this.h * 512 });
+		const whole = { left: 0, top: 0, right: this.w * 512, bottom: this.h * 512 };
+		drawBackdropRuns(bctx, runs, 0, 0, whole);
+		// The surface row's horizon chunks go into the same bake: left out, the
+		// smoothed upscale fades row 15's top edge into their transparent texels
+		// and a band of sky shows along y = 512 across the whole world.
+		if (runs === this.backdropRuns && this.horizonChunks) drawHorizonChunks(bctx, this.horizonChunks, 0, 0, whole);
 		bake = scratch.transferToImageBitmap();
 		this.backdropBakes.set(runs, bake);
 		renderTrace.done('bake', 'backdrop', 'biomeBackground', performance.now() - t0);
@@ -3480,9 +3510,29 @@ export const app = {
 				this.drawImageSnapped(this.ctx, this.biomeBackgroundImage(pwY), shiftX, shiftY, this.w * 512, this.h * 512);
 			}
 		}]);
+		// Biome init() LoadBackgroundSprite art (js/biome_backgrounds.js
+		// buildChunkSprites), main world only. Built on first use because it needs
+		// the art manifest, which loads after the first map render.
+		const chunkSpriteStep = (zTest) => () => {
+			if (!backgroundArtReady() || !this.biomeData) return;
+			if (this.chunkSpritesFor !== this.biomeData.pixels) {
+				this.chunkSprites = buildChunkSprites(this.biomeData.pixels, this.w, this.h);
+				this.chunkSpritesFor = this.biomeData.pixels;
+			}
+			for (let worldKey of this.worldsInView) {
+				const { pwY, shiftX, shiftY } = worldOffsets[worldKey];
+				if (pwY !== 0) continue;
+				drawChunkSprites(this.ctx, this.chunkSprites, shiftX, shiftY, viewRect, zTest);
+			}
+		};
 		if (!rawMap) {
+			// Sprites the SceneGraph draws before the chunk tiles (z above ~99).
+			steps.push(['chunkSpritesBack', chunkSpriteStep((z) => z >= 99)]);
 			// Below ~8 screen px per chunk the tiling detail is invisible and the
 			// flat per-image colors are already what the eye averages the art to.
+			// Set when the backdrops step drew the bake, which already carries the
+			// horizon chunks.
+			let horizonInBake = false;
 			if (512 * this.detailZoom() >= 8) {
 				const useBake = 512 * this.detailZoom() <= BACKDROP_BAKE_MAX_CHUNK_PX;
 				steps.push(['backdrops', () => {
@@ -3494,6 +3544,7 @@ export const app = {
 						if (!runs) continue;
 						const bake = useBake ? this.backdropBake(runs) : null;
 						if (bake) {
+							if (pwY === 0) horizonInBake = true;
 							// The bake is minified further at the lowest zooms;
 							// nearest sampling would just sparkle.
 							this.ctx.imageSmoothingEnabled = true;
@@ -3505,6 +3556,16 @@ export const app = {
 					}
 				}]);
 			}
+			// The surface row's chunks, tiled only below their horizon line. Cheap
+			// enough to draw directly at any zoom: one row, ~70 chunks.
+			steps.push(['horizon', () => {
+				if (!this.horizonChunks || horizonInBake) return;
+				for (let worldKey of this.worldsInView) {
+					const { pwY, shiftX, shiftY } = worldOffsets[worldKey];
+					if (pwY !== 0) continue;
+					drawHorizonChunks(this.ctx, this.horizonChunks, shiftX, shiftY, viewRect);
+				}
+			}]);
 			steps.push(['edges', () => this.drawBackgroundEdges(worldOffsets, viewRect, offscreen)]);
 			// The static-tile structures' masked backdrops, at the same world rect
 			// (and with the same PW offsets) as their tile layers. They sit with the
@@ -3517,11 +3578,25 @@ export const app = {
 					const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
 					if (pwY !== 0) continue;
 					const pwOffset = (this.isNGP || this.gameMode === 'nightmare') ? -pwX * 8 : 0;
-					drawStaticTileBackdrops(this.ctx, this.tileLayers,
-						shiftX + pwOffset + VISUAL_TILE_OFFSET_X,
-						shiftY + VISUAL_TILE_OFFSET_Y, viewRect);
+					drawStaticTileBackdrops(this.ctx, this.tileLayers, shiftX, shiftY,
+						pwOffset + VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, viewRect,
+						(name, cx, cy) => this.isBiomeChunk(name, cx, cy));
 				}
 			}]);
+			// Marker-driven LoadBackgroundSprite art, interleaved by z with the scene
+			// backgrounds (50) and the global images (30); z sorts high-first.
+			const markerStep = (zTest) => () => {
+				for (let worldKey of this.worldsInView) {
+					const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
+					const sprites = this.bgSpritesByPW && this.bgSpritesByPW[`${pwX},${pwY}`];
+					if (!sprites) continue;
+					const toDrawX = (x) => x + worldCenter - pwX * worldSize + shiftX;
+					const toDrawY = (y) => y + 14 * 512 - pwY * 24576 + shiftY;
+					drawMarkerSprites(this.ctx, sprites, toDrawX, toDrawY, viewRect, zTest,
+						(x, y) => getResolvedBiome(this.biomeData, x, y, this.isNGP, this.gameMode).biome);
+				}
+			};
+			steps.push(['markerSpritesBack', markerStep((z) => z >= 50)]);
 			steps.push(['sceneBgs', () => {
 				for (let worldKey of this.worldsInView) {
 					const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
@@ -3532,6 +3607,8 @@ export const app = {
 					drawSceneBackgrounds(this.ctx, scenes, toDrawX, toDrawY, viewRect, sceneBackgroundArt);
 				}
 			}]);
+			steps.push(['chunkSpritesFront', chunkSpriteStep((z) => z < 99)]);
+			steps.push(['markerSpritesMid', markerStep((z) => z < 50 && z > 30)]);
 			steps.push(['globalImages', () => {
 				for (let worldKey of this.worldsInView) {
 					const { pwX, pwY, shiftX, shiftY } = worldOffsets[worldKey];
@@ -3540,6 +3617,7 @@ export const app = {
 					drawGlobalBackgroundImages(this.ctx, toDrawX, toDrawY, viewRect);
 				}
 			}]);
+			steps.push(['markerSpritesFront', markerStep((z) => z <= 30)]);
 		}
 		if (reverse) steps.reverse();
 		for (const [name, step] of steps) {
@@ -3553,6 +3631,15 @@ export const app = {
 	// step issued one drawImage per visible tile. Drawn in screen space like
 	// drawTerrainGL. False when GL is off or unavailable, or before the art has
 	// loaded -- the 2D run loop then draws as before.
+	/** Whether map-local chunk (cx, cy) of the main world is biome `name`. */
+	isBiomeChunk(name, cx, cy) {
+		if (cy < 0 || cy >= this.h || !this.biomeData) return false;
+		const color = GENERATOR_CONFIG[name]?.color;
+		if (color === undefined) return false;
+		const x = ((cx % this.w) + this.w) % this.w;
+		return (this.biomeData.pixels[cy * this.w + x] & 0xffffff) === (color & 0xffffff);
+	},
+
 	drawBackdropsGL() {
 		if (appSettings.terrainRenderer !== 'gl' || !backgroundArtLoaded()) return false;
 		if (!this.glBackdrops) this.glBackdrops = new GLBackdropRenderer();
@@ -3608,7 +3695,7 @@ export const app = {
 					// mask until then.
 					const strip = edgeStripArt(e) ?? tintedEdgeStrip(e.mask, e.color);
 					if (!strip) continue;
-					this.ctx.drawImage(strip, e.sx, e.sy, e.sw, e.sh, dx, dy, e.dw, e.dh);
+					snapDrawImage(this.ctx, strip, e.sx, e.sy, e.sw, e.sh, dx, dy, e.dw, e.dh);
 				}
 			}
 		}
@@ -3680,14 +3767,7 @@ export const app = {
 	// both copies leaves no gap and no overlap. Assumes a scale+translate
 	// transform (setupCamera).
 	drawImageSnapped(ctx, img, x, y, w, h) {
-		const m = ctx.getTransform();
-		const x0 = Math.round(m.a * x + m.e), x1 = Math.round(m.a * (x + w) + m.e);
-		const y0 = Math.round(m.d * y + m.f), y1 = Math.round(m.d * (y + h) + m.f);
-		if (x1 <= x0 || y1 <= y0) return;
-		ctx.save();
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.drawImage(img, x0, y0, x1 - x0, y1 - y0);
-		ctx.restore();
+		snapDrawImage(ctx, img, x, y, w, h);
 	},
 
 	/** The layer-1 biome background image for a world row, honoring the raw-map debug toggle. */
@@ -3778,39 +3858,39 @@ export const app = {
 						// TODO: Need the PW/NG+ versions of the overlay, for now disable
 						if (pwX === 0) {
 							if (this.surfaceOverlay) {
-								this.ctx.drawImage(this.surfaceOverlay, shiftX, shiftY, this.w * 512, this.h * 512);
+								snapDrawImage(this.ctx, this.surfaceOverlay, shiftX, shiftY, this.w * 512, this.h * 512);
 							}
 							// Hiisi shop
 							if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['hiisi_hourglass_left'] && this.surfaceOverlayScenes['hiisi_hourglass_right']) {
 								if (this.hiisiHourglassPosition === 'left') {
-									this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_left'], shiftX + 30*512, shiftY + 24*512, 512, 576);
+									snapDrawImage(this.ctx, this.surfaceOverlayScenes['hiisi_hourglass_left'], shiftX + 30*512, shiftY + 24*512, 512, 576);
 								}
 								else if (this.hiisiHourglassPosition === 'right') {
-									this.ctx.drawImage(this.surfaceOverlayScenes['hiisi_hourglass_right'], shiftX + 38*512, shiftY + 24*512, 512, 576);
+									snapDrawImage(this.ctx, this.surfaceOverlayScenes['hiisi_hourglass_right'], shiftX + 38*512, shiftY + 24*512, 512, 576);
 								}
 							}
 						}
 						else {
 							if (this.surfaceOverlayPW) {
-								this.ctx.drawImage(this.surfaceOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512);
+								snapDrawImage(this.ctx, this.surfaceOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512);
 							}
 						}
 						// Extra overlay for just PW +/- 1
 						if (pwX === -1 || pwX === 1) {
 							if (this.surfaceOverlayPWAdditional) {
-								this.ctx.drawImage(this.surfaceOverlayPWAdditional, shiftX, shiftY, this.w * 512, this.h * 512);
+								snapDrawImage(this.ctx, this.surfaceOverlayPWAdditional, shiftX, shiftY, this.w * 512, this.h * 512);
 							}
 						}
 					}
 					else if (this.ngPlusCount === 0 && this.gameMode === 'nightmare') {
 						if (pwX === 0) {
 							if (this.surfaceOverlayNightmare) {
-								this.ctx.drawImage(this.surfaceOverlayNightmare, shiftX, shiftY, this.w * 512, this.h * 512);
+								snapDrawImage(this.ctx, this.surfaceOverlayNightmare, shiftX, shiftY, this.w * 512, this.h * 512);
 							}
 						}
 						else {
 							if (this.surfaceOverlayNightmarePW) {
-								this.ctx.drawImage(this.surfaceOverlayNightmarePW, shiftX, shiftY, this.w * 512, this.h * 512);
+								snapDrawImage(this.ctx, this.surfaceOverlayNightmarePW, shiftX, shiftY, this.w * 512, this.h * 512);
 							}
 						}
 					}
@@ -3818,48 +3898,48 @@ export const app = {
 						if (this.ngPlusCount === 7 || this.ngPlusCount === 28) {
 							if (pwX === 0) {
 								if (this.surfaceOverlayNGP7) {
-									this.ctx.drawImage(this.surfaceOverlayNGP7, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGP7, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 							else {
 								if (this.surfaceOverlayNGP7PW) {
-									this.ctx.drawImage(this.surfaceOverlayNGP7PW, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGP7PW, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 						}
 						else if (this.ngPlusCount === 14) {
 							if (pwX === 0) {
 								if (this.surfaceOverlayNGP14) {
-									this.ctx.drawImage(this.surfaceOverlayNGP14, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGP14, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 							else {
 								if (this.surfaceOverlayNGP14PW) {
-									this.ctx.drawImage(this.surfaceOverlayNGP14PW, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGP14PW, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 						}
 						else if (this.ngPlusCount === 21) {
 							if (pwX === 0) {
 								if (this.surfaceOverlayNGP21) {
-									this.ctx.drawImage(this.surfaceOverlayNGP21, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGP21, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 							else {
 								if (this.surfaceOverlayNGP21PW) {
-									this.ctx.drawImage(this.surfaceOverlayNGP21PW, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGP21PW, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 						}
 						else {
 							if (pwX === 0) {
 								if (this.surfaceOverlayNGP) {
-									this.ctx.drawImage(this.surfaceOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 							else {
 								if (this.surfaceOverlayNGPPW) {
-									this.ctx.drawImage(this.surfaceOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512);
 								}
 							}
 						}
@@ -3869,24 +3949,24 @@ export const app = {
 					if (this.ngPlusCount === 0 && this.gameMode === 'normal') {
 						if (pwX === 0) {
 							if (this.skyOverlay) {
-								this.ctx.drawImage(this.skyOverlay, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+								snapDrawImage(this.ctx, this.skyOverlay, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 							}
 						}
 						else {
 							if (this.skyOverlayPW) {
-								this.ctx.drawImage(this.skyOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+								snapDrawImage(this.ctx, this.skyOverlayPW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 							}
 						}
 					}
 					else if (this.ngPlusCount === 0 && this.gameMode === 'nightmare') {
 						if (pwX === 0) {
 							if (this.skyOverlayNightmare) {
-								this.ctx.drawImage(this.skyOverlayNightmare, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+								snapDrawImage(this.ctx, this.skyOverlayNightmare, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 							}
 						}
 						else {
 							if (this.skyOverlayNightmarePW) {
-								this.ctx.drawImage(this.skyOverlayNightmarePW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+								snapDrawImage(this.ctx, this.skyOverlayNightmarePW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 							}
 						}
 					}
@@ -3894,48 +3974,48 @@ export const app = {
 						if (this.ngPlusCount === 7 || this.ngPlusCount === 28) {
 							if (pwX === 0) {
 								if (this.skyOverlayNGP7) {
-									this.ctx.drawImage(this.skyOverlayNGP7, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGP7, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 							else {
 								if (this.skyOverlayNGP7PW) {
-									this.ctx.drawImage(this.skyOverlayNGP7PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGP7PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 						}
 						else if (this.ngPlusCount === 14) {
 							if (pwX === 0) {
 								if (this.skyOverlayNGP14) {
-									this.ctx.drawImage(this.skyOverlayNGP14, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGP14, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 							else {
 								if (this.skyOverlayNGP14PW) {
-									this.ctx.drawImage(this.skyOverlayNGP14PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGP14PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 						}
 						else if (this.ngPlusCount === 21) {
 							if (pwX === 0) {
 								if (this.skyOverlayNGP21) {
-									this.ctx.drawImage(this.skyOverlayNGP21, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGP21, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 							else {
 								if (this.skyOverlayNGP21PW) {
-									this.ctx.drawImage(this.skyOverlayNGP21PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGP21PW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 						}
 						else {
 							if (pwX === 0) {
 								if (this.skyOverlayNGP) {
-									this.ctx.drawImage(this.skyOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGP, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 							else {
 								if (this.skyOverlayNGPPW) {
-									this.ctx.drawImage(this.skyOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
+									snapDrawImage(this.ctx, this.skyOverlayNGPPW, shiftX, shiftY, this.w * 512, this.h * 512 + SKY_EXTRA_HEIGHT);
 								}
 							}
 						}
@@ -3974,7 +4054,7 @@ export const app = {
 						weatherOverlay = this.weatherOverlays['slime'];
 					}
 					if (weatherOverlay) {
-						this.ctx.drawImage(weatherOverlay, shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 - 5*512, shiftY + 5*512 + 416, 283*32, 142*32);
+						snapDrawImage(this.ctx, weatherOverlay, shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 - 5*512, shiftY + 5*512 + 416, 283*32, 142*32);
 					}
 				}
 			}
@@ -4021,29 +4101,29 @@ export const app = {
 							// Scale variants based on sun/darksun gem unlocks
 							if (appSettings.sunGem && appSettings.darksunGem) {
 								if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['scale_balanced']) {
-									this.ctx.drawImage(this.surfaceOverlayScenes['scale_balanced'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayScenes['scale_balanced'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
 								}
 							}
 							else if (appSettings.sunGem) {
 								if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['scale_light']) {
-									this.ctx.drawImage(this.surfaceOverlayScenes['scale_light'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayScenes['scale_light'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
 								}
 							}
 							else if (appSettings.darksunGem) {
 								if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['scale_dark']) {
-									this.ctx.drawImage(this.surfaceOverlayScenes['scale_dark'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayScenes['scale_dark'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
 								}
 							}
 							else {
 								if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['scale_empty']) {
-									this.ctx.drawImage(this.surfaceOverlayScenes['scale_empty'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
+									snapDrawImage(this.ctx, this.surfaceOverlayScenes['scale_empty'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
 								}
 							}
 						}
 						else {
 							// Broken scale otherwise
 							if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['scale_empty']) {
-								this.ctx.drawImage(this.surfaceOverlayScenes['scale_empty'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
+								snapDrawImage(this.ctx, this.surfaceOverlayScenes['scale_empty'], shiftX + getWorldCenter(this.isNGP, this.gameMode) * 512 + scaleOffsetX, shiftY + 14*512 + scaleOffsetY, 512, 512);
 							}
 						}
 					}
@@ -4053,25 +4133,25 @@ export const app = {
 			// Moons and Suns
 			if (appSettings.sunState) {
 				if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['sun']) {
-					this.ctx.drawImage(this.surfaceOverlayScenes['sun'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512 - 7.5*512, -37*512 - this.pwVertical * 24576 - 32 - 7.5*512, 16*512, 16*512);
+					snapDrawImage(this.ctx, this.surfaceOverlayScenes['sun'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512 - 7.5*512, -37*512 - this.pwVertical * 24576 - 32 - 7.5*512, 16*512, 16*512);
 				}
 			}
 			else {
 				if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['moon']) {
-					this.ctx.drawImage(this.surfaceOverlayScenes['moon'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512, -37*512 - this.pwVertical * 24576 - 32, 512, 540);
+					snapDrawImage(this.ctx, this.surfaceOverlayScenes['moon'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512, -37*512 - this.pwVertical * 24576 - 32, 512, 540);
 				}
 			}
 			if (this.gameMode !== 'nightmare') {
 				// Why is it not in Nightmare? So weird.
 				if (appSettings.darksunState) {
 					if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['darksun']) {
-						this.ctx.drawImage(this.surfaceOverlayScenes['darksun'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512 - 7.5*512, 87*512 - this.pwVertical * 24576 + 128 - 7.5*512, 16*512, 16*512);
+						snapDrawImage(this.ctx, this.surfaceOverlayScenes['darksun'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512 - 7.5*512, 87*512 - this.pwVertical * 24576 + 128 - 7.5*512, 16*512, 16*512);
 					}
 				}
 				else {
 				
 					if (this.surfaceOverlayScenes && this.surfaceOverlayScenes['darkmoon']) {
-						this.ctx.drawImage(this.surfaceOverlayScenes['darkmoon'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512, 87*512 - this.pwVertical * 24576 + 128, 512, 512);
+						snapDrawImage(this.ctx, this.surfaceOverlayScenes['darkmoon'], getWorldCenter(this.isNGP, this.gameMode) * 512 - this.pw * getWorldSize(this.isNGP, this.gameMode) * 512, 87*512 - this.pwVertical * 24576 + 128, 512, 512);
 					}
 				}
 			}
@@ -4103,7 +4183,7 @@ export const app = {
 							if (verticalSegment > 0 || verticalSegment < -pwX+1) continue;
 							const posX = (getWorldCenter(this.isNGP, this.gameMode) - 25) * 512 + pwX * 512 * this.w - this.pw * 512 * this.w;
 							const posY = verticalSegment * 512 * 25 - 11*512 - this.pwVertical * 24576;
-							this.ctx.drawImage(echoingSpireScene, posX, posY, 512, 512*25);
+							snapDrawImage(this.ctx, echoingSpireScene, posX, posY, 512, 512*25);
 						}
 					}
 				}
@@ -4129,7 +4209,7 @@ export const app = {
 				const { pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				if (pwY === 0) {
 					if (this.biomeMapAlphaMask) {
-						this.ctx.drawImage(this.biomeMapAlphaMask, shiftX, shiftY, this.w * 512, this.h * 512);
+						snapDrawImage(this.ctx, this.biomeMapAlphaMask, shiftX, shiftY, this.w * 512, this.h * 512);
 					}
 				}
 			}
@@ -4170,7 +4250,7 @@ export const app = {
 				if (pwY !== 0) {
 					const bandFill = pwY > 0 ? this.bandFillHell : this.bandFillHeaven;
 					if (bandFill) {
-						this.ctx.drawImage(bandFill,
+						snapDrawImage(this.ctx, bandFill,
 							shiftX + VISUAL_TILE_OFFSET_X, shiftY + VISUAL_TILE_OFFSET_Y,
 							this.w * 512, this.h * 512);
 					}
@@ -4190,7 +4270,7 @@ export const app = {
 				if (biomeOverlayMode === 'none') {
 					for (const layer of this.tileLayers) {
 						if (layer.canvas) {
-							this.ctx.drawImage(layer.canvas, layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y, layer.w, layer.h);
+							snapDrawImage(this.ctx, layer.canvas, layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X, layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y, layer.w, layer.h);
 						}
 					}
 				}
@@ -4252,7 +4332,7 @@ export const app = {
 									layer.w + pad * 2, layer.h + pad * 2)) continue;
 
 								if (expanded) {
-									this.ctx.drawImage(
+									snapDrawImage(this.ctx, 
 										overlay,
 										layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X - pad,
 										layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y - pad,
@@ -4261,7 +4341,7 @@ export const app = {
 									);
 								}
 								else {
-									this.ctx.drawImage(
+									snapDrawImage(this.ctx, 
 										overlay, 
 										layer.correctedX + shiftX + pwOffset + VISUAL_TILE_OFFSET_X, 
 										layer.correctedY + shiftY + pwOffsetVertical + VISUAL_TILE_OFFSET_Y,
@@ -4321,7 +4401,7 @@ export const app = {
 					const onGL = this.scenesOnGL;
 					const bake = (!onGL && !appSettings.renderEverything && 512 * this.cam.z <= SCENE_BAKE_MAX_CHUNK_PX)
 						? this.sceneBake(this.pixelScenesByPW[`${pwX},${pwY}`], sceneOffX - shiftX, sceneOffY - shiftY, inWorld) : null;
-					if (bake) this.ctx.drawImage(bake.bitmap, bake.x + shiftX, bake.y + shiftY, bake.w, bake.h);
+					if (bake) snapDrawImage(this.ctx, bake.bitmap, bake.x + shiftX, bake.y + shiftY, bake.w, bake.h);
 					if (!onGL || sceneArtOn) for (let scene of this.pixelScenesByPW[`${pwX},${pwY}`]) {
 						const drawX = scene.x + sceneOffX;
 						const drawY = scene.y + sceneOffY;
@@ -4365,12 +4445,12 @@ export const app = {
 						const airMask = getPixelSceneAirMask(scene, sceneMipLevel);
 						if (airMask) {
 							this.ctx.globalCompositeOperation = 'destination-out';
-							this.ctx.drawImage(airMask, drawX, drawY, sceneData.width, sceneData.height);
+							snapDrawImage(this.ctx, airMask, drawX, drawY, sceneData.width, sceneData.height);
 							this.ctx.globalCompositeOperation = 'source-over';
 							airErased = true;
 						}
 						// Always the full-resolution rectangle: only the source changes with the level
-						this.ctx.drawImage(pixelSceneCanvas, drawX, drawY, sceneData.width, sceneData.height);
+						snapDrawImage(this.ctx, pixelSceneCanvas, drawX, drawY, sceneData.width, sceneData.height);
 
 						if (sceneArtOn) {
 							const tile = sceneArtTile(scene.key, { app: this, pwX, pwY, cauldronVariation: getCauldronVariation });
@@ -4382,7 +4462,7 @@ export const app = {
 
 				// The scene art stand-ins, on top of every scene (the refill below
 				// only reaches pixels still transparent, so it lands under them).
-				for (const [bitmap, x, y, w, h] of sceneArt) this.ctx.drawImage(bitmap, x, y, w, h);
+				for (const [bitmap, x, y, w, h] of sceneArt) snapDrawImage(this.ctx, bitmap, x, y, w, h);
 
 				// Orb rooms. Their tile comes from the general scene-art pass above,
 				// off the general/orbroom scene each orb chunk stamps -- what is left
@@ -4410,7 +4490,7 @@ export const app = {
 						// not, so the first copy is drawn here too.
 						const firstK = pwY === 0 ? 1 : 0;
 						for (let k = firstK; k < repeatCount; k++) {
-							this.ctx.drawImage(this.surfaceOverlayScenes['cursed_orb_room'],
+							snapDrawImage(this.ctx, this.surfaceOverlayScenes['cursed_orb_room'],
 								o.x * 512 + shiftX, o.y * 512 + shiftY - k * 512, 512, 512);
 						}
 					}
@@ -4614,7 +4694,7 @@ export const app = {
 
 			// TODO: Check this with panning
 			if (document.getElementById('debug-edge-noise').checked && this.debugCanvas) {
-				this.ctx.drawImage(this.debugCanvas, this.debugX - this.debugCanvas.width/2 + getWorldCenter(this.isNGP, this.gameMode)*512, this.debugY - this.debugCanvas.height/2 + 14*512);
+				snapDrawImage(this.ctx, this.debugCanvas, this.debugX - this.debugCanvas.width/2 + getWorldCenter(this.isNGP, this.gameMode)*512, this.debugY - this.debugCanvas.height/2 + 14*512);
 			}
 		}
 		if (prof) markLayer(prof, 'misc');
@@ -4660,7 +4740,7 @@ export const app = {
 					const bake = this.poiBake(currentPois, relOffX, relOffY, poiZoomBucket, poiFlags,
 						poiAccessibility, poiSimpleSymbols, document.getElementById('debug-small-pois').checked);
 					if (bake) {
-						this.ctx.drawImage(bake.bitmap, bake.x + shiftX, bake.y + shiftY, bake.w, bake.h);
+						snapDrawImage(this.ctx, bake.bitmap, bake.x + shiftX, bake.y + shiftY, bake.w, bake.h);
 						continue;
 					}
 				}
@@ -4698,7 +4778,7 @@ export const app = {
 								p._spriteColor = poiColor;
 							}
 							const half = sprite.size / (2 * sprite.scale), full = sprite.size / sprite.scale;
-							this.ctx.drawImage(sprite.bitmap, px - half, py - half, full, full);
+							snapDrawImage(this.ctx, sprite.bitmap, px - half, py - half, full, full);
 							continue;
 						}
 						this.ctx.beginPath();

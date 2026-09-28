@@ -551,6 +551,7 @@ async function findNextPWMatches(isIterative = true) {
 			specialPoIs.push(...staticSpawnResults.pois);
 			app.pixelScenesByPW[`${targetPW},${targetPWVertical}`] = scanResults.finalPixelScenes.concat(staticSpawnResults.pixelScenes);
 			app.poisByPW[`${targetPW},${targetPWVertical}`] = scanResults.generatedSpawns.concat(specialPoIs);
+			app.bgSpritesByPW[`${targetPW},${targetPWVertical}`] = scanResults.backgroundSprites;
 		}
 		for (let poi of app.poisByPW[`${targetPW},${targetPWVertical}`]) {
 			if (checkMatch(poi, filters)) {
