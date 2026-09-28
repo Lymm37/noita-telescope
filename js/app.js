@@ -3477,7 +3477,7 @@ export const app = {
 		steps.push(['flat', () => {
 			for (let worldKey of this.worldsInView) {
 				const { pwY, shiftX, shiftY } = worldOffsets[worldKey];
-				this.ctx.drawImage(this.biomeBackgroundImage(pwY), shiftX, shiftY, this.w * 512, this.h * 512);
+				this.drawImageSnapped(this.ctx, this.biomeBackgroundImage(pwY), shiftX, shiftY, this.w * 512, this.h * 512);
 			}
 		}]);
 		if (!rawMap) {
@@ -3497,7 +3497,7 @@ export const app = {
 							// The bake is minified further at the lowest zooms;
 							// nearest sampling would just sparkle.
 							this.ctx.imageSmoothingEnabled = true;
-							this.ctx.drawImage(bake, shiftX, shiftY, this.w * 512, this.h * 512);
+							this.drawImageSnapped(this.ctx, bake, shiftX, shiftY, this.w * 512, this.h * 512);
 							this.ctx.imageSmoothingEnabled = false;
 						} else {
 							drawBackdropRuns(this.ctx, runs, shiftX, shiftY, viewRect);
@@ -3671,6 +3671,23 @@ export const app = {
 		this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 		this.ctx.drawImage(scratch, 0, 0);
 		this.ctx.restore();
+	},
+
+	// drawImage of a world-space rect with its edges rounded to device pixels.
+	// Canvas antialiases the edges of a transformed image rect, so two world
+	// copies meeting mid-pixel each half-cover the seam row and the clear color
+	// shows through as a dark line. Rounding the shared edge the same way for
+	// both copies leaves no gap and no overlap. Assumes a scale+translate
+	// transform (setupCamera).
+	drawImageSnapped(ctx, img, x, y, w, h) {
+		const m = ctx.getTransform();
+		const x0 = Math.round(m.a * x + m.e), x1 = Math.round(m.a * (x + w) + m.e);
+		const y0 = Math.round(m.d * y + m.f), y1 = Math.round(m.d * (y + h) + m.f);
+		if (x1 <= x0 || y1 <= y0) return;
+		ctx.save();
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		ctx.drawImage(img, x0, y0, x1 - x0, y1 - y0);
+		ctx.restore();
 	},
 
 	/** The layer-1 biome background image for a world row, honoring the raw-map debug toggle. */
