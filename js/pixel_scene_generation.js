@@ -150,6 +150,10 @@ const VARIANT_RELEASED = { released: true };
 let sceneBitmapRequester = null;   // (request, sceneData) => void, set by overlay_manager
 const pendingSceneBitmaps = new Map();   // cacheKey -> build kind (in flight at the worker)
 const pendingSceneWeight = new Map();    // cacheKey -> share of an in-flight slot (sceneBuildWeight)
+// Running sums of pendingSceneWeight per build kind. A requery asks for every
+// missing scene near the view, most of them past the cap; summing the pending
+// map on each ask made a frame's cost grow with (missing scenes x in flight).
+const inflightWeight = { flat: 0, resolved: 0, textured: 0 };
 // Cumulative, for the Render HUD. A refetch is a request for a key that was
 // already delivered once -- evicted and wanted back, the signature of thrash.
 const sceneBitmapCounters = { requests: 0, refetches: 0, evictions: 0, failures: 0 };
@@ -196,8 +200,7 @@ function requestSceneBitmaps(pixelScene, cacheKey, textured, level = 0) {
 	const kind = !textured ? 'flat' : level > 0 ? 'resolved' : 'textured';
 	if (pendingSceneBitmaps.size >= MAX_INFLIGHT_COUNT) return;
 	const weight = sceneBuildWeight(data);
-	let inflight = 0;
-	for (const [k, kk] of pendingSceneBitmaps) if (kk === kind) inflight += pendingSceneWeight.get(k);
+	const inflight = inflightWeight[kind];
 	// Render Everything asks for a textured build of every visible instance at
 	// any zoom (~1150 at the overview); at the normal cap that trickles in over
 	// a minute, so let the worker run flat out there. Its whole point is a
@@ -207,6 +210,7 @@ function requestSceneBitmaps(pixelScene, cacheKey, textured, level = 0) {
 	if (inflight + weight > cap && inflight > 0) return;
 	pendingSceneBitmaps.set(cacheKey, kind);
 	pendingSceneWeight.set(cacheKey, weight);
+	inflightWeight[kind] += weight;
 	sceneBitmapCounters.requests++;
 	if (deliveredSceneBitmaps.has(cacheKey)) sceneBitmapCounters.refetches++;
 	sceneBitmapRequester({
@@ -242,8 +246,11 @@ export function putPixelSceneBitmaps(msg) {
 		const t = sceneBuildTime[kind] ??= { n: 0, ms: 0 };
 		t.n++; t.ms += msg.buildMs;
 	}
+	if (kind) inflightWeight[kind] = Math.max(0, inflightWeight[kind] - pendingSceneWeight.get(msg.cacheKey));
 	pendingSceneBitmaps.delete(msg.cacheKey);
 	pendingSceneWeight.delete(msg.cacheKey);
+	// Fractional weights: let no rounding residue outlive the last build.
+	if (!pendingSceneBitmaps.size) inflightWeight.flat = inflightWeight.resolved = inflightWeight.textured = 0;
 	sceneBitmapVersion++;
 	const bitmaps = [...(msg.levels || []), ...(msg.airMasks || [])].filter(Boolean);
 	// A zoomed-out build leaves the levels finer than its own null.
@@ -337,6 +344,7 @@ export function clearPixelSceneBitmapCache() {
 	pixelSceneCacheBytes = 0;
 	pendingSceneBitmaps.clear();
 	pendingSceneWeight.clear();
+	inflightWeight.flat = inflightWeight.resolved = inflightWeight.textured = 0;
 	deliveredSceneBitmaps.clear();
 	sceneBitmapEpoch++;
 	sceneBitmapVersion++;
@@ -568,13 +576,26 @@ function texturedFlatAlphas() {
 	}
 	return texturedFlatAlphaList;
 }
+// A scene's cache keys, built once per placement: the GL scene pass asks for
+// every missing scene near the view on each requery (~every 70 ms while builds
+// land), and rebuilding these strings each time was most of that frame cost.
+const sceneKeyMemo = new WeakMap();   // placement -> { flat, flatErase, inst: [] }
+function sceneKeys(pixelScene) {
+	let m = sceneKeyMemo.get(pixelScene);
+	if (!m) {
+		const flat = `${pixelScene.key}/${pixelScene.variantKey || ''}`;
+		m = { flat, flatErase: flat + FLAT_ERASE_SUFFIX, inst: [`${flat}@${pixelScene.x},${pixelScene.y}`] };
+		sceneKeyMemo.set(pixelScene, m);
+	}
+	return m;
+}
 function flatCacheKey(pixelScene) {
-	const key = `${pixelScene.key}/${pixelScene.variantKey || ''}`;
-	return sceneTextureAtlas() ? key + FLAT_ERASE_SUFFIX : key;
+	const m = sceneKeys(pixelScene);
+	return sceneTextureAtlas() ? m.flatErase : m.flat;
 }
 function texturedCacheKey(pixelScene, level = 0) {
-	const key = `${pixelScene.key}/${pixelScene.variantKey || ''}@${pixelScene.x},${pixelScene.y}`;
-	return level > 0 ? `${key}~${level}` : key;
+	const inst = sceneKeys(pixelScene).inst;
+	return inst[level] ??= `${inst[0]}~${level}`;
 }
 // The level a zoomed-out instance is built at: the requested one, clamped to the
 // scene's own mip chain (getPixelSceneDrawable clamps the same way).
@@ -623,18 +644,23 @@ function pixelSceneEntry(pixelScene, level = 0, warmOnly = false) {
 	const entry = PIXEL_SCENE_BITMAP_CACHE.get(cacheKey);
 	if (entry) return entry;
 	// The full-res textured build is expensive, so it is not warmed ahead of the
-	// view; the zoomed-out ones are cheap enough to be.
-	if (!warmOnly || buildLevel > 0) requestSceneBitmaps(pixelScene, cacheKey, true, buildLevel);
+	// view (only its shared stand-in is); the zoomed-out ones are cheap enough to
+	// be. Warming draws nothing, so it needs no stand-in search.
+	if (warmOnly) {
+		if (buildLevel > 0) requestSceneBitmaps(pixelScene, cacheKey, true, buildLevel);
+		else if (!PIXEL_SCENE_BITMAP_CACHE.has(flatKey)) requestSceneBitmaps(pixelScene, flatKey, false);
+		return null;
+	}
+	requestSceneBitmaps(pixelScene, cacheKey, true, buildLevel);
 	// Stand-in while it is built: this instance's build at the nearest other
 	// level already in the cache (a zoom across a level boundary keeps the same
 	// pixels, just resampled), else the shared variant build.
 	const maxLevel = Math.min(SCENE_INSTANCE_MAX_LEVEL, sceneMaxMipLevel(pixelScene.width, pixelScene.height));
 	for (let d = 1; d <= maxLevel; d++) {
-		for (const l of [buildLevel - d, buildLevel + d]) {
-			if (l < 0 || l > maxLevel) continue;
-			const near = PIXEL_SCENE_BITMAP_CACHE.get(texturedCacheKey(pixelScene, l));
-			if (near) return near;
-		}
+		const below = buildLevel - d, above = buildLevel + d;
+		const near = (below >= 0 && PIXEL_SCENE_BITMAP_CACHE.get(texturedCacheKey(pixelScene, below)))
+			|| (above <= maxLevel && PIXEL_SCENE_BITMAP_CACHE.get(texturedCacheKey(pixelScene, above)));
+		if (near) return near;
 	}
 	const flat = PIXEL_SCENE_BITMAP_CACHE.get(flatKey);
 	if (flat) return flat;

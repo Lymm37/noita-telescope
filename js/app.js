@@ -7,9 +7,10 @@ import { BIOME_COLORS_WITH_TERRAIN, FILL_LAYER_MATERIALS, GENERATOR_CONFIG, SCEN
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
 import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
-import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
+import { TIME_UNTIL_LOADING, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { snapDrawImage } from './snap.js';
-import { getBiomeAtWorldCoordinates, getResolvedBiome, getMaterialProvenanceAtWorldCoordinates, getWorldCenter, getWorldSize, getWorldStride, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
+import { POI_SPRITE_MAX_SCREEN_RADIUS, poiColorFor, poiRadius, poiRadiusTerms, poiSprite, tracePoiShape } from './poi_markers.js';
+import { getBiomeAtWorldCoordinates, getResolvedBiome, getMaterialProvenanceAtWorldCoordinates, getWorldCenter, getWorldSize, getWorldStride, getPWLimit } from './utils.js';
 import { camZFromLogZoom, cameraFromWorld, formatViewParams, logZoomFromCamZ, parseViewParams, worldFromCamera } from './view_url.js';
 import { renderWallMessages } from './wall_messages.js';
 import { findEyeMessages, renderEyeMessages } from './eye_messages.js';
@@ -124,230 +125,6 @@ function writeBackgroundPixel(imageData, i, color) {
 	imageData.data[i*4+3] = isVoid ? 0 : 255;
 }
 
-// Traces one PoI's marker outline, centred on (px, py) with world-unit radius
-// tempRadius, on a context that is already under the camera transform (or a
-// sprite context scaled like it). Shared by the direct draw and the sprite
-// cache below.
-function tracePoiShape(ctx, p, px, py, tempRadius, accessibility, simpleSymbols) {
-	if (accessibility) {
-		// Shapes for accessibility mode
-		switch (p.type) {
-			case 'wand':
-				// Tall rectangle
-				ctx.rect(px - tempRadius / 2, py - tempRadius, tempRadius, tempRadius * 2);
-				break;
-			case 'item':
-				if (p.item) {
-					if (p.item.includes('heart') || p.item === 'full_heal') {
-						if (simpleSymbols) {
-							ctx.moveTo(px - tempRadius, py - tempRadius);
-							ctx.lineTo(px + tempRadius, py - tempRadius);
-							ctx.lineTo(px, py + tempRadius);
-							ctx.closePath();
-						} else {
-							ctx.moveTo(px, py - tempRadius / 3);
-							ctx.bezierCurveTo(px - tempRadius, py - tempRadius, px - tempRadius, py + tempRadius / 3, px, py + tempRadius);
-							ctx.bezierCurveTo(px + tempRadius, py + tempRadius / 3, px + tempRadius, py - tempRadius, px, py - tempRadius / 3);
-							ctx.closePath();
-						}
-					}
-					else if (MATERIAL_CONTAINER_TYPES.includes(p.item)) {
-						if (simpleSymbols) {
-							ctx.moveTo(px, py - tempRadius);
-							ctx.lineTo(px + tempRadius, py + tempRadius);
-							ctx.lineTo(px - tempRadius, py + tempRadius);
-							ctx.closePath();
-						} else {
-							ctx.moveTo(px - tempRadius * 0.28, py - tempRadius);
-							ctx.lineTo(px + tempRadius * 0.28, py - tempRadius);
-							ctx.lineTo(px + tempRadius * 0.28, py - tempRadius * 0.42);
-							ctx.bezierCurveTo(px + tempRadius * 0.28, py - tempRadius * 0.16, px + tempRadius * 0.86, py - tempRadius * 0.08, px + tempRadius * 0.88, py + tempRadius * 0.48);
-							ctx.bezierCurveTo(px + tempRadius * 0.9, py + tempRadius * 0.83, px + tempRadius * 0.48, py + tempRadius, px, py + tempRadius);
-							ctx.bezierCurveTo(px - tempRadius * 0.48, py + tempRadius, px - tempRadius * 0.9, py + tempRadius * 0.83, px - tempRadius * 0.88, py + tempRadius * 0.48);
-							ctx.bezierCurveTo(px - tempRadius * 0.86, py - tempRadius * 0.08, px - tempRadius * 0.28, py - tempRadius * 0.16, px - tempRadius * 0.28, py - tempRadius * 0.42);
-							ctx.closePath();
-						}
-					}
-					else if (p.item === 'portal' || p.item === 'meditation_cube' || p.item === 'buried_eye_teleporter' || p.item === 'trailer_altar') {
-						// Pentagon
-						ctx.moveTo(px, py - tempRadius);
-						for (let i = 1; i < 5; i++) {
-							const angle = (Math.PI / 2) + (i * (2 * Math.PI / 5));
-							ctx.lineTo(px - tempRadius * Math.cos(angle), py - tempRadius * Math.sin(angle));
-						}
-						ctx.closePath();
-						break;
-					}
-					else if (p.item === 'refresh_mimic' || p.item === 'heart_mimic' || p.item === 'mimic' || p.item === 'chest_leggy' || p.item === 'mimic_potion') {
-						// X shape
-						const thickness = tempRadius / 2;
-						ctx.moveTo(px - tempRadius, py - thickness);
-						ctx.lineTo(px - thickness, py - tempRadius);
-						ctx.lineTo(px, py - thickness);
-						ctx.lineTo(px + thickness, py - tempRadius);
-						ctx.lineTo(px + tempRadius, py - thickness);
-						ctx.lineTo(px + thickness, py);
-						ctx.lineTo(px + tempRadius, py + thickness);
-						ctx.lineTo(px + thickness, py + tempRadius);
-						ctx.lineTo(px, py + thickness);
-						ctx.lineTo(px - thickness, py + tempRadius);
-						ctx.lineTo(px - tempRadius, py + thickness);
-						ctx.lineTo(px - thickness, py);
-						ctx.closePath();
-					}
-					else {
-						// Square (slightly scaled down because the other stuff looks smaller by area)
-						ctx.rect(px - 3*tempRadius/4, py - 3*tempRadius/4, tempRadius * 1.5, tempRadius * 1.5);
-					}
-				}
-				break;
-			case 'utility_box':
-			case 'puzzle':
-			case 'vault_puzzle':
-				// Diamond
-				ctx.moveTo(px, py - tempRadius);
-				ctx.lineTo(px - tempRadius, py);
-				ctx.lineTo(px, py + tempRadius);
-				ctx.lineTo(px + tempRadius, py);
-				ctx.closePath();
-				break;
-			case 'chest':
-			case 'pacifist_chest':
-			case 'great_chest':
-				// Wide rectangle
-				ctx.rect(px - tempRadius, py - tempRadius/2, tempRadius * 2, tempRadius);
-				break;
-			case 'shop':
-			case 'holy_mountain_shop':
-				// Hexagon
-				ctx.moveTo(px, py + tempRadius);
-				for (let i = 1; i < 6; i++) {
-					const angle = (Math.PI / 2) + (i * (2 * Math.PI / 6));
-					ctx.lineTo(px + tempRadius * Math.cos(angle), py + tempRadius * Math.sin(angle));
-				}
-				ctx.closePath();
-				break;
-			case 'eye_room':
-				// Eye shape (horizontal)
-				ctx.moveTo(px - tempRadius, py);
-				ctx.quadraticCurveTo(px, py - tempRadius, px + tempRadius, py);
-				ctx.quadraticCurveTo(px, py + tempRadius, px - tempRadius, py);
-				ctx.closePath();
-				break;
-			case 'enemies':
-				// Circle
-				ctx.arc(px, py, tempRadius*0.7, 0, Math.PI * 2);
-				break;
-			default:
-				ctx.arc(px, py, tempRadius, 0, Math.PI * 2); // Default to circle
-		}
-	}
-	else {
-		// Colored circles
-		ctx.arc(px, py, tempRadius, 0, Math.PI * 2);
-	}
-}
-
-// PoI marker sprites. At the overview zoom every PoI in the world is on screen
-// -- thousands of anti-aliased path fills and strokes a frame, which the GPU
-// canvas rasterizes one by one (it was the difference between 0 and ~30 long
-// frames per 120 while dragging). A marker a few screen pixels across is
-// rendered once per (shape, colour, screen radius) into a screen-resolution
-// sprite and blitted from then on; drawImage of the same bitmap batches.
-// Large markers (zoomed in, few in view) keep the direct path draw.
-const POI_SPRITE_MAX_SCREEN_RADIUS = 24;
-const POI_SPRITE_CACHE_MAX = 512;
-const poiSpriteCache = new Map();
-
-function poiSprite(p, poiColor, tempRadius, zoom, accessibility, simpleSymbols) {
-	const highlight = p.highlight === true;
-	// Half-pixel steps keep the set bounded while zooming continuously.
-	const screenR = Math.round(tempRadius * zoom * 2) / 2;
-	const shape = accessibility ? `${p.type}|${p.item || ''}|${simpleSymbols ? 1 : 0}` : 'o';
-	const key = `${shape}|${poiColor}|${highlight ? 1 : 0}|${screenR}`;
-	let sprite = poiSpriteCache.get(key);
-	if (sprite) return sprite;
-	const lineScale = highlight ? 0.4 : 0.08;
-	const size = Math.ceil(2 * screenR * (1 + lineScale / 2)) + 4;
-	const scale = screenR / tempRadius;
-	const canvas = new OffscreenCanvas(size, size);
-	const ctx = canvas.getContext('2d');
-	ctx.translate(size / 2, size / 2);
-	ctx.scale(scale, scale);
-	ctx.strokeStyle = '#000000AA';
-	ctx.beginPath();
-	tracePoiShape(ctx, p, 0, 0, tempRadius, accessibility, simpleSymbols);
-	ctx.fillStyle = poiColor;
-	ctx.fill();
-	ctx.lineWidth = tempRadius * lineScale;
-	ctx.stroke();
-	if (poiSpriteCache.size >= POI_SPRITE_CACHE_MAX) {
-		for (const old of poiSpriteCache.values()) old.bitmap.close?.();
-		poiSpriteCache.clear();
-	}
-	sprite = { bitmap: canvas.transferToImageBitmap(), size, scale };
-	poiSpriteCache.set(key, sprite);
-	return sprite;
-}
-
-// The marker colour of one PoI, by what it is.
-function poiColorFor(p) {
-	let poiColor = '#FFFFFFAA'; // Default color for unknown PoIs
-	// If the wand has specific world data, use it for exact precision
-	switch (p.type) {
-		case 'wand':
-			poiColor = '#00FFFFAA';
-			break;
-		case 'item':
-			if (p.item) {
-				if (p.item.includes('heart') || p.item === 'full_heal') {
-					poiColor = '#FF0000AA';
-				}
-				else if (MATERIAL_CONTAINER_TYPES.includes(p.item)) {
-					poiColor = '#0000FFAA';
-				}
-				else if (p.item === 'portal' || p.item === 'meditation_cube' || p.item === 'buried_eye_teleporter' || p.item === 'trailer_altar') {
-					poiColor = '#800080AA';
-				}
-				else if (p.item === 'refresh_mimic' || p.item === 'heart_mimic' || p.item === 'mimic' || p.item === 'chest_leggy' || p.item === 'mimic_potion') {
-					poiColor = '#AAAAAAAA';
-				}
-				else {
-					poiColor = '#FFFF00AA';
-				}
-			}
-			break;
-		case 'utility_box':
-		case 'puzzle':
-		case 'vault_puzzle':
-			poiColor = '#FF00FFAA';
-			break;
-		case 'chest':
-		case 'pacifist_chest':
-			poiColor = '#FFA500AA';
-			break;
-		case 'great_chest':
-			poiColor = '#FF5500AA';
-			break;
-		case 'shop':
-		case 'eye_room':
-		case 'holy_mountain_shop':
-			poiColor = '#00FF00AA';
-			break;
-		case 'enemies':
-			poiColor = '#AAAAAAAA';
-			for (let item of p.items) {
-				if (item.type === 'wand') {
-					poiColor = '#00FFFFAA';
-					break;
-				}
-			}
-			break;
-		// Add more cases as needed for different PoI types
-	}
-	return poiColor;
-}
-
 // Whole-world bakes for the zoomed-out view.
 //
 // Zoomed out past a chunk of 32 screen px (z <= 1/16) every scene of a world
@@ -362,12 +139,12 @@ function poiColorFor(p) {
 //     so a burst of worker replies does not rebuild it per reply;
 //   poiBake: the marker sprites at screen resolution for the current zoom,
 //     keyed by zoom bucket, flags and a checksum of the highlight flags, so a
-//     search result or a zoom step rebuilds it and a drag never does.
+//     search result or a zoom step rebuilds it and a drag never does. Built in
+//     js/poi_bake_worker.js; the last one is drawn rescaled meanwhile.
 const SCENE_BAKE_SCALE = 16;
 const SCENE_BAKE_MAX_CHUNK_PX = 512 / SCENE_BAKE_SCALE;
 const SCENE_BAKE_MIN_INTERVAL_MS = 300;
 const POI_BAKE_MAX_CHUNK_PX = 64;
-const POI_BAKE_SETTLE_MS = 150;
 // Render HUD line for the scene bitmap cache: fill against budget, builds in
 // flight, and event rates over the HUD's 2 s window. Refetches (a delivered
 // bitmap asked for again) tracking evictions means the budget is too small
@@ -400,7 +177,20 @@ export function sceneBakeStats() {
 	}
 	return { count: sceneBakes.size, bytes, maxBytes };
 }
-const poiBakes = new WeakMap();     // poi list -> { key, bitmap, x, y, w, h }
+const poiBakes = new WeakMap();     // poi list -> { bake: { key, zoomBucket, z, bitmap, x, y, w, h }, pending }
+const poiBakeRequests = new Map();  // request id -> poi list, while the worker has it
+// A list the page has dropped (world rescanned, PW cache trimmed) is dropped by the worker too.
+const poiListRegistry = new FinalizationRegistry((listId) => poiBakeWorkerInstance?.postMessage({ cmd: 'drop', listId }));
+let poiBakeSeq = 0;
+let poiBakeWorkerInstance = null;
+function poiBakeWorker() {
+	if (!poiBakeWorkerInstance) {
+		poiBakeWorkerInstance = new Worker(new URL('./poi_bake_worker.js', import.meta.url), { type: 'module', name: 'poi-bake' });
+		poiBakeWorkerInstance.onmessage = (e) => app.putPoiBake(e.data);
+		poiBakeWorkerInstance.addEventListener('error', (e) => console.error('poi bake worker failed:', e.message ?? '(no message)'));
+	}
+	return poiBakeWorkerInstance;
+}
 
 function poiHighlightChecksum(list) {
 	let h = 0;
@@ -408,31 +198,18 @@ function poiHighlightChecksum(list) {
 	return h;
 }
 
-function getPoiRadius(poi, zoom) {
-	let radius = POI_RADIUS;
-	if (poi.type === 'enemies' || poi.type === 'props') {
-		radius /= 2.0;
-		for (const item of poi.items) {
-			if (item.type === 'wand') {
-				radius = POI_RADIUS;
-				break;
-			}
-		}
-	}
+// The marker-size debug inputs, read once per draw rather than per marker.
+function poiRadiusOptions() {
+	const num = (id) => Number.parseFloat(document.getElementById(id)?.value) || 1;
+	return {
+		scale: num('debug-poi-scale'), hlScale: num('debug-highlight-poi-scale'),
+		zoomScaled: !!document.getElementById('debug-pois-zoom')?.checked,
+		hlZoomScaled: !!document.getElementById('debug-highlight-pois-zoom')?.checked,
+	};
+}
 
-	const isHighlighted = poi.highlight === true;
-	const scaleInput = document.getElementById(isHighlighted ? 'debug-highlight-poi-scale' : 'debug-poi-scale');
-	const zoomInput = document.getElementById(isHighlighted ? 'debug-highlight-pois-zoom' : 'debug-pois-zoom');
-	const scaleFactor = Number.parseFloat(scaleInput?.value) || 1;
-	if (zoomInput?.checked) {
-		radius = POI_RADIUS / zoom;
-		// It's way too big when zoomed
-		radius *= 0.25;
-	}
-	if (isHighlighted) {
-		radius *= 3.0; // Highlighted POIs are bigger
-	}
-	return radius * scaleFactor;
+function getPoiRadius(poi, zoom, opts = poiRadiusOptions()) {
+	return poiRadius(poi, zoom, opts);
 }
 
 // ---------------------------------------------------------------------------
@@ -3459,65 +3236,69 @@ export const app = {
 	// One screen-resolution bitmap of a world copy's PoI markers at the current
 	// zoom, in draw space relative to the copy's shift.
 	poiBake(list, relOffX, relOffY, zoomBucket, flags, accessibility, simpleSymbols, smallPois) {
-		const z = this.cam.z;
 		const key = `${flags}|${poiHighlightChecksum(list)}`;
-		let bake = poiBakes.get(list);
+		let st = poiBakes.get(list);
+		if (!st) poiBakes.set(list, st = { bake: null, pending: null, listId: 0, listKey: null });
+		const bake = st.bake;
 		if (bake && bake.key === key && bake.zoomBucket === zoomBucket) return bake;
-		// While the zoom is moving, a bake made within 25% of the current zoom
-		// is drawn scaled rather than rebuilt every wheel step (each rebuild is
-		// the whole world's markers); it is rebuilt once the zoom has settled.
-		const now = performance.now();
-		if (this.poiBakeZoom !== z) { this.poiBakeZoom = z; this.poiBakeZoomAt = now; }
-		if (bake && bake.key === key && Math.abs(Math.log(z / bake.z)) < Math.log(1.25)
-			&& now - this.poiBakeZoomAt < POI_BAKE_SETTLE_MS) {
-			if (!this.poiBakeTimer) {
-				this.poiBakeTimer = setTimeout(() => { this.poiBakeTimer = 0; this.draw(); }, POI_BAKE_SETTLE_MS + 10);
+		// Rebuilt in js/poi_bake_worker.js, one request per list in flight: the
+		// replies pace the rebuilds while the wheel keeps moving, and the last
+		// bake is drawn rescaled until the new one lands. The worker holds the
+		// list's markers flattened; they are resent only when what they depend
+		// on changes, so a zoom step costs the draw thread one tiny message.
+		if (!st.pending) {
+			const opts = poiRadiusOptions();
+			const listKey = `${key}|${relOffX}|${relOffY}|${smallPois ? 1 : 0}|${opts.scale}|${opts.hlScale}|${opts.zoomScaled}|${opts.hlZoomScaled}`;
+			if (st.listKey !== listKey) {
+				if (!st.listId) {
+					st.listId = ++poiBakeSeq;
+					poiListRegistry.register(list, st.listId);
+				}
+				const n = list.length;
+				const xs = new Float64Array(n), ys = new Float64Array(n), rConst = new Float32Array(n), rInvZ = new Float32Array(n);
+				const hls = new Uint8Array(n), colors = new Array(n), types = new Array(n), items = new Array(n);
+				for (let i = 0; i < n; i++) {
+					const p = list[i];
+					xs[i] = p.x + relOffX; ys[i] = p.y + relOffY;
+					if (smallPois) rConst[i] = 5;
+					else [rConst[i], rInvZ[i]] = poiRadiusTerms(p, opts);
+					hls[i] = p.highlight === true ? 1 : 0;
+					colors[i] = poiColorFor(p); types[i] = p.type; items[i] = p.item ?? null;
+				}
+				poiBakeWorker().postMessage({ cmd: 'list', listId: st.listId, xs, ys, rConst, rInvZ, colors, hls, types, items },
+					[xs.buffer, ys.buffer, rConst.buffer, rInvZ.buffer, hls.buffer]);
+				st.listKey = listKey;
 			}
-			return bake;
+			const id = ++poiBakeSeq;
+			const z = this.cam.z;
+			st.pending = { id, key, zoomBucket, z, traceId: renderTrace.begin('bake', `pois (${list.length})`, 'pois') };
+			poiBakeRequests.set(id, list);
+			poiBakeWorker().postMessage({ cmd: 'bake', id, listId: st.listId, z, accessibility, simpleSymbols });
 		}
-		let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-		const items = [];
-		for (const p of list) {
-			let r = getPoiRadius(p, z);
-			if (smallPois) r = 5;
-			const x = p.x + relOffX, y = p.y + relOffY;
-			items.push([p, x, y, r]);
-			const reach = r * 2;
-			if (x - reach < minX) minX = x - reach;
-			if (y - reach < minY) minY = y - reach;
-			if (x + reach > maxX) maxX = x + reach;
-			if (y + reach > maxY) maxY = y + reach;
-		}
-		if (!items.length) return null;
-		const w = Math.ceil((maxX - minX) * z) + 2, h = Math.ceil((maxY - minY) * z) + 2;
-		if (w > 8192 || h > 8192) return null;
-		const canvas = new OffscreenCanvas(w, h);
-		const bctx = canvas.getContext('2d');
-		bctx.imageSmoothingEnabled = false;
-		bctx.scale(z, z);
-		bctx.translate(-minX, -minY);
-		bctx.strokeStyle = '#000000AA';
-		for (const [p, x, y, r] of items) {
-			const color = poiColorFor(p);
-			if (r * z <= POI_SPRITE_MAX_SCREEN_RADIUS) {
-				const sprite = poiSprite(p, color, r, z, accessibility, simpleSymbols);
-				const half = sprite.size / (2 * sprite.scale), full = sprite.size / sprite.scale;
-				bctx.drawImage(sprite.bitmap, x - half, y - half, full, full);
-			} else {
-				bctx.beginPath();
-				tracePoiShape(bctx, p, x, y, r, accessibility, simpleSymbols);
-				bctx.fillStyle = color;
-				bctx.fill();
-				bctx.lineWidth = r * (p.highlight === true ? 0.4 : 0.08);
-				bctx.stroke();
-			}
-		}
-		if (bake && bake.bitmap) bake.bitmap.close?.();
-		bake = { key, zoomBucket, z, bitmap: canvas.transferToImageBitmap(), x: minX, y: minY, w: w / z, h: h / z };
-		poiBakes.set(list, bake);
-		renderTrace.done('bake', `pois (${items.length})`, 'pois', performance.now() - now);
-		return bake;
+		// A bake with other flags or highlights would show the wrong markers.
+		return bake && bake.key === key ? bake : null;
 	},
+
+	// A marker bake from the worker (poiBake). Kept only if it answers the list's
+	// current request; either way the next draw asks again if the view has moved on.
+	putPoiBake(msg) {
+		const list = poiBakeRequests.get(msg.id);
+		poiBakeRequests.delete(msg.id);
+		const st = list && poiBakes.get(list);
+		if (!st || !st.pending || st.pending.id !== msg.id) {
+			msg.bake?.bitmap.close?.();
+			return;
+		}
+		const { key, zoomBucket, z, traceId } = st.pending;
+		st.pending = null;
+		renderTrace.end(traceId, { workerMs: msg.ms });
+		if (msg.bake) {
+			st.bake?.bitmap.close?.();
+			st.bake = { key, zoomBucket, z, ...msg.bake };
+		}
+		this.draw();
+	},
+
 
 	drawBackgroundStack(worldOffsets, viewRect, offscreen, reverse = false, prof = null) {
 		const rawMap = document.getElementById('debug-original-biome-map').checked;
@@ -4747,6 +4528,7 @@ export const app = {
 			const poiSimpleSymbols = document.getElementById('debug-simple-poi-symbols').checked;
 			const poiFlags = (poiAccessibility ? 1 : 0) | (poiSimpleSymbols ? 2 : 0) | (document.getElementById('debug-small-pois').checked ? 4 : 0);
 			const poiZoomBucket = Math.round(this.cam.z * 1e5);
+			const poiOpts = poiRadiusOptions();
 			for (let worldKey of this.worldsInView) {
 				// Skip rendering PoIs when too zoomed out (helps with lag)
 				// Not really necessary with the speedups
@@ -4771,7 +4553,7 @@ export const app = {
 
 						const px = p.x - (pwX * 512 * getWorldSize(this.isNGP, this.gameMode)) + getWorldCenter(this.isNGP, this.gameMode) * 512 + shiftX;
 						const py = p.y + 14 * 512 - (pwY * 24576) + shiftY; // Shift already baked into the tile spawns
-						let tempRadius = getPoiRadius(p, this.cam.z);
+						let tempRadius = getPoiRadius(p, this.cam.z, poiOpts);
 						if (p.highlight === true) {
 							this.ctx.strokeStyle = '#000000AA';
 						}
@@ -4899,14 +4681,20 @@ export const app = {
 			await tick();
 			if (idleChecks) await tick();
 		}
-		// Rehearse the zoom-in once at doubling steps: the first frame past each
-		// zoom-gated layer switch (direct backdrop tiling, scene backgrounds,
-		// chunk sprites) paid 40-100 ms of one-time image setup mid-zoom. Stops
-		// short of the edge-decal lookahead zoom, whose tile requests would only
-		// queue behind this view's work.
+		// Rehearse zooming once in steps of sqrt(2) each way (doubling skipped the
+		// narrower zoom bands of some layers): the first frame past
+		// each zoom-gated layer switch (direct backdrop tiling, scene backgrounds,
+		// chunk sprites, terrain) paid 40-100 ms of one-time image setup mid-zoom.
+		// In, it stops short of the edge-decal lookahead zoom, whose tile requests
+		// would only queue behind this view's work; out, at 1.5 world widths.
 		const cam = { x: this.cam.x, y: this.cam.y, z: this.cam.z };
-		for (let z = cam.z * 2; z <= 0.5 && !superseded(); z *= 2) {
-			this.cam.z = z;
+		const outZ = this.canvas.width / (1.5 * getWorldSize(this.isNGP, this.gameMode) * CHUNK_SIZE);
+		const ladder = [];
+		for (let z = cam.z * Math.SQRT2; z <= 0.5; z *= Math.SQRT2) ladder.push(z);
+		for (let z = cam.z / Math.SQRT2; z > outZ / Math.SQRT2; z /= Math.SQRT2) ladder.push(Math.max(z, outZ));
+		for (const z of ladder) {
+			if (superseded()) break;
+			this.cam.x = cam.x; this.cam.y = cam.y; this.cam.z = z;
 			this.checkBounds();
 			this.drawNow();
 		}

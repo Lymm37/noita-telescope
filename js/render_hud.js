@@ -187,13 +187,17 @@ function buildDom(container) {
 		Object.assign(h.style, { marginTop: '6px', color: INK_MUTED, borderTop: `1px solid ${GRID}`, paddingTop: '4px' });
 		const pre = document.createElement('pre');
 		Object.assign(pre.style, { margin: 0, font: 'inherit', whiteSpace: 'pre', overflow: 'hidden' });
-		root.append(h, pre);
 		return { h, pre };
 	};
-	root.append(headEl, legend, barsCanvas, totalEl, stripCanvas);
 	queueEl = section('Queue');
-	cachesEl = section('Caches');
 	historyEl = section('Recently completed — ms; wkr = worker time, gpu = its share of a batched GPU pass');
+	cachesEl = section('Caches');
+	// The HUD is anchored bottom-right, so the fixed-height parts (the graphs
+	// and the cache lines) go last: they stay put while the queue and history
+	// above them grow and shrink.
+	Object.assign(legend.style, { marginTop: '6px', borderTop: `1px solid ${GRID}`, paddingTop: '4px' });
+	root.append(headEl, queueEl.h, queueEl.pre, historyEl.h, historyEl.pre,
+		legend, barsCanvas, totalEl, stripCanvas, cachesEl.h, cachesEl.pre);
 	container.appendChild(root);
 }
 
