@@ -1,7 +1,7 @@
 // overlay_worker.js
 import {
 	bitmapFromPixels, buildTexturedScenePixels, ensureScenePixels, eraseFlatScenePixels, halveWithoutHoles, initPixelSceneTextures, injectPixelSceneData,
-	overlayVisualArt, PIXEL_SCENE_DATA, pixelSceneMaterialGrid, recolorPixelScene, recolorPixelSceneForBiome,
+	overlayVisualArt, PIXEL_SCENE_DATA, pixelSceneMaterialGrid, recolorPixelScene, recolorPixelSceneForBiome, SCENE_SHARED_SAMPLE_LEVEL,
 } from './pixel_scene_generation.js';
 import * as bandSelect from './engine_resolve/band_select.js';
 import { createTileOverlaysCheap, createTileOverlays, createTileOverlaysExpanded } from './image_processing.js';
@@ -116,6 +116,7 @@ function variantPixels(key, variantKey) {
 
 async function buildSceneBitmapsWorker(req) {
 	const { epoch, cacheKey, key, variantKey, x, y, textured, erase, texturedAlphas, maxLevel } = req;
+	const buildLevel = textured ? (req.level ?? 0) : 0;
 	// Every request must be answered: the main thread holds cacheKey as pending
 	// until a reply lands, and a textured request that never answers occupies
 	// one of its few in-flight slots for good.
@@ -123,6 +124,7 @@ async function buildSceneBitmapsWorker(req) {
 		console.error(`[scene bitmaps] no bitmap for ${cacheKey}${textured ? ' (tex)' : ''}: ${reason}`, err ?? '');
 		self.postMessage({ type: 'SCENE_BITMAPS', epoch, cacheKey, key, variantKey, textured, levels: null, failReason: reason });
 	};
+	const t0 = performance.now();
 	try {
 		const data = PIXEL_SCENE_DATA[key];
 		if (!data) return fail(`no PIXEL_SCENE_DATA entry for "${key}" in the worker (${Object.keys(PIXEL_SCENE_DATA || {}).length} entries synced)`);
@@ -132,9 +134,18 @@ async function buildSceneBitmapsWorker(req) {
 		let pixels = null, airMask = null;
 		if (textured) {
 			const modules = await initPixelSceneTextures();
-			const built = buildTexturedScenePixels({ key, variantKey, x, y }, data, true);
+			const built = buildTexturedScenePixels({ key, variantKey, x, y }, data, true, buildLevel);
 			if (built) { pixels = built.pixels; airMask = built.airMask; }
 			else console.warn(`[scene bitmaps] textured build of ${cacheKey} returned null (texture modules ${modules ? 'loaded' : 'FAILED'}, atlas ${modules?.atlas.getMaterialAtlas() ? 'ready' : 'missing'}); falling back to flat colors`);
+		}
+		// The shared variant build with the atlas on: the zoomed-out build at a
+		// fixed origin, so it averages like the per-instance ones (mean texel
+		// colors, band-chosen density class) without carrying a position.
+		if (!pixels && erase) {
+			const modules = await initPixelSceneTextures();
+			const built = modules?.atlas.getMaterialAtlas()
+				? buildTexturedScenePixels({ key, variantKey, x: 0, y: 0 }, data, true, SCENE_SHARED_SAMPLE_LEVEL) : null;
+			if (built) { pixels = built.pixels; airMask = built.airMask; }
 		}
 		if (!pixels) {
 			pixels = variantPixels(key, variantKey);
@@ -155,8 +166,10 @@ async function buildSceneBitmapsWorker(req) {
 		// draw thread the first time each zoom band asked for it.
 		// The air mask gets the same chain: the GL pass needs it at the size of the
 		// level it erases for. halveWithoutHoles keeps any erased pixel of a block.
-		const levels = [bitmapFromPixels(width, height, pixels)];
-		const airMasks = airMask ? [bitmapFromPixels(width, height, airMask)] : [];
+		// A zoomed-out per-instance build is only ever drawn at its own level and
+		// coarser, so the finer levels are halved through but not kept.
+		const levels = [buildLevel === 0 ? bitmapFromPixels(width, height, pixels) : null];
+		const airMasks = airMask ? [buildLevel === 0 ? bitmapFromPixels(width, height, airMask) : null] : [];
 		let img = { width, height, data: pixels };
 		let mask = airMask && { width, height, data: airMask };
 		const toBitmap = (im) => {
@@ -166,16 +179,17 @@ async function buildSceneBitmapsWorker(req) {
 		};
 		for (let l = 1; l <= maxLevel; l++) {
 			img = halveWithoutHoles(img);
-			levels.push(toBitmap(img));
+			levels.push(l >= buildLevel ? toBitmap(img) : null);
 			if (mask) {
 				mask = halveWithoutHoles(mask);
-				airMasks.push(toBitmap(mask));
+				airMasks.push(l >= buildLevel ? toBitmap(mask) : null);
 			}
 		}
+		const transfer = [...levels, ...airMasks].filter(Boolean);
 		self.postMessage({
 			type: 'SCENE_BITMAPS', epoch, cacheKey, key, variantKey, textured, width, height,
-			levels, airMasks,
-		}, [...levels, ...airMasks]);
+			levels, airMasks, buildMs: performance.now() - t0,
+		}, transfer);
 	} catch (err) {
 		fail(`threw ${err?.message ?? err}`, err);
 	}

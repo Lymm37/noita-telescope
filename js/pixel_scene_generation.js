@@ -148,10 +148,13 @@ const VARIANT_RELEASED = { released: true };
 // scene that sharpens rather than a hole.
 // ---------------------------------------------------------------------------
 let sceneBitmapRequester = null;   // (request, sceneData) => void, set by overlay_manager
-const pendingSceneBitmaps = new Map();   // cacheKey -> textured (in flight at the worker)
+const pendingSceneBitmaps = new Map();   // cacheKey -> build kind (in flight at the worker)
+const pendingSceneWeight = new Map();    // cacheKey -> share of an in-flight slot (sceneBuildWeight)
 // Cumulative, for the Render HUD. A refetch is a request for a key that was
 // already delivered once -- evicted and wanted back, the signature of thrash.
 const sceneBitmapCounters = { requests: 0, refetches: 0, evictions: 0, failures: 0 };
+// Worker build time per build kind (flat / resolved / textured): { n, ms }.
+const sceneBuildTime = {};
 const deliveredSceneBitmaps = new Set();
 // Bumped whenever the cache is cleared, so a reply for the old contents is dropped.
 let sceneBitmapEpoch = 0;
@@ -161,6 +164,19 @@ let sceneBitmapEpoch = 0;
 // asked again on the next draw, which is what keeps requests tracking the view.
 const MAX_INFLIGHT_TEXTURED = 6;
 const MAX_INFLIGHT_FLAT = 48;
+// Zoomed-out per-instance builds (see pixelSceneEntry): ~4^-level of a textured
+// build's chooser work, so more of them can be in flight.
+const MAX_INFLIGHT_RESOLVED = 16;
+// The caps above count a scene of at least SLOT_AREA pixels as one slot and a
+// smaller one as its share: a build costs about its pixel count, and the vault's
+// hundreds of 10x10 pipe pieces took a full textured slot each -- six at a
+// time, one round trip per six, ~9 s to fill a view that changes nothing
+// visible. MAX_INFLIGHT_COUNT still bounds the messages in flight.
+const SLOT_AREA = 128 * 128;
+const MAX_INFLIGHT_COUNT = 96;
+function sceneBuildWeight(data) {
+	return Math.min(1, (data.width * data.height) / SLOT_AREA);
+}
 
 export function setPixelSceneBitmapRequester(fn) {
 	sceneBitmapRequester = fn;
@@ -171,19 +187,26 @@ export function pendingPixelSceneBitmaps() {
 	return pendingSceneBitmaps.size;
 }
 
-function requestSceneBitmaps(pixelScene, cacheKey, textured) {
+// `level` 0 with `textured` is the full-res textured build; level > 0 is the
+// zoomed-out per-instance build at that level.
+function requestSceneBitmaps(pixelScene, cacheKey, textured, level = 0) {
 	if (!sceneBitmapRequester || pendingSceneBitmaps.has(cacheKey)) return;
 	const data = PIXEL_SCENE_DATA[pixelScene.key];
 	if (!data) return;
+	const kind = !textured ? 'flat' : level > 0 ? 'resolved' : 'textured';
+	if (pendingSceneBitmaps.size >= MAX_INFLIGHT_COUNT) return;
+	const weight = sceneBuildWeight(data);
 	let inflight = 0;
-	for (const t of pendingSceneBitmaps.values()) if (t === textured) inflight++;
+	for (const [k, kk] of pendingSceneBitmaps) if (kk === kind) inflight += pendingSceneWeight.get(k);
 	// Render Everything asks for a textured build of every visible instance at
 	// any zoom (~1150 at the overview); at the normal cap that trickles in over
 	// a minute, so let the worker run flat out there. Its whole point is a
 	// zoom-independent frame, not a responsive one.
 	const texturedCap = appSettings.renderEverything ? 32 : MAX_INFLIGHT_TEXTURED;
-	if (inflight >= (textured ? texturedCap : MAX_INFLIGHT_FLAT)) return;
-	pendingSceneBitmaps.set(cacheKey, textured);
+	const cap = kind === 'flat' ? MAX_INFLIGHT_FLAT : kind === 'resolved' ? MAX_INFLIGHT_RESOLVED : texturedCap;
+	if (inflight + weight > cap && inflight > 0) return;
+	pendingSceneBitmaps.set(cacheKey, kind);
+	pendingSceneWeight.set(cacheKey, weight);
 	sceneBitmapCounters.requests++;
 	if (deliveredSceneBitmaps.has(cacheKey)) sceneBitmapCounters.refetches++;
 	sceneBitmapRequester({
@@ -195,6 +218,7 @@ function requestSceneBitmaps(pixelScene, cacheKey, textured) {
 		x: pixelScene.x,
 		y: pixelScene.y,
 		textured,
+		level: textured ? level : 0,
 		erase: !textured && cacheKey.endsWith(FLAT_ERASE_SUFFIX),
 		texturedAlphas: !textured && cacheKey.endsWith(FLAT_ERASE_SUFFIX) ? texturedFlatAlphas() : null,
 		maxLevel: sceneMaxMipLevel(data.width, data.height),
@@ -213,10 +237,17 @@ export function pixelSceneBitmapVersion() {
 }
 
 export function putPixelSceneBitmaps(msg) {
+	const kind = pendingSceneBitmaps.get(msg.cacheKey);
+	if (kind && msg.buildMs != null) {
+		const t = sceneBuildTime[kind] ??= { n: 0, ms: 0 };
+		t.n++; t.ms += msg.buildMs;
+	}
 	pendingSceneBitmaps.delete(msg.cacheKey);
+	pendingSceneWeight.delete(msg.cacheKey);
 	sceneBitmapVersion++;
 	const bitmaps = [...(msg.levels || []), ...(msg.airMasks || [])].filter(Boolean);
-	if (msg.epoch !== sceneBitmapEpoch || !msg.levels || !msg.levels[0]) {
+	// A zoomed-out build leaves the levels finer than its own null.
+	if (msg.epoch !== sceneBitmapEpoch || !msg.levels || !msg.levels.some(Boolean)) {
 		for (const b of bitmaps) b.close?.();
 		if (msg.epoch === sceneBitmapEpoch) logSceneBitmapFailure(msg);
 		return false;
@@ -229,6 +260,7 @@ export function putPixelSceneBitmaps(msg) {
 		height: msg.height,
 		levels: new Array(PIXEL_SCENE_MAX_MIP + 1).fill(null),
 		maxLevel: msg.levels.length - 1,
+		minLevel: Math.max(0, msg.levels.findIndex(Boolean)),
 		airMasks: msg.airMasks || [],   // per level, alongside `levels`
 		bytes: 0,
 		// As recent as anything drawn: it was asked for because it is on (or
@@ -237,7 +269,7 @@ export function putPixelSceneBitmaps(msg) {
 		// drawn, and re-requested -- a build loop that never showed the scene.
 		used: ++pixelSceneDrawTick,
 	};
-	for (let l = 0; l < msg.levels.length; l++) addPixelSceneBitmap(entry, l, msg.levels[l]);
+	for (let l = 0; l < msg.levels.length; l++) if (msg.levels[l]) addPixelSceneBitmap(entry, l, msg.levels[l]);
 	for (const m of entry.airMasks) {
 		if (!m) continue;
 		const bytes = m.width * m.height * 4;
@@ -281,10 +313,11 @@ export function sceneMaxMipLevel(width, height) {
 
 export function getPixelSceneCacheStats() {
 	let pendingTextured = 0;
-	for (const t of pendingSceneBitmaps.values()) if (t) pendingTextured++;
+	for (const k of pendingSceneBitmaps.values()) if (k !== 'flat') pendingTextured++;
 	return {
 		entries: PIXEL_SCENE_BITMAP_CACHE.size, bytes: pixelSceneCacheBytes, budgetBytes: sceneBitmapBudgetBytes(),
 		pending: pendingSceneBitmaps.size, pendingTextured, ...sceneBitmapCounters,
+		buildTime: structuredClone(sceneBuildTime),
 	};
 }
 
@@ -303,6 +336,7 @@ export function clearPixelSceneBitmapCache() {
 	for (const entry of [...PIXEL_SCENE_BITMAP_CACHE.values()]) releasePixelSceneEntry(entry);
 	pixelSceneCacheBytes = 0;
 	pendingSceneBitmaps.clear();
+	pendingSceneWeight.clear();
 	deliveredSceneBitmaps.clear();
 	sceneBitmapEpoch++;
 	sceneBitmapVersion++;
@@ -314,7 +348,7 @@ export function clearPixelSceneBitmapCache() {
 // Give the debug mode room instead.
 function sceneBitmapBudgetBytes() {
 	const budgetMB = appSettings.renderEverything
-		? Math.max(appSettings.pixelSceneBitmapBudgetMB || 256, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 256);
+		? Math.max(appSettings.pixelSceneBitmapBudgetMB || 512, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 512);
 	return budgetMB * 1024 * 1024;
 }
 
@@ -355,7 +389,7 @@ export function bitmapFromPixels(width, height, pixels) {
  * colors -- but from the untouched base image and with the instance's own world
  * position, which is what the texture sampling needs.
  */
-export function buildTexturedScenePixels(pixelScene, pixelSceneData, ignoreSettings = false) {
+export function buildTexturedScenePixels(pixelScene, pixelSceneData, ignoreSettings = false, level = 0) {
 	// The worker builds on the main thread's say-so (it decided `textured` from
 	// its own settings); its copy of the settings can lag a SYNC behind.
 	if (!(ignoreSettings ? sceneTextureModules?.atlas.getMaterialAtlas() : sceneTextureAtlas())) return null;
@@ -368,7 +402,7 @@ export function buildTexturedScenePixels(pixelScene, pixelSceneData, ignoreSetti
 		else pixels = recolorPixelScene(pixels, parseInt(part.slice(0, eq), 16), parseInt(part.slice(eq + 1), 16));
 	}
 	return texturePixelSceneForBiome(pixelSceneData.name, pixels, pixelSceneData.width, pixelSceneData.height,
-		biome, pixelScene.x, pixelScene.y);
+		biome, pixelScene.x, pixelScene.y, level);
 }
 
 // Source-over blend of a scene's visual-art override onto a COPY of its built
@@ -538,8 +572,25 @@ function flatCacheKey(pixelScene) {
 	const key = `${pixelScene.key}/${pixelScene.variantKey || ''}`;
 	return sceneTextureAtlas() ? key + FLAT_ERASE_SUFFIX : key;
 }
-function texturedCacheKey(pixelScene) {
-	return `${pixelScene.key}/${pixelScene.variantKey || ''}@${pixelScene.x},${pixelScene.y}`;
+function texturedCacheKey(pixelScene, level = 0) {
+	const key = `${pixelScene.key}/${pixelScene.variantKey || ''}@${pixelScene.x},${pixelScene.y}`;
+	return level > 0 ? `${key}~${level}` : key;
+}
+// The level a zoomed-out instance is built at: the requested one, clamped to the
+// scene's own mip chain (getPixelSceneDrawable clamps the same way).
+function resolvedBuildLevel(pixelScene, level) {
+	return Math.min(level, sceneMaxMipLevel(pixelScene.width, pixelScene.height));
+}
+// Past this mip level scenes draw the shared per-variant build instead of one
+// per instance. The two differ only in where the band chooser's rare picks and
+// noise veins land. test/lod_diff.mjs: sharing from level 3 (1/8) cost up to
+// +0.25 mean dE (lavalake), from level 4 (1/16) at most +0.1 -- and the zoomed-
+// out overview is where a thousand-plus instances would each need a build.
+export const SCENE_INSTANCE_MAX_LEVEL = 2;
+// The shared build's density class samples the band chooser on a 2^this grid.
+export const SCENE_SHARED_SAMPLE_LEVEL = 2;
+function sceneUsesInstanceBuild(level) {
+	return level <= SCENE_INSTANCE_MAX_LEVEL;
 }
 
 // Returns the bitmap to draw for this scene at the requested mip level (0 = native), or
@@ -547,24 +598,44 @@ function texturedCacheKey(pixelScene) {
 // the scene's full-resolution world rectangle, so the level only changes sampling.
 function pixelSceneEntry(pixelScene, level = 0, warmOnly = false) {
 	// With material textures on, a scene's pixels come from its material textures
-	// sampled at ABSOLUTE world coordinates, so two instances of the same variant
-	// no longer look alike: the cache key has to carry the instance's position.
+	// sampled at ABSOLUTE world coordinates, and its density class from the band
+	// chooser at absolute coordinates, so two instances of the same variant do not
+	// look alike: the cache key has to carry the instance's position.
 	//
-	// Only at mip level 0 though (zoom > 0.5, the same threshold as the GL
-	// terrain's MATERIAL_DETAIL_MIN_ZOOM): a textured instance is a full-res
-	// per-pixel CPU build, and zoomed out every visible instance would pay it
-	// just to be sampled down to 1/16. Below the threshold scenes share the flat
-	// variant cache, matching the terrain's own flat falloff.
-	const textured = level === 0 && !!sceneTextureAtlas();
+	// At level 0 that is the full-res textured build. Zoomed out to
+	// SCENE_INSTANCE_MAX_LEVEL it is the same build at the level's resolution
+	// (texturePixelSceneForBiome `level`): block-sampled band choices and each
+	// material's mean texel color, what the textured one averages to. Further
+	// out, and as the stand-in for either while it is being built, every instance
+	// of a variant shares one build of the same kind made at a fixed origin
+	// (flatCacheKey). Without the atlas (material textures off) every level
+	// shares the plain flat variant.
+	const textured = !!sceneTextureAtlas();
 	const flatKey = flatCacheKey(pixelScene);
-	const cacheKey = textured ? texturedCacheKey(pixelScene) : flatKey;
+	if (!textured || !sceneUsesInstanceBuild(level)) {
+		const flat = PIXEL_SCENE_BITMAP_CACHE.get(flatKey);
+		if (flat) return flat;
+		requestSceneBitmaps(pixelScene, flatKey, false);
+		return null;
+	}
+	const buildLevel = resolvedBuildLevel(pixelScene, level);
+	const cacheKey = texturedCacheKey(pixelScene, buildLevel);
 	const entry = PIXEL_SCENE_BITMAP_CACHE.get(cacheKey);
 	if (entry) return entry;
-	if (!warmOnly || !textured) requestSceneBitmaps(pixelScene, cacheKey, textured);
-	if (!textured) return null;
-	// Flat stand-in while the textured instance is being built (or, when only
-	// warming, the flat variant is all that is asked for: the textured build is
-	// per instance and expensive, so it waits until the instance is on screen).
+	// The full-res textured build is expensive, so it is not warmed ahead of the
+	// view; the zoomed-out ones are cheap enough to be.
+	if (!warmOnly || buildLevel > 0) requestSceneBitmaps(pixelScene, cacheKey, true, buildLevel);
+	// Stand-in while it is built: this instance's build at the nearest other
+	// level already in the cache (a zoom across a level boundary keeps the same
+	// pixels, just resampled), else the shared variant build.
+	const maxLevel = Math.min(SCENE_INSTANCE_MAX_LEVEL, sceneMaxMipLevel(pixelScene.width, pixelScene.height));
+	for (let d = 1; d <= maxLevel; d++) {
+		for (const l of [buildLevel - d, buildLevel + d]) {
+			if (l < 0 || l > maxLevel) continue;
+			const near = PIXEL_SCENE_BITMAP_CACHE.get(texturedCacheKey(pixelScene, l));
+			if (near) return near;
+		}
+	}
 	const flat = PIXEL_SCENE_BITMAP_CACHE.get(flatKey);
 	if (flat) return flat;
 	requestSceneBitmaps(pixelScene, flatKey, false);
@@ -593,7 +664,9 @@ export function getPixelSceneDrawable(pixelScene, level = 0) {
 	const entry = pixelSceneEntry(pixelScene, level);
 	if (!entry) return null;
 	entry.used = ++pixelSceneDrawTick;
-	const wanted = level > entry.maxLevel ? entry.maxLevel : level;
+	// A zoomed-out build has no levels finer than its own; standing in for a
+	// finer level it draws its finest.
+	const wanted = Math.max(entry.minLevel, level > entry.maxLevel ? entry.maxLevel : level);
 	const bitmap = entry.levels[wanted];
 	evictPixelSceneBitmaps(entry);
 	return { cacheKey: entry.cacheKey, bitmap, airMask: entry.airMasks[wanted] ?? null };
@@ -601,19 +674,19 @@ export function getPixelSceneDrawable(pixelScene, level = 0) {
 
 /**
  * The cache keys a scene draws from at `level`, best first, without touching
- * the cache: the per-instance textured key then its flat stand-in at level 0
- * with material textures on, else just the flat key. Same rule as
+ * the cache: the per-instance key for that level then its flat stand-in with
+ * material textures on, else just the flat key. Same rule as
  * pixelSceneEntry.
  */
 export function pixelSceneCacheKeys(pixelScene, level = 0) {
 	const flatKey = flatCacheKey(pixelScene);
-	if (pixelScenesTexturedAt(level)) return [texturedCacheKey(pixelScene), flatKey];
+	if (pixelScenesTexturedAt(level)) return [texturedCacheKey(pixelScene, resolvedBuildLevel(pixelScene, level)), flatKey];
 	return [flatKey];
 }
 
-/** Whether scenes at `level` draw per-instance textured builds (see pixelSceneEntry). */
+/** Whether scenes at `level` draw per-instance builds (see pixelSceneEntry). */
 export function pixelScenesTexturedAt(level) {
-	return level === 0 && !!sceneTextureAtlas();
+	return sceneUsesInstanceBuild(level) && !!sceneTextureAtlas();
 }
 
 /** Bumped when the cache is cleared: pixels under an old key may have changed. */
@@ -1678,7 +1751,8 @@ export function sceneDensityClassAt(variantKey, worldX, worldY) {
  * "opaque background color over a fill biome" trick only covered the chunks
  * telescope itself filled.
  */
-export function texturePixelSceneForBiome(sceneName, sourceData, width, height, targetBiome, worldX, worldY) {
+const SCENE_CHOOSER_MAX_BLOCK_LOG2 = 2;
+export function texturePixelSceneForBiome(sceneName, sourceData, width, height, targetBiome, worldX, worldY, level = 0) {
 	const { atlas: atlasMod, bands } = sceneTextureModules;
 	const atlas = atlasMod.getMaterialAtlas();
 	const recolorMaterials = appSettings.recolorMaterials;
@@ -1706,10 +1780,14 @@ export function texturePixelSceneForBiome(sceneName, sourceData, width, height, 
 		let recipe = recipeByName.get(name);
 		if (recipe === undefined) {
 			const wang = MATERIAL_WANG_COLORS[name];
+			const entry = atlasMod.materialAtlasEntry(atlas, name);
 			recipe = {
-				entry: atlasMod.materialAtlasEntry(atlas, name),
+				entry,
 				flat: wang === undefined ? fallbackFlat : materialDisplayColor(name),
 				alpha: wang === undefined ? 255 : atlasMod.materialAlpha(name),
+				// What the texels average to, for the zoomed-out build.
+				meanRGB: entry > 0 ? atlasMod.atlasEntryMeanRGB(atlas, entry) : 0,
+				meanAlpha: entry > 0 ? atlasMod.atlasEntryMeanAlpha(atlas, entry) : 255,
 			};
 			recipeByName.set(name, recipe);
 		}
@@ -1750,6 +1828,17 @@ export function texturePixelSceneForBiome(sceneName, sourceData, width, height, 
 	outData.set(sourceData);
 	let airMask = null;
 
+	// Zoomed out (level > 0) the result is only ever seen halved `level` times,
+	// so the density class asks the band chooser once per block (at its center)
+	// instead of once per pixel, and textured materials paint their texels' mean
+	// rather than the texel. The block stops at 4x4 (SCENE_CHOOSER_MAX_BLOCK_LOG2):
+	// a rare band (ore specks) caught by one sample of a 16x16 block paints the
+	// whole block, a full-bright speck the halving can no longer average down.
+	const blockLog2 = Math.min(level, SCENE_CHOOSER_MAX_BLOCK_LOG2);
+	const blocksW = level > 0 ? ((width + (1 << blockLog2) - 1) >> blockLog2) : 0;
+	const blockChoice = level > 0 ? new Int32Array(blocksW * ((height + (1 << blockLog2) - 1) >> blockLog2)).fill(-2) : null;
+	const blockHalf = level > 0 ? 1 << (blockLog2 - 1) : 0;
+
 	for (let i = 0, p = 0; i < outData.length; i += 4, p++) {
 		if (outData[i + 3] === 0) continue;   // untouched: alpha 0 / #000000
 		const r = outData[i], g = outData[i + 1], b = outData[i + 2];
@@ -1786,8 +1875,21 @@ export function texturePixelSceneForBiome(sceneName, sourceData, width, height, 
 		let recipe;
 		if (r === g && g === b && r > 0) {
 			if (densityBiome) {
-				const id = bands.selectComponentForCell(densityBiome.entry, wx, wy,
-					bands.computeMaterialNoiseDensity(wx, wy, 1.0));
+				let id;
+				if (blockChoice) {
+					const lx = p % width, ly = (p / width) | 0;
+					const b = (ly >> blockLog2) * blocksW + (lx >> blockLog2);
+					id = blockChoice[b];
+					if (id === -2) {
+						const bx = worldX + ((lx >> blockLog2) << blockLog2) + blockHalf;
+						const by = worldY + ((ly >> blockLog2) << blockLog2) + blockHalf;
+						id = blockChoice[b] = bands.selectComponentForCell(densityBiome.entry, bx, by,
+							bands.computeMaterialNoiseDensity(bx, by, 1.0));
+					}
+				} else {
+					id = bands.selectComponentForCell(densityBiome.entry, wx, wy,
+						bands.computeMaterialNoiseDensity(wx, wy, 1.0));
+				}
 				if (id < 0) {
 					if (!airMask) airMask = new Uint8Array(sourceData.length);
 					airMask[i + 3] = 0xff;
@@ -1802,7 +1904,12 @@ export function texturePixelSceneForBiome(sceneName, sourceData, width, height, 
 		const { entry, flat, alpha } = recipe;
 
 		let a = alpha;
-		if (entry > 0) {
+		if (entry > 0 && level > 0) {
+			a = recipe.meanAlpha;
+			outData[i] = (recipe.meanRGB >> 16) & 0xFF;
+			outData[i + 1] = (recipe.meanRGB >> 8) & 0xFF;
+			outData[i + 2] = recipe.meanRGB & 0xFF;
+		} else if (entry > 0) {
 			// Textured materials take the texel's own alpha (same rule as the GL
 			// terrain shader); a fully transparent texel places no cell at all.
 			const texel = atlasMod.materialTexelRGBA(atlas, entry, wx, wy);

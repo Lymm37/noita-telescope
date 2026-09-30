@@ -27,7 +27,7 @@ import { CAVES_SETUP, getModifierGrid, bitmapNoiseNodeOffset } from '../engine_r
 import { buildEngineLattice } from '../engine_resolve/lattice_builder.js';
 import { FILL_LAYER_COLORS } from '../generator_config.js';
 import { BIOME_MAP_HEIGHT } from './indirection.js';
-import { atlasEntryMeanAlpha } from './material_atlas.js';
+import { atlasEntryMeanAlpha, atlasEntryMeanRGB } from './material_atlas.js';
 
 export const ENGINE_MODE_TOPO0 = 0;
 export const ENGINE_MODE_TOPO2 = 1;
@@ -212,27 +212,6 @@ export function buildSinHashAndGrids(worldSeed) {
         }
     });
     return { width: SIN_HASH_W, height: H, data: t };
-}
-
-// Alpha-weighted mean color of one atlas entry's texture rect: the flat color
-// the material paints when texel detail is off (zoomed out, or the material-
-// textures toggle). The XML display color is wrong for that — for textured
-// materials nothing in the game ever shows it, and several are placeholder
-// values nowhere near the texture (bright teal coal, blue rock).
-function atlasEntryMeanRGB(matAtlas, entry) {
-    const [x, y, w, h] = matAtlas.meta.subarray((entry - 1) * 4, entry * 4);
-    let r = 0, g = 0, b = 0, wsum = 0;
-    for (let py = y; py < y + h; py++) {
-        let o = (py * matAtlas.width + x) * 4;
-        for (let px = 0; px < w; px++, o += 4) {
-            const a = matAtlas.data[o + 3];
-            if (!a) continue;
-            r += matAtlas.data[o] * a; g += matAtlas.data[o + 1] * a; b += matAtlas.data[o + 2] * a;
-            wsum += a;
-        }
-    }
-    if (!wsum) return 0;
-    return (Math.round(r / wsum) << 16) | (Math.round(g / wsum) << 8) | Math.round(b / wsum);
 }
 
 export function buildMatColorTable(matAtlas) {

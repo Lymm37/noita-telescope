@@ -29,7 +29,7 @@ import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorke
 import { drawEdgeDecals, edgeDecalAt, invalidateEdgeDecals, pendingEdgeDecalTiles } from './edge_decal_layer.js';
 import { runRenderBenchmark } from './render_benchmark.js';
 import { renderHud, renderTrace } from './render_hud.js';
-import { getMaterialAtlas, initMaterialAtlas, materialAlpha, materialAtlasEntry, materialTexelInfo } from './gl/material_atlas.js';
+import { atlasEntryMeanRGB, getMaterialAtlas, initMaterialAtlas, materialAlpha, materialAtlasEntry, materialTexelInfo } from './gl/material_atlas.js';
 import { ENGINE_MODE_FALLBACK, ENGINE_MODE_TOPO2 } from './gl/engine_resources.js';
 import { MATERIAL_BY_NAME } from './potion_config.js';
 import { getBiomeModifiers, getStartingWeather } from './misc_generation.js';
@@ -588,6 +588,8 @@ export const app = {
 	pixelScenesByPW: {}, // Cached pixel scenes by PW after scanning
 	poisByPW: {}, // Cached PoIs by PW after scanning
 	bgSpritesByPW: {}, // Marker-driven LoadBackgroundSprite placements by PW (poi_scanner backgroundSprites)
+	settleToken: 0, // Bumped per generate; an older settleInitialView must not lift a newer overlay
+	initialViewSettled: false, // settleInitialView ran for the page's first world
 	tileOverlaysByPW: {}, // Cached biome tile overlays by PW after generation, to avoid expensive recoloring on every render
 
 	extraPois: [], // Used for local results
@@ -2187,11 +2189,14 @@ export const app = {
 		// only alias), so what is actually on screen is the flat color instead.
 		const detailOff = !(appSettings.materialTextures && appSettings.recolorMaterials
 			&& this.detailZoom() >= MATERIAL_DETAIL_MIN_ZOOM);
-		const flatNote = detailOff ? `, drawn flat #${flatHex}` : '';
 		// The atlas is fetched by the GL renderer; kick it off if the CPU bake is
 		// the active path so the texel coords appear on a later hover.
 		const atlas = getMaterialAtlas();
 		const entry = atlas ? materialAtlasEntry(atlas, material) : 0;
+		// Flat, a textured material paints its texels' mean (GL terrain and the
+		// zoomed-out scene builds alike), not the XML texture_color.
+		const drawnFlatHex = entry ? atlasEntryMeanRGB(atlas, entry).toString(16).padStart(6, '0') : flatHex;
+		const flatNote = detailOff ? `, drawn flat #${drawnFlatHex}` : '';
 		if (!entry) {
 			if (!atlas) initMaterialAtlas().catch(() => {});
 			lines.push(`Texture: ${data.texture}${flatNote}`);
@@ -2501,7 +2506,6 @@ export const app = {
 		this.draw();
 		btn.disabled = false;
 		btn.innerText = "Generate World";
-		this.setLoading(false);
 		document.getElementById('status').innerText = `Done (PW ${this.pw}, ${this.pwVertical}).`;
 
 		// Re-enable controls
@@ -2512,12 +2516,31 @@ export const app = {
 		document.getElementById('pw').disabled = false;
 		document.getElementById('pw-vertical').disabled = false;
 
-		// The world is up: frame whatever view the URL asked for. Cleared first so
-		// the rescan applyView may trigger doesn't come back here and loop.
+		// The world is up: frame whatever view the URL asked for, before settling,
+		// so the overlay lifts on that view rather than the default one. Cleared
+		// first so the rescan applyView may trigger doesn't come back here and
+		// loop; a view in another PW regenerates, and that generate settles and
+		// lifts the overlay itself.
+		const token = ++this.settleToken;
 		if (this.pendingView) {
 			const view = this.pendingView;
 			this.pendingView = null;
-			Promise.resolve().then(() => this.applyView(view));
+			const pwBefore = `${this.pw},${this.pwVertical}`;
+			this.applyView(view);
+			if (`${this.pw},${this.pwVertical}` !== pwBefore) return;
+		}
+		// Only the page's first world holds the overlay: later generates (seed
+		// changes, PW crossings while panning) lift it at once as before.
+		if (this.initialViewSettled) {
+			this.setLoading(false);
+			return;
+		}
+		this.setLoading(true, "Preparing view...");
+		await this.settleInitialView(() => token !== this.settleToken);
+		// A newer generate owns the overlay now.
+		if (token === this.settleToken) {
+			this.initialViewSettled = true;
+			this.setLoading(false);
 		}
 	},
 
@@ -3269,7 +3292,7 @@ export const app = {
 			worlds.push({ list, relOffX: worldCenter - pwX * worldSize, relOffY: 14 * 512 - pwY * 24576, shiftX, shiftY });
 		}
 		const budgetMB = appSettings.renderEverything
-			? Math.max(appSettings.pixelSceneBitmapBudgetMB || 256, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 256);
+			? Math.max(appSettings.pixelSceneBitmapBudgetMB || 512, 2048) : (appSettings.pixelSceneBitmapBudgetMB || 512);
 		const drawn = this.glScenes.draw(terrain, {
 			width: this.canvas.width,
 			height: this.canvas.height,
@@ -3514,11 +3537,7 @@ export const app = {
 		// buildChunkSprites), main world only. Built on first use because it needs
 		// the art manifest, which loads after the first map render.
 		const chunkSpriteStep = (zTest) => () => {
-			if (!backgroundArtReady() || !this.biomeData) return;
-			if (this.chunkSpritesFor !== this.biomeData.pixels) {
-				this.chunkSprites = buildChunkSprites(this.biomeData.pixels, this.w, this.h);
-				this.chunkSpritesFor = this.biomeData.pixels;
-			}
+			if (!this.ensureChunkSprites()) return;
 			for (let worldKey of this.worldsInView) {
 				const { pwY, shiftX, shiftY } = worldOffsets[worldKey];
 				if (pwY !== 0) continue;
@@ -4818,26 +4837,83 @@ export const app = {
 			const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
 			idle(() => {
 				this.bakePrebuildScheduled = false;
-				if (!this.backdropRuns) return;
-				const t0 = performance.now();
-				// Either bake can decline (background art still decoding, no
-				// scene bitmaps yet); then the next frame schedules another try.
-				// The heaven/hell rows come into view a little past the overview
-				// zoom (the view grows taller than the world), so theirs too.
-				let ok = true;
-				for (const runs of [this.backdropRuns, this.backdropRunsHeaven, this.backdropRunsHell]) {
-					if (runs && !this.backdropBake(runs)) ok = false;
-				}
-				const relOffX = getWorldCenter(this.isNGP, this.gameMode) * 512;
-				// The GL scene pass never draws from a scene bake.
-				for (const pwY of this.scenesOnGL ? [] : [0, -1, 1]) {
-					const list = this.pixelScenesByPW && this.pixelScenesByPW[`0,${pwY}`];
-					if (list && !this.sceneBake(list, relOffX, 14 * 512 - pwY * 24576, this.sceneInWorld(0, pwY))) ok = false;
-				}
-				this.bakesPrebuilt = ok;
-				renderHud.sample('idle bakes', 'main', performance.now() - t0);
+				this.prebuildBakes();
 			});
 		}
+	},
+
+	// The main world's bakes plus the heaven/hell rows, which come into view a
+	// little past the overview zoom (the view grows taller than the world).
+	// Either bake can decline (background art still decoding, no scene bitmaps
+	// yet); bakesPrebuilt stays false and the next frame schedules another try.
+	prebuildBakes() {
+		if (!this.backdropRuns) return false;
+		const t0 = performance.now();
+		let ok = true;
+		for (const runs of [this.backdropRuns, this.backdropRunsHeaven, this.backdropRunsHell]) {
+			if (runs && !this.backdropBake(runs)) ok = false;
+		}
+		const relOffX = getWorldCenter(this.isNGP, this.gameMode) * 512;
+		// The GL scene pass never draws from a scene bake.
+		for (const pwY of this.scenesOnGL ? [] : [0, -1, 1]) {
+			const list = this.pixelScenesByPW && this.pixelScenesByPW[`0,${pwY}`];
+			if (list && !this.sceneBake(list, relOffX, 14 * 512 - pwY * 24576, this.sceneInWorld(0, pwY))) ok = false;
+		}
+		this.bakesPrebuilt = ok;
+		renderHud.sample('idle bakes', 'main', performance.now() - t0);
+		return ok;
+	},
+
+	// Biome init() LoadBackgroundSprite placements (js/biome_backgrounds.js
+	// buildChunkSprites), built once per biome map. Needs the art manifest.
+	ensureChunkSprites() {
+		if (!backgroundArtReady() || !this.biomeData) return false;
+		if (this.chunkSpritesFor !== this.biomeData.pixels) {
+			this.chunkSprites = buildChunkSprites(this.biomeData.pixels, this.w, this.h);
+			this.chunkSpritesFor = this.biomeData.pixels;
+		}
+		return true;
+	},
+
+	// Holds the loading overlay after a generate until the view it opens on is
+	// complete, and front-loads the one-time costs a first zoom would otherwise
+	// pay mid-frame: chunk sprites, the zoomed-out bakes, every scene bitmap /
+	// edge-decal tile the view asks for, and the first draw at each zoom band.
+	async settleInitialView(superseded = () => false, timeoutMs = 20000) {
+		const t0 = performance.now();
+		const timeLeft = () => (superseded() ? 0 : timeoutMs - (performance.now() - t0));
+		const tick = () => new Promise((r) => setTimeout(r, 50));
+		while (!backgroundArtLoaded() && timeLeft() > 0) await tick();
+		this.ensureChunkSprites();
+		this.prebuildBakes();
+		// Draws issue the scene and decal requests; wait until draws ask for
+		// nothing new and nothing is in flight. Idle has to hold across two checks
+		// a few ticks apart: requests go out in capped rounds, so the moment one
+		// round lands reads as idle, and the GL scene pass defers its requery by
+		// up to ~70 ms after a bitmap arrives.
+		let idleChecks = 0;
+		while (idleChecks < 2 && timeLeft() > 0) {
+			this.drawNow();
+			if (this.asyncRenderPending()) idleChecks = 0;
+			else idleChecks++;
+			await tick();
+			if (idleChecks) await tick();
+		}
+		// Rehearse the zoom-in once at doubling steps: the first frame past each
+		// zoom-gated layer switch (direct backdrop tiling, scene backgrounds,
+		// chunk sprites) paid 40-100 ms of one-time image setup mid-zoom. Stops
+		// short of the edge-decal lookahead zoom, whose tile requests would only
+		// queue behind this view's work.
+		const cam = { x: this.cam.x, y: this.cam.y, z: this.cam.z };
+		for (let z = cam.z * 2; z <= 0.5 && !superseded(); z *= 2) {
+			this.cam.z = z;
+			this.checkBounds();
+			this.drawNow();
+		}
+		this.cam.x = cam.x; this.cam.y = cam.y; this.cam.z = cam.z;
+		this.checkBounds();
+		this.drawNow();
+		renderHud.sample('initial settle', 'main', performance.now() - t0);
 	},
 
 	setupCamera(ctx) {
@@ -5101,7 +5177,7 @@ export const app = {
 				settings.checkerboardUnpainted = document.getElementById('debug-unpainted-checkerboard').checked;
 				document.getElementById('debug-biome-boundary-contour').checked = settings.biomeBoundaryContour ?? false;
 				settings.biomeBoundaryContour = document.getElementById('debug-biome-boundary-contour').checked;
-				document.getElementById('debug-pixel-scene-budget').value = settings.pixelSceneBitmapBudgetMB || 256;
+				document.getElementById('debug-pixel-scene-budget').value = settings.pixelSceneBitmapBudgetMB || 512;
 				document.getElementById('enable-edge-noise').checked = settings.enableEdgeNoise || false;
 				document.getElementById('debug-block-edge-spawns').checked = settings.blockEdgeSpawns || false;
 				document.getElementById('debug-edge-noise').checked = settings.edgeNoiseDebug || false;

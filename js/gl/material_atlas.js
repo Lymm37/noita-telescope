@@ -157,6 +157,30 @@ for (const m of MATERIAL_DATA) {
  * no stand-in -- ice and glass are FF there, but their texels are 84 and 183.
  */
 const meanAlphaByEntry = new Map();
+/**
+ * Alpha-weighted mean color of one atlas entry's texture rect: the flat color
+ * the material paints when texel detail is off (zoomed out, or the material-
+ * textures toggle), for the GL terrain and the zoomed-out scene builds alike.
+ * The XML display color is wrong for that -- for textured materials nothing in
+ * the game ever shows it, and several are placeholder values nowhere near the
+ * texture (bright teal coal, blue rock).
+ */
+export function atlasEntryMeanRGB(atlas, entry) {
+    const [x, y, w, h] = atlas.meta.subarray((entry - 1) * 4, entry * 4);
+    let r = 0, g = 0, b = 0, wsum = 0;
+    for (let py = y; py < y + h; py++) {
+        let o = (py * atlas.width + x) * 4;
+        for (let px = 0; px < w; px++, o += 4) {
+            const a = atlas.data[o + 3];
+            if (!a) continue;
+            r += atlas.data[o] * a; g += atlas.data[o + 1] * a; b += atlas.data[o + 2] * a;
+            wsum += a;
+        }
+    }
+    if (!wsum) return 0;
+    return (Math.round(r / wsum) << 16) | (Math.round(g / wsum) << 8) | Math.round(b / wsum);
+}
+
 export function atlasEntryMeanAlpha(atlas, entry) {
     let mean = meanAlphaByEntry.get(entry);
     if (mean !== undefined) return mean;

@@ -159,6 +159,7 @@ export function syncOverlayWorkerData() {
 			hell: app.recolorOffscreenHellBuffer
 		}
 	});
+	for (const w of sceneWorkers) w.postMessage({ cmd: 'SYNC_METADATA', pixelSceneCache });
 	pendingOverlayRequests.clear();
 	overlayQueue = [];
 	overlaysInFlight = 0;
@@ -166,29 +167,36 @@ export function syncOverlayWorkerData() {
 
 export function syncSettingsToOverlayWorker() {
 	updateSettingsFromUI();
-	overlayWorker.postMessage({
-		cmd: 'SYNC_SETTINGS',
-		settings: appSettings
-	});
+	for (const w of [overlayWorker, ...sceneWorkers]) {
+		w.postMessage({
+			cmd: 'SYNC_SETTINGS',
+			settings: appSettings
+		});
+	}
 	//console.log(appSettings);
 }
 
 export function recolorPixelScenes(pixelSceneList) {
 	const pixelSceneKeys = [];
 	const variantKeys = [];
-	const combinedKeys = []; // To track which key+variant combos we've already requested
-	// Only include new scenes that need to be recolored
+	// Only the material-substitution variants: the one main-thread reader is the
+	// hover's material lookup (utils.js), which reads the pre-biome variant. The
+	// biome recolors (always the key's last part) are the scene workers' job, and
+	// doing them here held the worker for seconds after every load.
+	const seen = new Set();
 	for (const scene of pixelSceneList) {
 		const pixelSceneData = PIXEL_SCENE_DATA[scene.key];
 		if (!pixelSceneData) continue;
 		if (!pixelSceneData.variants) {
 			pixelSceneData.variants = {};
 		}
-		const combinedKey = `${scene.key}/${scene.variantKey}`;
-		if (!pixelSceneData.variants[scene.variantKey] && !combinedKeys.includes(combinedKey)) {
+		const variantKey = (scene.variantKey || '').replace(/&?biome=[^&]+/, '');
+		if (!variantKey) continue;
+		const combinedKey = `${scene.key}/${variantKey}`;
+		if (!pixelSceneData.variants[variantKey] && !seen.has(combinedKey)) {
 			pixelSceneKeys.push(scene.key);
-			variantKeys.push(scene.variantKey);
-			combinedKeys.push(combinedKey);
+			variantKeys.push(variantKey);
+			seen.add(combinedKey);
 		}
 	}
 	if (pixelSceneKeys.length > 0) {
@@ -203,11 +211,36 @@ export function recolorPixelScenes(pixelSceneList) {
 	}
 }
 
-// Scene bitmaps are built in the worker (pixel_scene_generation.js), which
-// decodes the scene's pixels and visual art on its own.
+// Scene bitmaps are built by a pool of scene-only instances of the overlay
+// worker (pixel_scene_generation.js), each decoding the scenes it is asked for
+// on its own. On the shared FIFO worker they queued behind overlay builds and
+// the recolor job (seconds at load) and filled the view in one at a time. A
+// scene build needs only the scene metadata and the settings, so the pool
+// workers never get the biome data or tile layers.
+const SCENE_WORKER_COUNT = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 2));
+const sceneWorkers = Array.from({ length: SCENE_WORKER_COUNT }, (_, i) => {
+	const w = new Worker(new URL('./overlay_worker.js', import.meta.url), { type: 'module', name: `scene-${i}` });
+	w.addEventListener('error', (e) =>
+		console.error(`scene worker ${i} failed:`, e.message ?? '(no message)', e.filename ?? '', e.lineno ?? ''));
+	w.inflight = 0;
+	w.onmessage = (e) => {
+		const msg = e.data;
+		if (msg.type === 'JOB_START') renderTrace.stage(msg.traceId, 'running');
+		else if (msg.type === 'JOB_DONE') renderTrace.end(msg.traceId, { workerMs: msg.ms });
+		else if (msg.type === 'SCENE_BITMAPS') {
+			w.inflight = Math.max(0, w.inflight - 1);
+			if (putPixelSceneBitmaps(msg)) app.draw();
+		}
+	};
+	return w;
+});
+
 setPixelSceneBitmapRequester((request) => {
 	request.traceId = renderTrace.begin('scene', `${request.key}${request.textured ? ' (tex)' : ''}`, 'pixelScenes');
-	overlayWorker.postMessage(request);
+	let w = sceneWorkers[0];
+	for (const s of sceneWorkers) if (s.inflight < w.inflight) w = s;
+	w.inflight++;
+	w.postMessage(request);
 });
 
 export function getOrGenerateOverlay(pw, pwVertical) {
