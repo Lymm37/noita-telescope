@@ -1878,6 +1878,7 @@ export const app = {
 			"orb_room": await loadPNGBitmap('../data/biome_maps/custom/orb_room.png'),
 			"cursed_orb_room": await loadPNGBitmap('../data/biome_maps/custom/cursed_orb_room.png'),
 			"echoing_spire": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire.png'),
+			"echoing_spire_snow": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire_snow.png'),
 			"echoing_spire_grass": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire_grass.png'),
 			"echoing_spire_sand": await loadPNGBitmap('../data/biome_maps/custom/echoing_spire_sand.png'),
 			"cauldron_room": await loadPNGBitmap('../data/biome_maps/custom/cauldron_room.png'),
@@ -2324,18 +2325,8 @@ export const app = {
 
 		// Echoing spire (so silly, why does this even exist? no one knows)
 		if (this.surfaceOverlayScenes) {
-			let echoingSpireScene;
-			if ((this.ngPlusCount === 0 && this.gameMode !== 'nightmare') || this.ngPlusCount === 7 || this.ngPlusCount === 28) {
-				echoingSpireScene = this.surfaceOverlayScenes['echoing_spire'];
-			}
-			else if (this.ngPlusCount === 21) {
-				echoingSpireScene = this.surfaceOverlayScenes['echoing_spire_sand'];
-			}
-			else {
-				// Hills2 and hills will just render the same, so we don't need one specific to NG+14
-				echoingSpireScene = this.surfaceOverlayScenes['echoing_spire_grass'];
-			}
-			if (echoingSpireScene) {
+			if (this.surfaceOverlayScenes['echoing_spire'] && this.surfaceOverlayScenes['echoing_spire_snow'] && this.surfaceOverlayScenes['echoing_spire_sand'] && this.surfaceOverlayScenes['echoing_spire_grass']) {
+				let echoingSpireScene;
 				const viewArea = this.getViewArea();
 				const minPW = Math.floor(viewArea.left / (512 * this.w));
 				const maxPW = Math.floor(viewArea.right / (512 * this.w));
@@ -2344,9 +2335,28 @@ export const app = {
 				for (let pwX = minPW; pwX <= maxPW; pwX++) {
 					for (let verticalSegment = minVerticalSegment; verticalSegment <= maxVerticalSegment; verticalSegment++) {
 						if (verticalSegment > 0 || verticalSegment < -pwX+1) continue;
+						if (verticalSegment < 0) {
+							// Negative ones are actually always snowy
+							echoingSpireScene = this.surfaceOverlayScenes['echoing_spire'];
+						}
+						else {
+							// And the others have a gap for cloudscape
+							if ((this.ngPlusCount === 0 && this.gameMode !== 'nightmare') || this.ngPlusCount === 7 || this.ngPlusCount === 28) {
+								echoingSpireScene = this.surfaceOverlayScenes['echoing_spire_snow'];
+							}
+							else if (this.ngPlusCount === 21) {
+								echoingSpireScene = this.surfaceOverlayScenes['echoing_spire_sand'];
+							}
+							else {
+								// Hills2 and hills will just render the same, so we don't need one specific to NG+14
+								echoingSpireScene = this.surfaceOverlayScenes['echoing_spire_grass'];
+							}
+						}
 						const posX = (getWorldCenter(this.isNGP, this.gameMode) - 25) * 512 + pwX * 512 * this.w - this.pw * 512 * this.w;
 						const posY = verticalSegment * 512 * 25 - 11*512 - this.pwVertical * 24576;
-						this.ctx.drawImage(echoingSpireScene, posX, posY, 512, 512*25);
+						if (echoingSpireScene) {
+							this.ctx.drawImage(echoingSpireScene, posX, posY, 512, 512*25);
+						}
 					}
 				}
 			}
