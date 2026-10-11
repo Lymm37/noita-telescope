@@ -10,10 +10,16 @@ import { unlockedSpells } from './unlocks.js';
 export const worldWorker = new Worker(new URL('./world_worker.js', import.meta.url), { type: 'module' });
 
 // Keep track of pending generation requests so we don't spam the worker
-const pendingGenerateRequests = new Set(); 
+const pendingGenerateRequests = new Set();
+let resolveWorldWorkerReady;
+export const worldWorkerReady = new Promise(resolve => { resolveWorldWorkerReady = resolve; });
 
 worldWorker.onmessage = async (e) => {
     const msg = e.data;
+    if (msg.type === 'READY') {
+        resolveWorldWorkerReady();
+        return;
+    }
 
     if (msg.type === 'STATUS') {
         app.setLoading(true, msg.msg);

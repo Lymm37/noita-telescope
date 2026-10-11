@@ -6,7 +6,7 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { GENERATOR_CONFIG } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive, isGlobalSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, isGlobalSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence, searchWorkerReady } from './search_manager.js';
 import { TIME_UNTIL_LOADING, POI_RADIUS, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { getBiomeAtWorldCoordinates, getMaterialAtWorldCoordinates, getWorldCenter, getWorldSize, getPWLimit, MATERIAL_CONTAINER_TYPES } from './utils.js';
 import { renderWallMessages } from './wall_messages.js';
@@ -18,7 +18,7 @@ import { getPixelSceneCanvas, loadPixelSceneData, reloadPixelSceneCache, PIXEL_S
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings, updateSpellFlags, updateSpecialFlags } from './settings.js';
-import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
+import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker, worldWorkerReady } from './world_manager.js';
 import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, invalidatePendingOverlays } from './overlay_manager.js';
 import { getBiomeModifiers, getStartingWeather } from './misc_generation.js';
 import { getCauldronState, getCauldronVariation } from './cauldron.js';
@@ -154,6 +154,7 @@ export const app = {
 
 	worldsInView: new Set(),
 	gameMode: 'normal', // or nightmare
+	pendingURLSearch: null,
 
 	init() {
 		this.canvas = document.getElementById('canvas');
@@ -1683,6 +1684,7 @@ export const app = {
 		document.getElementById('ng').disabled = false;
 		document.getElementById('pw').disabled = false;
 		document.getElementById('pw-vertical').disabled = false;
+		this.runURLSearch();
 	},
 
 	loadWorld(pwX, pwY) {
@@ -3219,9 +3221,37 @@ export const app = {
 		}
 	},
 
+	// Consume the URL search once the requested seed/world is ready. A newer
+	// seed or an edited query must not trigger the previous link's search.
+	runURLSearch() {
+		const request = this.pendingURLSearch;
+		if (!request) return;
+		this.pendingURLSearch = null;
+		if (this.seed !== request.seed || this.ngPlusCount !== request.ng
+			|| this.gameMode !== request.gameMode
+			|| document.getElementById('search-input').value !== request.query
+			|| document.getElementById('local-search-mode').value !== 'off') return;
+		performSearch(true, true);
+		this.draw();
+	},
+
+	syncSearchQueryToURL() {
+		const query = document.getElementById('search-input').value;
+		const url = new URL(window.location.href);
+		if (query.trim()) url.searchParams.set('q', query);
+		else url.searchParams.delete('q');
+		if (url.href !== window.location.href) window.history.replaceState(null, '', url);
+	},
+
 	async loadFromURLParams() {
 		const params = new URLSearchParams(window.location.search);
+		const query = params.get('q');
+		if (query !== null) document.getElementById('search-input').value = query;
+		this.pendingURLSearch = null;
 		if (!params.has('seed')) return;
+		// Module workers can still be loading their imports when a cached page
+		// is ready to generate. Wait for the handler before sending seed/search data.
+		if (query?.trim()) await Promise.all([searchWorkerReady, worldWorkerReady]);
 
 		async function parseParam(paramName, min, max) {
 			if (!params.has(paramName)) return;
@@ -3258,6 +3288,10 @@ export const app = {
 		if (gameMode === 'normal' || gameMode === 'nightmare') {
 			document.getElementById('game-mode').value = gameMode;
 		}
+		this.pendingURLSearch = query?.trim() ? {
+			query, seed: seedInt, ng: ngInt ?? 0,
+			gameMode: document.getElementById('game-mode').value,
+		} : null;
 		this.saveSettings();
 		this.generate(true, true);
 	}

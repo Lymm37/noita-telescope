@@ -66,3 +66,6 @@ function generatePWWorker() {
 		pixelScenes: finalPixelScenes
 	});
 }
+
+// URL searches may request another world immediately after the first is ready.
+self.postMessage({ type: 'READY' });

@@ -484,3 +484,5 @@ function findNextLocalWorker() {
         }
     }
 }
+// Announce readiness only after module imports and the message handler are ready.
+self.postMessage({ type: 'READY' });
