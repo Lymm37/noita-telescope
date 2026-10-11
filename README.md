@@ -59,6 +59,20 @@ If you prefer to run this tool locally instead of using the web version, assumin
 3.  **Search:** Enter a search term and click search to find it in the current world. Open the "Advanced Filters" toggle to look for specific wands (e.g., to find wands with a specific always casts or stat range). Matching PoIs will be displayed at a larger scale that changes with zoom so that they are easily visible anywhere on the map. You can use the search menu to navigate between matches. When searching over multiple PWs, navigation will automatically continue to scan through PWs until a match is found. For local search, if the local search mode is selected, clicking somewhere on the map will start a search at that pixel and spiral outwards until finding a match.
 4.  **Interact:** Use the mouse to drag the map and the scroll wheel to zoom. Mouse over a PoI to see the details, click on it to pin it (only one pin supported). Container-type PoIs (holy mountain shops, great treasure chests, potion labs, etc.) may have a lot of items; you can scroll within the pinned tooltip. New regions of the map will be loaded as you pan around the map.
 
+### Search links
+
+Pass `seed` and `q` to open a seed and run a search, for example:
+
+`?seed=12333&q=chainsaw`
+
+The query fills the search box and starts once the initial world is ready,
+using the current search options (including parallel-world range and filters).
+Results use the normal search navigation. Existing `ng`, `gamemode`, and
+`seed=daily` parameters continue to work. A missing or blank `q` does not start
+a search; `q` without a seed only fills the box. Queries are URL-encoded, so
+spaces, Unicode and reserved characters are preserved. Starting another search
+updates `q` without adding a browser history entry.
+
 ### Search Filters
 The search tool supports a variety of filtering options. In the main search field, enter a spell, item, or material you are looking for. This supports a limited number of aliases for common names, but does not currently include detailed search conditions, beyond things like a comma-separated list of spells to find wands with all of them in any order. By default, searching will only search within the current world, near the center of the map. Opening the advanced search will allow for more options:
 *   **Wand Name:** Generally hidden in the game UI, aside from some special wands, but you can search generated wand names and they will display in this tool. This search field can be used to find custom wand names like "Varpuluuta" for the broom wand.

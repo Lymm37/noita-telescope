@@ -6,7 +6,7 @@ import { toggleTooltipPinned, updateTooltip } from './tooltip_generator.js';
 import { BIOME_COLORS_WITH_TERRAIN, FILL_LAYER_MATERIALS, GENERATOR_CONFIG, SCENE_ONLY_COLORS } from './generator_config.js';
 import { generateBiomeTiles } from './tile_generator.js';
 import { scanSpawnFunctions, getSpecialPoIs, prescanSpawnFunctions } from './poi_scanner.js';
-import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence } from './search_manager.js';
+import { performSearch, navigateSearch, cancelSearch, isSearchActive, clearHighlights, performLocalSearch, syncSearchWorkerData, activeLocalSearchArea, syncSettingsToSearchWorker, continueSearchSequence, searchWorkerReady } from './search_manager.js';
 import { TIME_UNTIL_LOADING, CHUNK_SIZE, BIOME_EDGE_NOISE_PADDING_PIXELS, VISUAL_TILE_OFFSET_X, VISUAL_TILE_OFFSET_Y, MIN_CAM_Z, SKY_EXTRA_HEIGHT } from './constants.js';
 import { snapDrawImage } from './snap.js';
 import { POI_SPRITE_MAX_SCREEN_RADIUS, poiColorFor, poiRadius, poiRadiusTerms, poiSprite, tracePoiShape } from './poi_markers.js';
@@ -25,7 +25,7 @@ import { getPixelSceneAirMask, getPixelSceneCacheStats, getPixelSceneCanvas, pen
 import { addStaticPixelScenes } from './static_spawns.js';
 import { NollaPrng } from './nolla_prng.js';
 import { appSettings, updateSettings, updateSettingsFromUI, updateSpellFlags, updateSpecialFlags, RENDER_LAYERS, readRenderLayersFromUI } from './settings.js';
-import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker } from './world_manager.js';
+import { syncWorldWorkerData, getOrGenerateWorld, syncSettingsToWorldWorker, worldWorkerReady } from './world_manager.js';
 import { syncOverlayWorkerData, getOrGenerateOverlay, syncSettingsToOverlayWorker, recolorPixelScenes, invalidatePendingOverlays, requestEdgeDecalTiles, overlayQueueStats } from './overlay_manager.js';
 import { drawEdgeDecals, edgeDecalAt, invalidateEdgeDecals, pendingEdgeDecalTiles } from './edge_decal_layer.js';
 import { runRenderBenchmark } from './render_benchmark.js';
@@ -390,6 +390,7 @@ export const app = {
 
 	worldsInView: new Set(),
 	gameMode: 'normal', // or nightmare
+	pendingURLSearch: null,
 
 	// View framing from the URL (js/view_url.js): parsed at startup, applied
 	// once a world exists, then kept up to date as the camera moves.
@@ -2310,6 +2311,7 @@ export const app = {
 		// changes, PW crossings while panning) lift it at once as before.
 		if (this.initialViewSettled) {
 			this.setLoading(false);
+			this.runURLSearch();
 			return;
 		}
 		this.setLoading(true, "Preparing view...");
@@ -2318,6 +2320,7 @@ export const app = {
 		if (token === this.settleToken) {
 			this.initialViewSettled = true;
 			this.setLoading(false);
+			this.runURLSearch();
 		}
 	},
 
@@ -5037,9 +5040,37 @@ export const app = {
 		}
 	},
 
+	// Consume the URL search once the requested seed/world is ready. A newer
+	// seed or an edited query must not trigger the previous link's search.
+	runURLSearch() {
+		const request = this.pendingURLSearch;
+		if (!request) return;
+		this.pendingURLSearch = null;
+		if (this.seed !== request.seed || this.ngPlusCount !== request.ng
+			|| this.gameMode !== request.gameMode
+			|| document.getElementById('search-input').value !== request.query
+			|| document.getElementById('local-search-mode').value !== 'off') return;
+		performSearch(true, true);
+		this.draw();
+	},
+
+	syncSearchQueryToURL() {
+		const query = document.getElementById('search-input').value;
+		const url = new URL(window.location.href);
+		if (query.trim()) url.searchParams.set('q', query);
+		else url.searchParams.delete('q');
+		if (url.href !== window.location.href) window.history.replaceState(null, '', url);
+	},
+
 	async loadFromURLParams() {
 		const params = new URLSearchParams(window.location.search);
+		const query = params.get('q');
+		if (query !== null) document.getElementById('search-input').value = query;
+		this.pendingURLSearch = null;
 		if (!params.has('seed')) return;
+		// Module workers can still be loading their imports when a cached page
+		// is ready to generate. Wait for the handler before sending seed/search data.
+		if (query?.trim()) await Promise.all([searchWorkerReady, worldWorkerReady]);
 
 		async function parseParam(paramName, min, max) {
 			if (!params.has(paramName)) return;
@@ -5076,6 +5107,10 @@ export const app = {
 		if (gameMode === 'normal' || gameMode === 'nightmare') {
 			document.getElementById('game-mode').value = gameMode;
 		}
+		this.pendingURLSearch = query?.trim() ? {
+			query, seed: seedInt, ng: ngInt ?? 0,
+			gameMode: document.getElementById('game-mode').value,
+		} : null;
 		this.saveSettings();
 		this.generate(true, true);
 	}
