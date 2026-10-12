@@ -67,3 +67,6 @@ function generatePWWorker() {
 		bgSprites: scanResults.backgroundSprites
 	});
 }
+
+// URL searches may request another world immediately after the first is ready.
+self.postMessage({ type: 'READY' });

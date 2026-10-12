@@ -129,9 +129,15 @@ function getSearchFilters() {
 }
 
 const searchWorker = new Worker(new URL('./search_worker.js', import.meta.url), { type: 'module' });
+let resolveSearchWorkerReady;
+export const searchWorkerReady = new Promise(resolve => { resolveSearchWorkerReady = resolve; });
 
 searchWorker.onmessage = async (e) => {
     const msg = e.data;
+    if (msg.type === 'READY') {
+        resolveSearchWorkerReady();
+        return;
+    }
     const bgMode = isBackgroundSearchEnabled();
 
     if (msg.type === 'STATUS' && searchActive) {
@@ -286,6 +292,7 @@ async function updateUIForMatches() {
 export async function performSearch(allowIterative = true, autoNavigate = true) {
     if (!SEARCH_ENABLED) return;
     if (searchActive && allowIterative) return;
+    app.syncSearchQueryToURL();
     
     const searchAllPW = allowIterative && document.getElementById('search-all-pw').checked;
     // Default value of 6 here was causing issues with trying to search only verticals with limit 0
