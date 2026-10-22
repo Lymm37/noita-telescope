@@ -84,7 +84,7 @@ function getSearchFilters() {
     const queryList = searchInput
         .split(',')
         .flatMap(query => {
-            const normalizedQuery = query.trim().toLowerCase().replace('_', ' ');
+            const normalizedQuery = query.trim().toLowerCase().replace(/_/g, ' ');
             if (!/\b(missing|progress)\b/.test(normalizedQuery)) return normalizedQuery ? [normalizedQuery] : [];
 
             const remainingQuery = normalizedQuery.replace(/\b(missing|progress)\b/g, '').trim();
