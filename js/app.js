@@ -369,7 +369,7 @@ export const app = {
 		document.getElementById('exclude-taikasauva').onchange = () => {
 			this.excludeTaikasauva = document.getElementById('exclude-taikasauva').checked;
 			this.saveSettings();
-			this.generate(false, true);
+			this.generate(true, true);
 		};
 		document.getElementById('enable-edge-noise').onchange = () => {
 			this.tileOverlaysByPW = {}; // Clear cached overlays so they will be regenerated with the new mode
