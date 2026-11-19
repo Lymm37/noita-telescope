@@ -731,6 +731,7 @@ export function spawnSwitch(biomeData, biomeName, functionIndex, ws, ng, x, y, s
 			let entities = spawnEntities(ws, ng, x, y, spawnList, gameMode, perks);
 			if (entities && entities.length > 0) {
 				if (biomeName === "wandcave") {
+					if (appSettings.excludeTaikasauva) return null;
 					// Taikasauva, special case
 					let px = roundHalfOfEven(entities[entities.length-1].x);
 					let py = roundHalfOfEven(entities[entities.length-1].y);
