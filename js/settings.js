@@ -53,7 +53,7 @@ export function updateSettingsFromUI() {
 		recolorMaterials: document.getElementById('recolor-materials')?.checked || true,
 		clearSpawnPixels: document.getElementById('clear-spawn-pixels')?.checked || false,
 		visitedCoalmineAltShrine: document.getElementById('visited-coalmine-alt-shrine')?.checked || false,
-		excludeTaikasauva: document.getElementById('exclude-taikasauva')?.checked || true,
+		excludeTaikasauva: document.getElementById('exclude-taikasauva')?.checked ?? false,
 		excludeEdgeCases: document.getElementById('exclude-edge-cases')?.checked || false,
 		biomeOverlayMode: document.getElementById('debug-biome-overlay-mode')?.value || 'cheap',
 		showEnemies: document.getElementById('show-enemy-spawns')?.checked || false,
