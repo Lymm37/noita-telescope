@@ -315,6 +315,10 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
 
         const offsetY = (conf.offsetY !== undefined) ? conf.offsetY : DEFAULT_OFFSET_Y;
         const { regions, bboxes } = findBiomeRegions(biomePixels, width, height, conf.color);
+        // The game paints same-biome regions in discovery order: an earlier
+        // region claims its entire bbox, a later region only paints the
+        // biome-colored cells of its bbox that aren't already covered.
+        const paintedBoxes = [];
         
         for (let i = 0; i < regions.length; i++) {
             if (bboxes[i][3] - bboxes[i][1] > 20 && bboxes[i][2] - bboxes[i][0] > 20) console.log(`Generated 20+ chunk region for ${biomeName}: ${bboxes[i][0]},${bboxes[i][1]} to ${bboxes[i][2]},${bboxes[i][3]}`);
@@ -398,7 +402,21 @@ export async function generateBiomeTiles(biomePixels, width, height, biomeConfig
                 canvas.width = mapW; canvas.height = renderH;
                 const ctx = canvas.getContext('2d');
                 const imgData = ctx.createImageData(mapW, renderH);
-                const validChunks = new Set(regions[i].map(p => `${p[0]},${p[1]}`));
+                // Visible chunks = biome-colored cells of this bbox not already
+                // claimed by an earlier-discovered same-biome region's bbox.
+                const [bx0, by0, bx1, by1] = bboxes[i];
+                const validChunks = new Set();
+                for (let cy = by0; cy <= by1; cy++) {
+                    for (let cx = bx0; cx <= bx1; cx++) {
+                        if (biomePixels[cy * width + cx] !== conf.color) continue;
+                        let covered = false;
+                        for (const [ex0, ey0, ex1, ey1] of paintedBoxes) {
+                            if (cx >= ex0 && cx <= ex1 && cy >= ey0 && cy <= ey1) { covered = true; break; }
+                        }
+                        if (!covered) validChunks.add(`${cx},${cy}`);
+                    }
+                }
+                paintedBoxes.push(bboxes[i]);
 
                 // Masking off sections which aren't in valid chunks (writes to buffer and imgData)
                 applyMasking(rawResult.buffer, imgData, mapW, bboxes[i], validChunks);
